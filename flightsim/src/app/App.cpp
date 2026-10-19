@@ -17,7 +17,7 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
-#include "hud/Renderer2D.h"           // H1
+#include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "platform/Window.h"
 

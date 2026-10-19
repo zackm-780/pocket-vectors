@@ -52,8 +52,8 @@ constexpr Color kBlack{0, 0, 0};
 // Virtual canvas <-> drawable pixels (pure math, unit-tested for 4:3 and 16:9).
 struct HudView {
     int drawableW = 640, drawableH = 480;
-    float scale = 1.0f;          // pixels per virtual px
-    float virtualWidth = 640.0f; // = drawableW / scale
+    float scale = 1.0f;           // pixels per virtual px
+    float virtualWidth = 640.0f;  // = drawableW / scale
 
     static HudView fromDrawable(int widthPx, int heightPx);
     // Pixel coordinates use the top-left origin (row 0 = top), like the virtual canvas.
@@ -117,7 +117,9 @@ public:
     float rightX() const { return view_.virtualWidth; }
     float centerX() const { return view_.virtualWidth * 0.5f; }
     // Maps an x of a 640-wide design to the canvas keeping it centered.
-    float centered(float x640) const { return x640 + (view_.virtualWidth - kHudDesignWidthPx) * 0.5f; }
+    float centered(float x640) const {
+        return x640 + (view_.virtualWidth - kHudDesignWidthPx) * 0.5f;
+    }
 
     // ---- state ----------------------------------------------------------------------------
     void setLineWidth(float widthPx) { lineWidthPx_ = widthPx; }
@@ -142,8 +144,7 @@ public:
     // ---- primitives (all coordinates in the current transform) ---------------------------------
     void line(float x0, float y0, float x1, float y1, Color c, LineCap cap = LineCap::Butt);
     void dashedLine(float x0, float y0, float x1, float y1, float dashPx, float gapPx, Color c);
-    void polyline(const Pt2* pts, int n, Color c, bool closed = false,
-                  LineCap cap = LineCap::Butt);
+    void polyline(const Pt2* pts, int n, Color c, bool closed = false, LineCap cap = LineCap::Butt);
     void arc(float cx, float cy, float r, float a0Rad, float a1Rad, Color c);
     void circle(float cx, float cy, float r, Color c);
     void fillCircle(float cx, float cy, float r, Color c, FillMode mode = FillMode::FrontOutlined);
@@ -154,8 +155,8 @@ public:
     void fillPolygon(const Pt2* pts, int n, Color c, FillMode mode = FillMode::Back);  // convex
 
     // Stroke text. (x, y) is the anchor for the given alignment (see StrokeFont).
-    void text(float x, float y, const char* utf8, TextSize size, Color c,
-              HAlign h = HAlign::Left, VAlign v = VAlign::Baseline);
+    void text(float x, float y, const char* utf8, TextSize size, Color c, HAlign h = HAlign::Left,
+              VAlign v = VAlign::Baseline);
 
     // ---- introspection (tests, debugging) ---------------------------------------------------
     const Renderer2DStats& stats() const { return stats_; }
@@ -171,7 +172,8 @@ public:
 
 private:
     struct Affine {
-        float a = 1, b = 0, c = 0, d = 1, tx = 0, ty = 0;  // x' = a x + c y + tx, y' = b x + d y + ty
+        float a = 1, b = 0, c = 0, d = 1, tx = 0,
+              ty = 0;  // x' = a x + c y + tx, y' = b x + d y + ty
     };
     struct ClipRect {
         float x0, y0, x1, y1;

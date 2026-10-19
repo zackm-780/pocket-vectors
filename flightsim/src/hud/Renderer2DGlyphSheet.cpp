@@ -14,12 +14,12 @@ const char* const kGlyphLines[] = {
     "0123456789",
     ".,:/-+" FSIM_SYM_DEGREE "%<>[]()*#'\"=_!?|",
     FSIM_SYM_ARROW_UP FSIM_SYM_ARROW_DOWN FSIM_SYM_ARROW_LEFT FSIM_SYM_ARROW_RIGHT
-        FSIM_SYM_TRIANGLE_UP FSIM_SYM_TRIANGLE_DOWN FSIM_SYM_DIAMOND " " FSIM_SYM_COPYRIGHT
-        " ~",  // '~' is intentionally unknown: shows the fallback box
+        FSIM_SYM_TRIANGLE_UP FSIM_SYM_TRIANGLE_DOWN FSIM_SYM_DIAMOND
+    " " FSIM_SYM_COPYRIGHT " ~",  // '~' is intentionally unknown: shows the fallback box
 };
 
-const char kHudSample[] = "IAS 132  ALT 3200  HDG 271" FSIM_SYM_DEGREE "  FLAP 15  GEAR DN  TRIM "
-                          FSIM_SYM_ARROW_UP " +0.12";
+const char kHudSample[] = "IAS 132  ALT 3200  HDG 271" FSIM_SYM_DEGREE
+                          "  FLAP 15  GEAR DN  TRIM " FSIM_SYM_ARROW_UP " +0.12";
 
 void glyphBlock(Renderer2D& r, float x, float& y, TextSize size, Color c) {
     const float cap = StrokeFont::capHeightPx(size);
@@ -36,14 +36,15 @@ void shapesDemo(Renderer2D& r, float x0, float y0) {
     // Line widths 1..4 with square vs butt caps.
     for (int i = 0; i < 4; ++i) {
         r.setLineWidth(1.0f + static_cast<float>(i));
-        r.line(x0, y0 + 6.0f + 9.0f * static_cast<float>(i), x0 + 70, y0 + 6.0f + 9.0f * static_cast<float>(i), g);
+        r.line(x0, y0 + 6.0f + 9.0f * static_cast<float>(i), x0 + 70,
+               y0 + 6.0f + 9.0f * static_cast<float>(i), g);
     }
     r.setLineWidth(2.0f);
     r.line(x0 + 80, y0 + 4, x0 + 120, y0 + 4, g, LineCap::Square);
     r.dashedLine(x0 + 80, y0 + 14, x0 + 150, y0 + 14, 6, 4, g);
 
     // Polyline with joins (acute, right, obtuse).
-    const Pt2 zig[] = {{x0 + 160, y0 + 34}, {x0 + 176, y0 + 4}, {x0 + 188, y0 + 34},
+    const Pt2 zig[] = {{x0 + 160, y0 + 34}, {x0 + 176, y0 + 4},  {x0 + 188, y0 + 34},
                        {x0 + 212, y0 + 34}, {x0 + 226, y0 + 14}, {x0 + 250, y0 + 14}};
     r.polyline(zig, 6, g);
 
@@ -56,9 +57,11 @@ void shapesDemo(Renderer2D& r, float x0, float y0) {
     // Rects and triangles (bugs and pointers).
     r.fillRect(x0 + 120, y0 + 58, 40, 24, g.withAlpha(0.35f));
     r.strokeRect(x0 + 120, y0 + 58, 40, 24, g);
-    r.fillTriangle({x0 + 180, y0 + 82}, {x0 + 196, y0 + 82}, {x0 + 188, y0 + 62}, g, FillMode::FrontOutlined);
+    r.fillTriangle({x0 + 180, y0 + 82}, {x0 + 196, y0 + 82}, {x0 + 188, y0 + 62}, g,
+                   FillMode::FrontOutlined);
     r.strokeTriangle({x0 + 206, y0 + 62}, {x0 + 222, y0 + 62}, {x0 + 214, y0 + 82}, colors::kAmber);
-    r.fillTriangle({x0 + 236, y0 + 82}, {x0 + 252, y0 + 82}, {x0 + 244, y0 + 62}, colors::kRed, FillMode::FrontOutlined);
+    r.fillTriangle({x0 + 236, y0 + 82}, {x0 + 252, y0 + 82}, {x0 + 244, y0 + 62}, colors::kRed,
+                   FillMode::FrontOutlined);
 
     // Pitch-ladder style: rotated, dashed lines inside a clip rect.
     const float cx = x0 + 90, cy = y0 + 148;
@@ -83,7 +86,8 @@ void shapesDemo(Renderer2D& r, float x0, float y0) {
     r.popClip();
 }
 
-void outlineComparison(Renderer2D& r, float x, float y, float w, float h, Color bg, const char* tag) {
+void outlineComparison(Renderer2D& r, float x, float y, float w, float h, Color bg,
+                       const char* tag) {
     r.fillRect(x, y, w, h, bg);
     const Color g = colors::kHudGreen;
     float yy = y + 14;

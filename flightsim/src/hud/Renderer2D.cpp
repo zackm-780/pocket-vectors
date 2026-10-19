@@ -12,14 +12,15 @@ namespace {
 
 constexpr float kPi = 3.14159265358979f;
 
-constexpr char kVertexShader[] = "attribute vec2 aPos;\n"
-                                 "attribute vec4 aColor;\n"
-                                 "uniform vec4 uScale;\n"  // x = 2/virtualWidth, y = 2/480
-                                 "varying vec4 vColor;\n"
-                                 "void main() {\n"
-                                 "  vColor = aColor;\n"
-                                 "  gl_Position = vec4(aPos.x * uScale.x - 1.0, 1.0 - aPos.y * uScale.y, 0.0, 1.0);\n"
-                                 "}\n";
+constexpr char kVertexShader[] =
+    "attribute vec2 aPos;\n"
+    "attribute vec4 aColor;\n"
+    "uniform vec4 uScale;\n"  // x = 2/virtualWidth, y = 2/480
+    "varying vec4 vColor;\n"
+    "void main() {\n"
+    "  vColor = aColor;\n"
+    "  gl_Position = vec4(aPos.x * uScale.x - 1.0, 1.0 - aPos.y * uScale.y, 0.0, 1.0);\n"
+    "}\n";
 
 constexpr char kFragmentShader[] = "varying vec4 vColor;\n"
                                    "void main() { gl_FragColor = vColor; }\n";
@@ -279,8 +280,10 @@ void Renderer2D::emitStroke(std::vector<Vertex>& out, const Pt2* pts, int n, boo
     if (m == 1) {
         if (cap == LineCap::Square) {  // a dot
             const Pt2 p = scratch2_[0];
-            emitTriangle(out, {p.x - hw, p.y - hw}, {p.x + hw, p.y - hw}, {p.x + hw, p.y + hw}, rgba);
-            emitTriangle(out, {p.x - hw, p.y - hw}, {p.x + hw, p.y + hw}, {p.x - hw, p.y + hw}, rgba);
+            emitTriangle(out, {p.x - hw, p.y - hw}, {p.x + hw, p.y - hw}, {p.x + hw, p.y + hw},
+                         rgba);
+            emitTriangle(out, {p.x - hw, p.y - hw}, {p.x + hw, p.y + hw}, {p.x - hw, p.y + hw},
+                         rgba);
         }
         return;
     }
@@ -411,11 +414,13 @@ void Renderer2D::arc(float cx, float cy, float r, float a0Rad, float a1Rad, Colo
     }
     const bool full = std::fabs(sweep) >= 2.0f * kPi - 1e-4f;
     if (full) local_.pop_back();
-    strokePath(local_.data(), static_cast<int>(local_.size()), full, lineWidthPx_, LineCap::Butt,
-               c, true);
+    strokePath(local_.data(), static_cast<int>(local_.size()), full, lineWidthPx_, LineCap::Butt, c,
+               true);
 }
 
-void Renderer2D::circle(float cx, float cy, float r, Color c) { arc(cx, cy, r, 0.0f, 2.0f * kPi, c); }
+void Renderer2D::circle(float cx, float cy, float r, Color c) {
+    arc(cx, cy, r, 0.0f, 2.0f * kPi, c);
+}
 
 void Renderer2D::fillCircle(float cx, float cy, float r, Color c, FillMode mode) {
     const float step = 2.0f * std::acos(std::max(0.0f, 1.0f - 0.2f / std::max(r, 0.5f)));
@@ -455,8 +460,8 @@ void Renderer2D::fillPolygon(const Pt2* pts, int n, Color c, FillMode mode) {
 
 // ---- text ----------------------------------------------------------------------------------
 
-void Renderer2D::drawGlyphStrokes(const Glyph& g, float originX, float capTopY, float unit,
-                                  Color c, float widthPx) {
+void Renderer2D::drawGlyphStrokes(const Glyph& g, float originX, float capTopY, float unit, Color c,
+                                  float widthPx) {
     Pt2 pts[32];
     for (int s = 0; s < g.strokeCount; ++s) {
         const GlyphStroke& st = g.strokes[s];
