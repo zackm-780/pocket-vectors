@@ -112,8 +112,12 @@ Magnetic is used only for display and user input, converted with `MagVar` (N2, f
 
 ## 5. Shared contracts (`src/core/`)
 
-WP-00 creates these headers. The sketches below are normative for names, units and semantics, and
-WP-00 may add helpers. After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
+WP-00 created these headers. **The headers in `src/core/` are now authoritative**; the sketches
+below show names, units and semantics. WP-00 also added `core/SimTime.h` (`kSimHz`, `kSimDtS`,
+`kMaxFrameDtS`), `core/Assert.h`, the `LatLon` / `Vec3d` / `Mat3d` types in `Geo.h`
+(`crossTrackM` and `alongTrackM` take `LatLon`), `wrap2Pi` / `wrap180`,
+`AircraftProfile::eyeOffsetBodyM[3]` + `hasEyeOffset`, and `FlatTerrain` / `SyntheticNavDb`
+(with `findRunway()`). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
 must have safe defaults, so a zero-initialised value means "nothing / invalid".
 
 ```cpp
@@ -396,6 +400,21 @@ struct ActionState {
   `fcs/*-pos-norm`, `gear/*`, `propulsion/engine[n]/*`.
   **These names are starting points.** F1 must verify every one against JSBSim v1.3.3 and each
   model, and record the final mapping in `sim/README.md`.
+- **Sign conventions (verified by WP-00):** JSBSim `fcs/elevator-cmd-norm` + = **nose down** and
+  `fcs/rudder-cmd-norm` + = **yaw left**, the opposite of ours. Aileron + = roll right in both, and
+  `fcs/steer-cmd-norm` + = right. `FlightModel` converts at the boundary (elevator, rudder and their
+  trims are negated). No other module may talk to JSBSim properties directly.
+- **Latitude:** set the IC with `SetGeodLatitudeRadIC`. `SetLatitudeDegIC` is geocentric and puts a
+  40° start about 0.19° off.
+- **Trim recipe (verified for c172p and 737):** settle flaps and gear with `SetHoldDown(true)`
+  before trimming (737 flaps take about 25 s). `DoTrim(tFull)` already writes the elevator trim into
+  `fcs/pitch-trim-cmd-norm`, so only the trimmed aileron and rudder are moved into the roll and yaw
+  trims. Apply the IC wind *after* the speed, and re-trim with a nudged IC speed until IAS is within
+  0.3 kt of the target.
+- **Weight on wheels:** `wowAny` and `wowAll` count wheel (bogey) contact points only. Contact by any
+  non-wheel point is a structure strike, which sets `crashed`.
+- **Stock-model quirks:** the 737 binds input sockets 5137 and 5139, and the c310 opens output
+  sockets 1138 and 1139. F2 removes these through `assets/jsbsim-overlay/`.
 - **Ground:** a custom `JSBSim::FGGroundCallback` (F3) answers from `TerrainQuery`, including
   runway flattening. The default before F3 lands is flat ground at the scenario elevation.
 - **Start conditions** (F1): runway (on the threshold, brakes set), final (N NM out on the 3°
@@ -441,21 +460,27 @@ Scenario file:
 aircraft = c172p
 airport = XTST
 runway = 27
-start = final            ; runway | final | cruise
-distance_nm = 6          ; final only
-altitude_ft = 0          ; cruise only (0 = profile cruise altitude)
+; start: runway | final | cruise
+start = final
+; distance_nm: final only. altitude_ft: cruise only (0 = profile cruise altitude)
+distance_nm = 6
+altitude_ft = 0
 time_utc = 2026-06-21T18:00:00
 [wind]
 from_true_deg = 270
 speed_kt = 10
-[inputs]                 ; optional timeline "t_s = command value"
+; optional timeline "t_s = command value"
+[inputs]
 0.0  = throttle 1.0
 12.0 = elevator 0.3
-[autopilot]              ; optional
+; optional
+[autopilot]
 engage = hdg alt
 hdg_bug_mag_deg = 270
 alt_bug_ft = 4000
 ```
+INI files have **no inline comments**: a comment is a whole line starting with `;` or `#`
+(DATA §4.1). Values are verbatim UTF-8.
 
 ## 10. Error handling and logging
 

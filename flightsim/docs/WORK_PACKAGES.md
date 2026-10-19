@@ -97,7 +97,7 @@ graph LR
 `.github/workflows/ci.yml`.
 
 **Deliverables**
-1. CMake (≥ 3.16, C++17): targets `flightsim` and `flightsim_tests`. FetchContent for JSBSim **v1.3.3**
+1. CMake (≥ 3.18, which JSBSim requires; C++17): targets `flightsim` and `flightsim_tests`. FetchContent for JSBSim **v1.3.3**
    (shared library, Python/docs/tests off), doctest, stb_image_write. SDL2 via `find_package`.
    `-Wall -Wextra` on our code (not deps); `FSIM_WERROR=ON` in CI.
 2. A runtime layout step that copies `aircraft/`, `engine/` and `systems/` from the JSBSim source

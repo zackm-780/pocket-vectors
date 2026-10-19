@@ -6,7 +6,10 @@
 - **macOS:** Xcode CLT, `brew install cmake ninja sdl2`. Uses the desktop GL 2.1 fallback.
 - **Windows:** Visual Studio 2022 + CMake, with SDL2 via vcpkg (`vcpkg install sdl2`). Uses the
   GL 2.1 fallback.
-- JSBSim, doctest and stb are fetched by CMake (network needed on the first configure).
+- CMake ≥ 3.18. JSBSim, doctest and stb are fetched by CMake (network needed on the first configure).
+- Optional and recommended when several builds run on one machine: `ccache`, enabled with
+  `-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache`. JSBSim is then
+  compiled only once.
 
 ## 2. Desktop build
 ```bash

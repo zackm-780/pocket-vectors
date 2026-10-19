@@ -14,6 +14,8 @@
 - **GL calls** only on the main thread, and only in `gfx/`, renderers, `hud/` and `ui/`.
 - Prefer plain structs and free functions over deep class hierarchies. Interfaces only where
   `core/` defines them.
+- **INI files:** comments are whole lines starting with `;` or `#`. There are no inline comments,
+  and values are verbatim UTF-8 (DATA §4.1).
 - **Python tools:** Python ≥ 3.10, type hints, `argparse` CLIs, `--help` that explains every
   option, deterministic outputs, caches in `tools/**/cache/` (git-ignored), and pinned dependencies in a
   `requirements.txt` per tool directory (`tools/terrain/`, `tools/nav/`).
