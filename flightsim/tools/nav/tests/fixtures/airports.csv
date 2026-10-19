@@ -1,0 +1,8 @@
+"id","ident","type","name","latitude_deg","longitude_deg","elevation_ft","continent","iso_country","iso_region","municipality","scheduled_service","icao_code","iata_code","gps_code","local_code","home_link","wikipedia_link","keywords"
+1,"KTST","large_airport","Test International",37.0,-122.0,100,"NA","US","US-CA","Testville","yes","KTST","TST","KTST","TST",,,
+2,"KHEL","heliport","Test Heliport",37.1,-122.1,50,"NA","US","US-CA","Testville","no",,,"KHEL","HEL",,,
+3,"KCLO","closed","Closed Field",37.2,-122.2,50,"NA","US","US-CA","Testville","no",,,,"CLO",,,
+4,"KGRS","small_airport","Grass Strip",40.0,-100.0,2000,"NA","US","US-NE","Nowhere","no",,,"KGRS","GRS",,,
+5,"KSWP","seaplane_base","Seaplane Base",45.0,-120.0,10,"NA","US","US-OR","Lake","no",,,"KSWP","SWP",,,
+6,"KSML","small_airport","Small Field",41.0,-101.0,500,"NA","US","US-NE","Smalltown","no",,,"KSML","SML",,,
+7,"KBAL","balloonport","Balloon Port",42.0,-102.0,500,"NA","US","US-NE","Up","no",,,,"BAL",,,

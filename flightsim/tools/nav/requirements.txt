@@ -1,0 +1,2 @@
+# tools/nav uses only the Python standard library (Python >= 3.10).
+# No third-party packages are required to build or validate the nav database.

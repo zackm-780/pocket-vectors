@@ -1,0 +1,11 @@
+"id","airport_ref","airport_ident","length_ft","width_ft","surface","lighted","closed","le_ident","le_latitude_deg","le_longitude_deg","le_elevation_ft","le_heading_degT","le_displaced_threshold_ft","he_ident","he_latitude_deg","he_longitude_deg","he_elevation_ft","he_heading_degT","he_displaced_threshold_ft"
+1,1,"KTST",7300,150,"ASPH-G",1,0,"1L",36.99,-122.0,90,0,500,"19R",37.01,-122.0,110,180,
+2,1,"KTST",5000,100,"CON",1,0,"10",,,,100,,"28",,,,280,
+3,1,"KTST",3000,75,"ASP",0,1,"5",,,,,,"23",,,,,
+4,4,"KGRS",3000,60,"TURF",0,0,"09",,,,,,"27",,,,,
+5,5,"KSWP",4000,200,"WATER",0,0,"13",45.0,-120.0,10,130,,"31",,,,,
+6,6,"KSML",4000,60,"GVL",0,0,"18",40.99,-101.0,500,,,"36",41.01,-101.0,500,,
+7,6,"KSML",5000,100,"ASP",1,0,"09",,,,90,,"27",,,,270,
+8,6,"KSML",3000,100,"TURF",0,0,"09",,,,,,"27",,,,,
+9,6,"KSML",2000,50,"DIRT",0,0,"N",,,,,,"S",,,,,
+10,2,"KHEL",50,50,"CON",0,0,"H1",,,,,,,,,,,
