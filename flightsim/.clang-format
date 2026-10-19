@@ -1,0 +1,17 @@
+# Repo style (docs/CONVENTIONS.md section 1): 4-space indent, 100 columns, attached braces.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AlignAfterOpenBracket: Align
+BreakBeforeBraces: Attach
+IncludeBlocks: Preserve
+SortIncludes: CaseSensitive
+NamespaceIndentation: None
+SpacesBeforeTrailingComments: 2
+ReflowComments: false

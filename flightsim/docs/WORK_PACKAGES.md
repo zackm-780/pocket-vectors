@@ -89,7 +89,7 @@ graph LR
 ---
 
 ## WP-00: Foundation skeleton
-**Status:** in progress (wp/WP-00-foundation) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** ARCHITECTURE (all), CONVENTIONS, BUILD_AND_DEPLOY §1–4
+**Status:** done (merged wp/WP-00-foundation) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** ARCHITECTURE (all), CONVENTIONS, BUILD_AND_DEPLOY §1–4
 
 **Owns:** `flightsim/CMakeLists.txt`, `flightsim/cmake/` (except the aarch64 toolchain, which P1 owns),
 `src/main.cpp`, `src/core/`, `src/app/`, `src/platform/`, `src/gfx/` (base files), minimal
