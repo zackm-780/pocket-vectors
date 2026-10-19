@@ -19,8 +19,20 @@ struct PilotTuning {
     float reverserMaxThrottleNorm = 0.05f;  // "idle" for the reverser rule
 };
 
+// P3: user stick tuning from settings.ini, applied on top of the input system's deadzone/expo.
+// sens scales the deflection (result clamped to -1..1); expo 0 = linear, 1 = pure cubic.
+struct StickTuning {
+    float pitchSens = 1.0f, rollSens = 1.0f, rudderSens = 1.0f;
+    float pitchExpo = 0.0f, rollExpo = 0.0f, rudderExpo = 0.0f;
+    // true: the throttle-rate axis is read as a position (stick up = full), not a rate.
+    bool throttleAbsolute = false;
+};
+
 class PilotControls {
 public:
+    void setStickTuning(const StickTuning& tuning) { stick_ = tuning; }  // P3
+    const StickTuning& stickTuning() const { return stick_; }
+
     explicit PilotControls(PilotTuning tuning = {}) : tuning_(tuning) {}
 
     // `state` supplies weight-on-wheels (gear lockout, reversers). `messages` may be null.
@@ -30,6 +42,7 @@ public:
 
 private:
     PilotTuning tuning_;
+    StickTuning stick_;  // P3
     bool brakesWereDown_ = false;
 };
 

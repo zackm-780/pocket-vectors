@@ -169,7 +169,7 @@ input is ignored when `FLIGHTSIM_PLATFORM=portmaster`, because gptokeyb may inje
 playable with keyboard and any gamepad. Default mapping matches CONTROLS.md exactly.
 
 ## P3: Settings, persistence, paths
-**Status:** in progress (wp/P3-settings) · **Model / effort:** Sonnet / medium · **Depends:** WP-00, P2 · **Specs:** ARCHITECTURE §8, CONTROLS §4
+**Status:** done (merged wp/P3-settings; needs device test: conf dir + fsync on SD) · **Model / effort:** Sonnet / medium · **Depends:** WP-00, P2 · **Specs:** ARCHITECTURE §8, CONTROLS §4
 
 **Owns:** `src/app/Settings*`, `tests/app/settings*`.
 

@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <memory>
 
+#include "app/Settings.h"  // P3
 #include "app/Simulation.h"
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
@@ -35,7 +36,6 @@ namespace {
 constexpr double kDefaultHeadlessDurationS = 60.0;
 constexpr int kDefaultScreenshotFrames = 60;
 constexpr double kFixedFrameDtS = 1.0 / 60.0;  // deterministic frame time when --frames is used
-constexpr float kDefaultVFovDeg = 55.0f;
 
 void printSummary(const Simulation& sim, double simulatedS) {
     const AircraftState& s = sim.aircraft();
@@ -60,7 +60,7 @@ int runHeadless(Simulation& sim, const CliOptions& opt, terrain::TerrainService*
 }
 
 int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
-                terrain::TerrainService* terrainSvc) {
+                terrain::TerrainService* terrainSvc, const Settings& settings) {
     Window window;
     WindowConfig wc;
     wc.width = opt.windowWidth;
@@ -91,13 +91,15 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (!hud2d.init()) return 1;
 
     gfx::Camera camera;
-    camera.setLens(kDefaultVFovDeg);
+    camera.setLens(settings.fovVerticalDeg);  // P3
     // P2: gamepad/keyboard -> ActionState -> pilot controls; feedback goes to the message queue
     // (the HUD, H2, will draw it later; for now it is logged).
     InputSystem input;
     input.loadFiles(paths.asset("assets/controls_default.ini"), paths.conf("controls.ini"));
     input.openControllers();
     PilotControls pilotControls;
+    pilotControls.setStickTuning(settings.stickTuning());  // P3
+    const bool showFps = effectiveShowFps(opt, settings);  // P3
     MessageQueue messages;
     unsigned long shownMessages = 0;
 
@@ -170,7 +172,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         ++fpsFrames;
         fpsClockS += wallDtS;
         if (fpsClockS >= 1.0) {
-            if (opt.showFps) {
+            if (showFps) {
                 const AircraftState& s = sim.aircraft();
                 char title[160];
                 std::snprintf(title, sizeof title, "Flight Sim | %.0f fps | %.0f kt | %.0f ft",
@@ -188,8 +190,13 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
 }  // namespace
 
 int App::run() {
-    const PathOverrides overrides{options_.assetDir, options_.dataDir, options_.confDir};
-    const Paths paths = Paths::resolve(overrides);
+    // P3: settings first (they live in the conf root), then the final paths (CLI > settings).
+    const Paths confPaths = Paths::resolve({options_.assetDir, "", options_.confDir});
+    Settings settings;
+    settings.load(confPaths.asset("assets/settings_default.ini"), confPaths.conf("settings.ini"));
+    const Paths paths = Paths::resolve(effectivePathOverrides(options_, settings));
+    const bool interactiveRun = !options_.headless && options_.frames == 0 &&
+                                options_.screenshotPath.empty();  // P3: only these save state
 
     if (!options_.headless) {
         // The log file lives in the writable conf root. Headless runs log to stderr only.
@@ -198,8 +205,18 @@ int App::run() {
 
     Scenario scenario;
     std::string error;
-    if (!options_.scenarioPath.empty() &&
-        !loadScenario(paths.resolveInputFile(options_.scenarioPath), scenario, error)) {
+    std::string scenarioPath = options_.scenarioPath;
+    if (scenarioPath.empty() && options_.resume) {  // P3
+        if (fileExists(paths.conf("last_flight.ini")))
+            scenarioPath = paths.conf("last_flight.ini");
+        else
+            LOG_WARN("--resume: no last flight saved; starting the default flight");
+    }
+    std::string aircraftId = options_.aircraftId;  // P3: --aircraft > last_aircraft setting
+    if (aircraftId.empty() && interactiveRun && scenarioPath.empty())
+        aircraftId = settings.lastAircraft;
+    if (!scenarioPath.empty() &&
+        !loadScenario(paths.resolveInputFile(scenarioPath), scenario, error)) {
         LOG_ERROR("%s", error.c_str());
         return 2;
     }
@@ -237,7 +254,7 @@ int App::run() {
     TerrainQuery& terrainQuery = terrainSvc ? static_cast<TerrainQuery&>(*terrainSvc) : terrain;
 
     Simulation sim(paths, navDb, terrainQuery);
-    if (!sim.init(scenario, options_.aircraftId, error)) {
+    if (!sim.init(scenario, aircraftId, error)) {
         LOG_ERROR("%s", error.c_str());
         return 2;
     }
@@ -250,8 +267,16 @@ int App::run() {
         return 2;
     }
 
-    const int rc = options_.headless ? runHeadless(sim, options_, terrainSvc.get())
-                                     : runWindowed(sim, options_, paths, terrainSvc.get());
+    const int rc = options_.headless
+                       ? runHeadless(sim, options_, terrainSvc.get())
+                       : runWindowed(sim, options_, paths, terrainSvc.get(), settings);
+    if (rc == 0 && interactiveRun) {  // P3: clean exit -> remember the flight
+        Scenario last = sim.scenario();
+        last.aircraftId = sim.profile().id;
+        writeLastFlight(paths.conf("last_flight.ini"), last);
+        settings.lastAircraft = last.aircraftId;
+        settings.save(paths.conf("settings.ini"));
+    }
     log::closeFile();
     return rc;
 }
