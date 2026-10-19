@@ -62,8 +62,7 @@ std::string runwayFromApproachId(std::string_view approachId);
 // rounded up to 10; visual 0 (none).
 float defaultMinimumsFt(ApproachKind kind, float thrElevFt, bool* isDa = nullptr);
 
-// Inbound final course, true degrees: bearing from the first final leg's fix to the last
-// non-missed leg's fix; falls back to the course of a CF/CA leg, then 0.
+// Inbound final course, true degrees, arriving at the last final leg's fix (the MAP); falls back to the course of a CF/CA leg, then 0.
 float inboundCourseTrueDeg(const Approach& approach);
 
 // Transition for an aircraft arriving from `prev` (the last enroute waypoint or the present
