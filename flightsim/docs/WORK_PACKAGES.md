@@ -179,7 +179,7 @@ config, plan), and safe writes (write temp, then rename).
 **Acceptance:** round-trip tests. Corrupt or missing files fall back to defaults.
 
 ## F1: JSBSim flight model wrapper
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** ARCHITECTURE §5, §7
+**Status:** done (merged wp/F1-flight-model) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** ARCHITECTURE §5, §7
 
 **Owns:** `src/sim/` (replaces the WP-00 bootstrap), `tests/sim/`, `src/sim/README.md` (property map).
 
@@ -195,7 +195,7 @@ trim. (c) Reset 100 times with no growth in RSS. (d) Hard-impact scenario sets `
 cruise start holds altitude ±200 ft for 60 s.
 
 ## F2: Core fleet profiles and flyability tests
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
+**Status:** in progress (wp/F2-core-fleet) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
 
 **Owns:** `assets/aircraft/{c172p,c310,global5000,737,B747}.ini`, `assets/jsbsim-overlay/` (only if
 a stock file needs a fix), `tests/fleet/`.
@@ -209,7 +209,7 @@ reversers if present).
 **Acceptance:** all 5 aircraft pass, or a documented exception approved by the supervisor.
 
 ## F3: Terrain ground contact
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
+**Status:** in progress (wp/F3-ground-contact) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
 
 **Owns:** `src/sim/GroundCallback*`, `tests/sim/ground*`.
 
