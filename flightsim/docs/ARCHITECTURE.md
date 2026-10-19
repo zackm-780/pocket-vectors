@@ -296,6 +296,7 @@ struct FlightPlan {
   float cruiseAltFt = 0;
   std::vector<Leg> legs;
   int activeLeg = -1;                      // index into legs, -1 = none
+  int approachStartLeg = -1;               // first approach leg (legs[approachStartLeg..] = approach+missed), -1 = none (N3)
 };
 
 // ---------- core/NavDatabase.h ----------   implemented by nav/ (N2); WP-00 ships SyntheticNavDb (XTST)
