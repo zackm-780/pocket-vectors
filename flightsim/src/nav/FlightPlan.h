@@ -81,14 +81,14 @@ ApproachKind approachKindFromId(std::string_view approachId);
 // ---- quick plan ------------------------------------------------------------------------------
 
 struct QuickPlanRequest {
-    std::string originIdent;                // empty: start at presentPos
-    std::string originRunway;               // DB style ("28L"), optional
-    std::optional<LatLon> presentPos;       // used when originIdent is empty
-    std::string destIdent;                  // required
-    std::string destRunway;                 // DB style, optional
-    float cruiseAltFt = 0;                  // 0 = none
-    bool viaNavaids = false;                // NAVIGATION 2.2: VORs <= 15 NM off the great circle,
-    NavaidsNearFn navaidsNear;              // <= 120 NM apart; needs this provider
+    std::string originIdent;           // empty: start at presentPos
+    std::string originRunway;          // DB style ("28L"), optional
+    std::optional<LatLon> presentPos;  // used when originIdent is empty
+    std::string destIdent;             // required
+    std::string destRunway;            // DB style, optional
+    float cruiseAltFt = 0;             // 0 = none
+    bool viaNavaids = false;           // NAVIGATION 2.2: VORs <= 15 NM off the great circle,
+    NavaidsNearFn navaidsNear;         // <= 120 NM apart; needs this provider
     float viaMaxOffsetNm = 15, viaMaxLegNm = 120;
 };
 struct QuickPlanResult {

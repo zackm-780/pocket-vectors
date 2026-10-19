@@ -97,8 +97,8 @@ bool legStart(const FlightPlan& plan, int index, double& latDeg, double& lonDeg)
 }
 
 double arcLengthNm(const Leg& leg, double fromLatDeg, double fromLonDeg) {
-    double b0 = initialBearingTrueRad(leg.arcCenterLatDeg, leg.arcCenterLonDeg, fromLatDeg,
-                                      fromLonDeg);
+    double b0 =
+        initialBearingTrueRad(leg.arcCenterLatDeg, leg.arcCenterLonDeg, fromLatDeg, fromLonDeg);
     double b1 = initialBearingTrueRad(leg.arcCenterLatDeg, leg.arcCenterLonDeg, leg.to.latDeg,
                                       leg.to.lonDeg);
     double sweepRad = leg.arcRight ? wrap2Pi(b1 - b0) : wrap2Pi(b0 - b1);
@@ -152,29 +152,23 @@ std::vector<IdentMatch> resolveIdent(const NavDatabase& db, std::string_view ide
 ApproachKind approachKindFromId(std::string_view id) {
     if (id.empty()) return ApproachKind::None;
     switch (std::toupper(static_cast<unsigned char>(id[0]))) {
-        case 'I':
-            return ApproachKind::Ils;
-        case 'L':
-        case 'B':
-        case 'X':
-        case 'U':
-            return ApproachKind::Loc;
-        case 'R':
-        case 'H':
-        case 'P':
-        case 'J':
-        case 'G':
-            return ApproachKind::Rnav;
-        case 'V':
-        case 'S':
-        case 'D':
-        case 'T':
-            return ApproachKind::Vor;
-        case 'N':
-        case 'Q':
-            return ApproachKind::Ndb;
-        default:
-            return ApproachKind::None;
+    case 'I': return ApproachKind::Ils;
+    case 'L':
+    case 'B':
+    case 'X':
+    case 'U': return ApproachKind::Loc;
+    case 'R':
+    case 'H':
+    case 'P':
+    case 'J':
+    case 'G': return ApproachKind::Rnav;
+    case 'V':
+    case 'S':
+    case 'D':
+    case 'T': return ApproachKind::Vor;
+    case 'N':
+    case 'Q': return ApproachKind::Ndb;
+    default: return ApproachKind::None;
     }
 }
 
@@ -224,8 +218,9 @@ bool resolveEntry(const FmsEntry& e, const NavDatabase& db, double prevLatDeg, d
             errors.push_back(where + "unknown " + e.ident + " and the file gives no coordinates");
             return false;
         }
-        warnings.push_back(where + e.ident + " not in the navigation database; using the file's "
-                                             "coordinates");
+        warnings.push_back(where + e.ident +
+                           " not in the navigation database; using the file's "
+                           "coordinates");
         out = fileWaypoint();
         return true;
     }
@@ -233,8 +228,9 @@ bool resolveEntry(const FmsEntry& e, const NavDatabase& db, double prevLatDeg, d
         out = cands[0];
         out.kind = kind == WaypointKind::Fix ? cands[0].kind : kind;
         if (fileOk && distNmBetween(e.latDeg, e.lonDeg, out.latDeg, out.lonDeg) > kFileWinsNm) {
-            warnings.push_back(where + e.ident + " in the database is far from the file's "
-                                                 "position; using the file's coordinates");
+            warnings.push_back(where + e.ident +
+                               " in the database is far from the file's "
+                               "position; using the file's coordinates");
             out = fileWaypoint();
         }
         return true;
@@ -260,7 +256,8 @@ bool resolveEntry(const FmsEntry& e, const NavDatabase& db, double prevLatDeg, d
     out = cands[best];
     out.kind = kind == WaypointKind::Fix ? cands[best].kind : kind;
     char buf[160];
-    std::snprintf(buf, sizeof buf, "%s%s is ambiguous (%zu matches); using the one %.0f NM from the %s",
+    std::snprintf(buf, sizeof buf,
+                  "%s%s is ambiguous (%zu matches); using the one %.0f NM from the %s",
                   where.c_str(), e.ident.c_str(), cands.size(), bestNm,
                   fileOk ? "file position" : "previous waypoint");
     warnings.push_back(buf);
@@ -278,7 +275,8 @@ PlanBuildResult buildPlanFromFms(const FmsFile& file, const NavDatabase& db) {
     }
     const FmsEntry& first = file.entries.front();
     const FmsEntry& last = file.entries.back();
-    plan.originIdent = !file.adep.empty() ? file.adep : (!file.dep.empty() ? file.dep : first.ident);
+    plan.originIdent =
+        !file.adep.empty() ? file.adep : (!file.dep.empty() ? file.dep : first.ident);
     plan.destIdent = !file.ades.empty() ? file.ades : (!file.des.empty() ? file.des : last.ident);
     plan.depRunway = fmsRunwayToDb(file.deprwy);
     plan.arrRunway = fmsRunwayToDb(file.desrwy);
@@ -412,26 +410,19 @@ FmsFile planToFms(const FlightPlan& plan, const NavDatabase& db, const FmsFile* 
         e.lonDeg = l.to.lonDeg;
         e.altFt = l.alt.kind == AltConstraintKind::None ? 0.0f : l.alt.altFt;
         switch (l.to.kind) {
-            case WaypointKind::Airport:
-                e.type = FmsEntryType::Airport;
-                if (const Airport* a = db.findAirport(l.to.ident)) e.altFt = a->elevFt;
-                break;
-            case WaypointKind::Vor:
-                e.type = FmsEntryType::Vor;
-                break;
-            case WaypointKind::Ndb:
-                e.type = FmsEntryType::Ndb;
-                break;
-            case WaypointKind::Fix:
-                e.type = FmsEntryType::Fix;
-                break;
-            case WaypointKind::LatLon:
-                e.type = FmsEntryType::LatLon;
-                if (e.ident.empty()) e.ident = encodeLatLonIdent(e.latDeg, e.lonDeg);
-                break;
-            case WaypointKind::Runway:
-            case WaypointKind::Synthetic:
-                continue;  // not representable in the file
+        case WaypointKind::Airport:
+            e.type = FmsEntryType::Airport;
+            if (const Airport* a = db.findAirport(l.to.ident)) e.altFt = a->elevFt;
+            break;
+        case WaypointKind::Vor: e.type = FmsEntryType::Vor; break;
+        case WaypointKind::Ndb: e.type = FmsEntryType::Ndb; break;
+        case WaypointKind::Fix: e.type = FmsEntryType::Fix; break;
+        case WaypointKind::LatLon:
+            e.type = FmsEntryType::LatLon;
+            if (e.ident.empty()) e.ident = encodeLatLonIdent(e.latDeg, e.lonDeg);
+            break;
+        case WaypointKind::Runway:
+        case WaypointKind::Synthetic: continue;  // not representable in the file
         }
         f.entries.push_back(std::move(e));
     }
@@ -499,10 +490,11 @@ QuickPlanResult buildQuickPlan(const QuickPlanRequest& req, const NavDatabase& d
 
     if (req.viaNavaids) {
         if (!req.navaidsNear) {
-            res.warnings.push_back("via-navaids mode needs a navaid search provider; flying direct");
+            res.warnings.push_back(
+                "via-navaids mode needs a navaid search provider; flying direct");
         } else {
-            const double totalNm = distNmBetween(originWp.latDeg, originWp.lonDeg, destWp.latDeg,
-                                                 destWp.lonDeg);
+            const double totalNm =
+                distNmBetween(originWp.latDeg, originWp.lonDeg, destWp.latDeg, destWp.lonDeg);
             const LatLon a{originWp.latDeg, originWp.lonDeg}, b{destWp.latDeg, destWp.lonDeg};
             // Gather VORs near the great circle by sampling it.
             std::vector<const Navaid*> found;
@@ -514,9 +506,10 @@ QuickPlanResult buildQuickPlan(const QuickPlanRequest& req, const NavDatabase& d
                                  initialBearingTrueRad(a.latDeg, a.lonDeg, b.latDeg, b.lonDeg),
                                  nmToM(totalNm * s / samples), la, lo);
                 for (const Navaid* n : req.navaidsNear(
-                         la, lo, static_cast<float>(totalNm / samples * 0.5 + req.viaMaxOffsetNm + 1)))
-                    if (n && isVorLike(n->type) && std::find(found.begin(), found.end(), n) ==
-                                                       found.end())
+                         la, lo,
+                         static_cast<float>(totalNm / samples * 0.5 + req.viaMaxOffsetNm + 1)))
+                    if (n && isVorLike(n->type) &&
+                        std::find(found.begin(), found.end(), n) == found.end())
                         found.push_back(n);
             }
             struct Along {
@@ -561,8 +554,8 @@ QuickPlanResult buildQuickPlan(const QuickPlanRequest& req, const NavDatabase& d
 // ---- editing ---------------------------------------------------------------------------------
 
 int enrouteEndIndex(const FlightPlan& plan) {
-    if (plan.approachStartLeg >= 0) return std::min(plan.approachStartLeg,
-                                                    static_cast<int>(plan.legs.size()));
+    if (plan.approachStartLeg >= 0)
+        return std::min(plan.approachStartLeg, static_cast<int>(plan.legs.size()));
     int d = destLegIndex(plan);
     return d >= 0 ? d : static_cast<int>(plan.legs.size());
 }
@@ -612,8 +605,8 @@ bool directToLeg(FlightPlan& plan, int legIndex, const LatLon& present) {
     legs.push_back(std::move(df));
     legs.insert(legs.end(), plan.legs.begin() + legIndex + 1, plan.legs.end());
     if (plan.approachStartLeg >= 0)
-        plan.approachStartLeg = plan.approachStartLeg > legIndex ? plan.approachStartLeg - legIndex + 1
-                                                                 : 1;
+        plan.approachStartLeg =
+            plan.approachStartLeg > legIndex ? plan.approachStartLeg - legIndex + 1 : 1;
     plan.legs = std::move(legs);
     plan.activeLeg = 1;
     return true;
@@ -635,8 +628,7 @@ bool directToIdent(FlightPlan& plan, std::string_view ident, const NavDatabase& 
                    const LatLon& present) {
     const std::string id = upperStr(ident);
     for (int i = 1; i < static_cast<int>(plan.legs.size()); ++i)
-        if (plan.legs[static_cast<size_t>(i)].to.ident == id)
-            return directToLeg(plan, i, present);
+        if (plan.legs[static_cast<size_t>(i)].to.ident == id) return directToLeg(plan, i, present);
     auto m = resolveIdent(db, id, present.latDeg, present.lonDeg);
     if (m.empty()) return false;
     directToWaypoint(plan, m.front().wp, present);
@@ -654,8 +646,10 @@ bool insertApproach(FlightPlan& plan, std::string_view approachId, ApproachKind 
     if (approachLegs.empty()) return fail("approach has no legs");
     bool seenMissed = false;
     for (const Leg& l : approachLegs) {
-        if (l.missedApproach) seenMissed = true;
-        else if (seenMissed) return fail("missed-approach legs must come last");
+        if (l.missedApproach)
+            seenMissed = true;
+        else if (seenMissed)
+            return fail("missed-approach legs must come last");
     }
     if (approachLegs.front().missedApproach) return fail("approach has no non-missed legs");
 
@@ -707,8 +701,7 @@ std::optional<float> legDtkTrueDeg(const FlightPlan& plan, int index) {
     double lat, lon;
     if (!legStart(plan, index, lat, lon)) return std::nullopt;
     if (lat == l.to.latDeg && lon == l.to.lonDeg) return std::nullopt;
-    return static_cast<float>(
-        radToDeg(initialBearingTrueRad(lat, lon, l.to.latDeg, l.to.lonDeg)));
+    return static_cast<float>(radToDeg(initialBearingTrueRad(lat, lon, l.to.latDeg, l.to.lonDeg)));
 }
 
 std::optional<float> legDtkMagDeg(const FlightPlan& plan, int index, const MagVarFn& magVar) {
