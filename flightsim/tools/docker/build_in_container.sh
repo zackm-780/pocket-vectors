@@ -27,9 +27,9 @@ git config --global --add safe.directory '*' 2>/dev/null || true
 
 mkdir -p "$BUILD" "$DIST"
 echo "== environment"
-"${TRIPLE}-g++" --version | head -1
-cmake --version | head -1
-ldd --version | head -1
+"${TRIPLE}-g++" --version | sed -n 1p
+cmake --version | sed -n 1p
+ldd --version | sed -n 1p
 JSBSIM_ARGS=()
 [ -n "${JSBSIM_SRC:-}" ] && JSBSIM_ARGS=("-DPROBE_JSBSIM_SOURCE_DIR=$JSBSIM_SRC")
 ZIPS=()
@@ -70,7 +70,7 @@ if [ -f CMakeLists.txt ] && [ -f src/main.cpp ]; then
   cmake -S . -B "$BUILD/main" -G Ninja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DFSIM_WERROR=ON "${MAIN_ARGS[@]+"${MAIN_ARGS[@]}"}"
   cmake --build "$BUILD/main" --target flightsim -j "$JOBS"
-  MAIN_BIN="$(find "$BUILD/main" -maxdepth 2 -name flightsim -type f | head -1)"
+  MAIN_BIN="$(find "$BUILD/main" -maxdepth 2 -name flightsim -type f -print -quit)"
   [ -n "$MAIN_BIN" ] || { echo "flightsim binary not found in $BUILD/main" >&2; exit 1; }
   MAIN_LIBS="$BUILD/main-libs"
   rm -rf "$MAIN_LIBS"; mkdir -p "$MAIN_LIBS"

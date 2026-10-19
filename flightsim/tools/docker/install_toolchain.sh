@@ -55,8 +55,8 @@ apt-get clean
 rm -rf /var/lib/apt/lists/*
 
 echo "---- toolchain ----"
-aarch64-linux-gnu-g++ --version | head -1
-cmake --version | head -1
+aarch64-linux-gnu-g++ --version | sed -n 1p
+cmake --version | sed -n 1p
 ninja --version
 dpkg -s libsdl2-dev:arm64 | grep -E '^(Package|Version)'
 dpkg -s libc6:arm64 | grep -E '^Version'

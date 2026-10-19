@@ -18,7 +18,7 @@ ALLOWED_BASE="libc.so.6 libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 ld-linux
 
 if command -v "${TRIPLE}-objdump" >/dev/null 2>&1; then
   OBJDUMP="${TRIPLE}-objdump"; READELF="${TRIPLE}-readelf"
-elif objdump -i 2>/dev/null | grep -qi aarch64; then
+elif objdump -i 2>/dev/null | grep -i aarch64 >/dev/null; then
   OBJDUMP=objdump; READELF=readelf
 else
   echo "check_package: no aarch64-capable objdump/readelf (install binutils-aarch64-linux-gnu)" >&2
@@ -50,10 +50,10 @@ check_elf() {
     ok "$rel: max GLIBC_$glibc_max (<= $MAX_GLIBC)"
   else
     fail "$rel: needs GLIBC_$glibc_max, newer than $MAX_GLIBC"
-    $OBJDUMP -T "$f" | awk '/\*UND\*/' | grep "GLIBC_$glibc_max" | head -5 | sed 's/^/        /'
+    $OBJDUMP -T "$f" | awk '/\*UND\*/' | grep "GLIBC_$glibc_max" | sed -n 1,5p | sed 's/^/        /'
   fi
   # Anything the C++ runtime was supposed to supply statically.
-  if $OBJDUMP -T "$f" 2>/dev/null | awk '/\*UND\*/' | grep -qE 'GLIBCXX_|CXXABI_|GCC_[0-9]'; then
+  if $OBJDUMP -T "$f" 2>/dev/null | awk '/\*UND\*/' | grep -E 'GLIBCXX_|CXXABI_|GCC_[0-9]' >/dev/null; then
     fail "$rel: imports GLIBCXX/CXXABI/GCC symbols (libstdc++/libgcc not linked statically)"
   fi
   needed="$($READELF -d "$f" 2>/dev/null | awk '/\(NEEDED\)/ {gsub(/[\[\]]/,"",$NF); print $NF}')"
@@ -124,7 +124,7 @@ check_tree() {
   [ "$nelf" -ge 1 ] || fail "no ELF files found to check"
   # Every NEEDED of the main binary that is shipped must really be present.
   for n in $($READELF -d "$port_dir/$portname.aarch64" 2>/dev/null | awk '/\(NEEDED\)/ {gsub(/[\[\]]/,"",$NF); print $NF}'); do
-    if [[ " $ALLOWED_BASE " != *" $n "* ]] && ! find "$port_dir/libs.aarch64" -name "$n" 2>/dev/null | grep -q .; then
+    if [[ " $ALLOWED_BASE " != *" $n "* ]] && [ -z "$(find "$port_dir/libs.aarch64" -name "$n" -print -quit 2>/dev/null)" ]; then
       fail "binary needs $n but it is not in libs.aarch64/"
     fi
   done
