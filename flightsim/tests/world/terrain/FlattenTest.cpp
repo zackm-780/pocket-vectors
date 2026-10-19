@@ -173,7 +173,7 @@ TEST_CASE("terrain: TerrainService applies flatten areas over the natural surfac
     at(0, 0, lat, lon);
     CHECK(q.elevationM(lat, lon) == doctest::Approx(250.0f));
     CHECK(svc.naturalElevationM(lat, lon) != doctest::Approx(250.0f));  // unflattened is available
-    at(0, 250.0 + 50.0, lat, lon);                                       // halfway through the blend
+    at(0, 250.0 + 50.0, lat, lon);                                      // halfway through the blend
     const float nat = svc.naturalElevationM(lat, lon);
     CHECK(q.elevationM(lat, lon) == doctest::Approx(250.0f + (nat - 250.0f) * 0.5f).epsilon(0.002));
     at(0, 400, lat, lon);

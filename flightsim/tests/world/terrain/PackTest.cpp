@@ -49,8 +49,8 @@ TEST_CASE("terrain: pack.ini is read verbatim (INI rule) and levels are discover
     CHECK(pack.hasTile(TileId{5, 20, 48}));
     CHECK(!pack.hasTile(TileId{5, 21, 48}));
     CHECK(pack.finestLevelAt(45.5, -123.0) == 6);  // inside the L6 tile (and its L5 parent)
-    CHECK(pack.finestLevelAt(47.0, -121.5) == 5);   // only the L5 tile covers it
-    CHECK(pack.finestLevelAt(10.0, 10.0) == -1);    // no tile covers it
+    CHECK(pack.finestLevelAt(47.0, -121.5) == 5);  // only the L5 tile covers it
+    CHECK(pack.finestLevelAt(10.0, 10.0) == -1);   // no tile covers it
 }
 
 TEST_CASE("terrain: presence bitmaps are LSB-first, row-major with y*width + x") {

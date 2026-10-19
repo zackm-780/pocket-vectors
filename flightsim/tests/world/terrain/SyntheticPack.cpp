@@ -105,21 +105,25 @@ void PackWriter::writeBox(int k, double southDeg, double westDeg, double northDe
 }
 
 void PackWriter::finish() {
-    std::string ini =
-        "; synthetic test pack\n"
-        "[pack]\n"
-        "format = flightsim-terrain\n"
-        "version = 1\n"
-        "samples = 257\n"
-        "min_level = " + std::to_string(minLevel_) + "\n"
-        "max_level = " + std::to_string(maxLevel_) + "\n"
-        "created_utc = 2026-10-19T12:00:00Z\n"
-        "[attribution]\n"
-        "dem = Test DEM; (c) nobody # not a comment\n"
-        "landcover = Test landcover\n"
-        "landcover_credit = \xC2\xA9 Test credit; with semicolon\n"
-        "[regions]\n"
-        "test = levels " + std::to_string(minLevel_) + "-" + std::to_string(maxLevel_) + "\n";
+    std::string ini = "; synthetic test pack\n"
+                      "[pack]\n"
+                      "format = flightsim-terrain\n"
+                      "version = 1\n"
+                      "samples = 257\n"
+                      "min_level = " +
+                      std::to_string(minLevel_) +
+                      "\n"
+                      "max_level = " +
+                      std::to_string(maxLevel_) +
+                      "\n"
+                      "created_utc = 2026-10-19T12:00:00Z\n"
+                      "[attribution]\n"
+                      "dem = Test DEM; (c) nobody # not a comment\n"
+                      "landcover = Test landcover\n"
+                      "landcover_credit = \xC2\xA9 Test credit; with semicolon\n"
+                      "[regions]\n"
+                      "test = levels " +
+                      std::to_string(minLevel_) + "-" + std::to_string(maxLevel_) + "\n";
     writeFile(dir_ + "/pack.ini", ini.data(), ini.size());
     for (int k = 0; k <= maxLevel_; ++k) {
         const std::vector<uint8_t>& bits = bitmaps_[k];

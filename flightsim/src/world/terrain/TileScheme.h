@@ -188,8 +188,7 @@ inline void tilesIntersectingCircle(int k, double latDeg, double lonDeg, double 
 }  // namespace fsim::terrain
 
 namespace std {
-template <>
-struct hash<fsim::terrain::TileId> {
+template <> struct hash<fsim::terrain::TileId> {
     size_t operator()(const fsim::terrain::TileId& id) const noexcept {
         return static_cast<size_t>(fsim::terrain::key(id) * 0x9E3779B97F4A7C15ull);
     }

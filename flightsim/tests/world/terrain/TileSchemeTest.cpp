@@ -75,7 +75,8 @@ TEST_CASE("terrain: hierarchy and keys") {
     CHECK(ancestorAt(TileId{10, 1000, 700}, 7) == TileId{7, 125, 87});
     CHECK(ancestorAt(t, 7) == t);
     CHECK(!isAncestorOf(TileId{8, 0, 0}, t));
-    for (const TileId& id : {TileId{0, 0, 0}, TileId{10, 4095, 2047}, TileId{20, 4194303, 2097151}}) {
+    for (const TileId& id :
+         {TileId{0, 0, 0}, TileId{10, 4095, 2047}, TileId{20, 4194303, 2097151}}) {
         CHECK(isValid(id));
         CHECK(fromKey(key(id)) == id);
     }

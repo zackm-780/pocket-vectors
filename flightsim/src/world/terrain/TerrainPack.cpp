@@ -9,8 +9,9 @@
 namespace fsim::terrain {
 namespace {
 
-constexpr size_t kHeightFileBytes = static_cast<size_t>(kTileSamples) * kTileSamples * 2;  // 132,098
-constexpr size_t kLandFileBytes = static_cast<size_t>(kTileCells) * kTileCells;            // 65,536
+constexpr size_t kHeightFileBytes =
+    static_cast<size_t>(kTileSamples) * kTileSamples * 2;                        // 132,098
+constexpr size_t kLandFileBytes = static_cast<size_t>(kTileCells) * kTileCells;  // 65,536
 
 bool readWholeFile(const std::string& path, std::vector<uint8_t>& out, bool& exists) {
     std::FILE* f = std::fopen(path.c_str(), "rb");

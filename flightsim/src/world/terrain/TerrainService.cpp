@@ -93,8 +93,7 @@ float TerrainService::naturalElevationM(double latDeg, double lonDeg) const {
 }
 
 float TerrainService::elevationM(double latDeg, double lonDeg) const {
-    return flatten_.elevationM(latDeg, lonDeg,
-                               [&] { return naturalElevationM(latDeg, lonDeg); });
+    return flatten_.elevationM(latDeg, lonDeg, [&] { return naturalElevationM(latDeg, lonDeg); });
 }
 
 int TerrainService::answeringLevel(double latDeg, double lonDeg) const {

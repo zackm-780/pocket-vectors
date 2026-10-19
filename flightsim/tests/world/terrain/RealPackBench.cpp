@@ -88,8 +88,8 @@ TEST_CASE("terrain-bench: cold load of 50 km around KPDX and query throughput" *
     for (double dy = -600; dy <= 600; dy += 19.0)
         for (double dx = -600; dx <= 600; dx += 19.0) {
             const double lat = kHoodLat + dy / (kEarthRadiusM * kRadPerDeg);
-            const double lon = kHoodLon + dx / (kEarthRadiusM * kRadPerDeg *
-                                                std::cos(kHoodLat * kRadPerDeg));
+            const double lon =
+                kHoodLon + dx / (kEarthRadiusM * kRadPerDeg * std::cos(kHoodLat * kRadPerDeg));
             const float e = svc.elevationM(lat, lon);
             if (e > hood) {
                 hood = e;

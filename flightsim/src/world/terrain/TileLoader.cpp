@@ -21,8 +21,9 @@ TileLoader::~TileLoader() {
 }
 
 void TileLoader::replaceQueue(std::vector<LoadRequest> requests) {
-    std::stable_sort(requests.begin(), requests.end(),
-                     [](const LoadRequest& a, const LoadRequest& b) { return a.priority < b.priority; });
+    std::stable_sort(
+        requests.begin(), requests.end(),
+        [](const LoadRequest& a, const LoadRequest& b) { return a.priority < b.priority; });
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto skip = [this](const LoadRequest& r) {
@@ -86,7 +87,8 @@ void TileLoader::run() {
         if (debugDelayMs_ > 0)
             std::this_thread::sleep_for(std::chrono::milliseconds(debugDelayMs_));
         res.loadMs =
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0)
+                .count();
 
         {
             std::lock_guard<std::mutex> lock(mutex_);

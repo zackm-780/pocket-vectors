@@ -188,11 +188,11 @@ private:
     size_t residentBytes_ = 0;
     uint64_t generation_ = 0;  // bumps on every insert/evict (invalidates cache_)
     uint64_t revision_ = 0;    // same, public
-    uint64_t frame_ = 1;  // update() counter, used as the LRU clock
+    uint64_t frame_ = 1;       // update() counter, used as the LRU clock
 
     std::unordered_set<uint64_t> failed_;
     std::unordered_set<uint64_t> wantedKeys_;
-    std::unordered_map<uint64_t, float> explicit_;        // key -> priority01
+    std::unordered_map<uint64_t, float> explicit_;         // key -> priority01
     std::unordered_map<uint64_t, float> prefetchPending_;  // key -> priority (-1..-0.5)
     bool dirty_ = false;
     bool haveCamera_ = false;

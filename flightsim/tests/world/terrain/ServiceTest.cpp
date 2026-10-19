@@ -27,7 +27,8 @@ bool pump(TerrainService& s, double lat, double lon, double timeoutS = 20.0) {
     return s.waitForIdle(timeoutS);
 }
 
-#define CHECK_NEAR(a, b, tol) CHECK(std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= (tol))
+#define CHECK_NEAR(a, b, tol)                                                                      \
+    CHECK(std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= (tol))
 
 double nowS() {
     return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch())
@@ -63,7 +64,7 @@ TEST_CASE("terrain: heights are north-up and corner-sampled (orientation)") {
 
     TerrainService svc(dir.path);
     REQUIRE(svc.isOpen());
-    TerrainQuery& q = svc;  // through the contract
+    TerrainQuery& q = svc;                  // through the contract
     CHECK(q.elevationM(46, -122) == 0.0f);  // nothing loaded yet: never blocks, returns 0
     REQUIRE(pump(svc, 46, -122));
 
@@ -96,8 +97,7 @@ TEST_CASE("terrain: bilinear reproduces a plane across the whole tile, corners i
     const double lats[] = {b.northDeg - eps, 47.0, 46.123456, 45.5, b.southDeg};
     const double lons[] = {b.westDeg, -123.4, -122.2222, -121.0, b.eastDeg - eps};
     for (const double lat : lats)
-        for (const double lon : lons)
-            CHECK_NEAR(svc.elevationM(lat, lon), plane(lat, lon), 0.6);
+        for (const double lon : lons) CHECK_NEAR(svc.elevationM(lat, lon), plane(lat, lon), 0.6);
 }
 
 TEST_CASE("terrain: land class is cell-centred, north-up") {
@@ -116,7 +116,7 @@ TEST_CASE("terrain: land class is cell-centred, north-up") {
     REQUIRE(pump(svc, 46, -122));
 
     int checked = 0;
-    for (long ci = 5200; ci < 5240; ci += 3) {      // an arbitrary block of cells in the tile
+    for (long ci = 5200; ci < 5240; ci += 3) {  // an arbitrary block of cells in the tile
         for (long ri = 12300; ri < 12340; ri += 7) {
             const double lat = -90.0 + (ri + 0.5) * step;
             const double lon = -180.0 + (ci + 0.5) * step;
@@ -151,8 +151,8 @@ TEST_CASE("terrain: seams between adjacent tiles of one level are continuous") {
     const double seamLon = ba.eastDeg;
     const double lat = ba.centerLatDeg() + 0.0123;
     // Edge column of one tile == edge column of the next: both sides of the seam agree.
-    CHECK(svc.elevationM(lat, seamLon - 1e-10) == doctest::Approx(svc.elevationM(lat, seamLon + 1e-10))
-                                                      .epsilon(1e-5));
+    CHECK(svc.elevationM(lat, seamLon - 1e-10) ==
+          doctest::Approx(svc.elevationM(lat, seamLon + 1e-10)).epsilon(1e-5));
     // Walk across in tenths of a sample spacing: no step bigger than the local slope allows.
     double prev = svc.elevationM(lat, seamLon - 30 * stepDeg(7));
     double worst = 0;
@@ -295,8 +295,8 @@ TEST_CASE("terrain: isDetailReady needs the tiles around the point, not just the
     REQUIRE(svc.waitForIdle(20));
     CHECK(svc.isTileResident(a));
     CHECK(!svc.isTileResident(b));
-    const double lonFar = ba.westDeg + 0.3;                   // ~ 20 km from the shared edge
-    const double lonNear = ba.eastDeg - 0.001;                 // ~ 80 m from the shared edge
+    const double lonFar = ba.westDeg + 0.3;     // ~ 20 km from the shared edge
+    const double lonNear = ba.eastDeg - 0.001;  // ~ 80 m from the shared edge
     CHECK(svc.isDetailReady(lat, lonFar));
     CHECK(!svc.isDetailReady(lat, lonNear));  // the 400 m margin reaches into tile b
     svc.requestTile(b);
@@ -309,8 +309,7 @@ TEST_CASE("terrain: requests never block and results arrive asynchronously") {
     PackWriter w(dir.path, 7, 7);
     const TileId mid = tileAt(7, 45.5, -122.6);
     for (int dy = -1; dy <= 1; ++dy)
-        for (int dx = -1; dx <= 1; ++dx)
-            w.writeTile(TileId{7, mid.x + dx, mid.y + dy}, plane);
+        for (int dx = -1; dx <= 1; ++dx) w.writeTile(TileId{7, mid.x + dx, mid.y + dy}, plane);
     w.finish();
 
     TerrainConfig cfg;
@@ -334,8 +333,8 @@ TEST_CASE("terrain: requests never block and results arrive asynchronously") {
     CHECK(early.residentTiles < 9);
     CHECK((early.queuedTiles > 0 || early.loading));
     CHECK(!ready);
-    CHECK(sum == 0.0);                // nothing resident yet: sea level
-    CHECK(elapsedS < 0.5);            // generous: far below the ~1 s the loads take
+    CHECK(sum == 0.0);      // nothing resident yet: sea level
+    CHECK(elapsedS < 0.5);  // generous: far below the ~1 s the loads take
     // Eventually ready, with the camera call pumping results in.
     bool ok = false;
     for (int i = 0; i < 5000 && !ok; ++i) {
@@ -434,9 +433,9 @@ TEST_CASE("terrain: cache cap holds and eviction is LRU (touched tiles survive)"
     REQUIRE(svc.waitForIdle(20));
     CHECK(svc.stats().residentBytes <= cfg.cacheMaxBytes);
     CHECK(svc.stats().tilesEvicted == 1);
-    CHECK(svc.isTileResident(strip[0]));    // recently used: kept
-    CHECK(!svc.isTileResident(strip[1]));   // least recently used (ties by key): evicted
-    CHECK(svc.isTileResident(strip[7]));    // the newcomer
+    CHECK(svc.isTileResident(strip[0]));          // recently used: kept
+    CHECK(!svc.isTileResident(strip[1]));         // least recently used (ties by key): evicted
+    CHECK(svc.isTileResident(strip[7]));          // the newcomer
     CHECK(held->heightsM.size() == 257u * 257u);  // still valid
 }
 
