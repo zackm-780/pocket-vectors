@@ -5,6 +5,7 @@
 
 #include "core/Log.h"
 #include "core/Units.h"
+#include "world/Sky.h"  // W4
 
 namespace fsim::gfx {
 namespace {
@@ -55,8 +56,7 @@ bool DebugRenderer::init() {
     uMvp_ = program_.uniform("uMvp");
     uMv_ = program_.uniform("uMv");
     uColor_ = program_.uniform("uColor");
-    uFogColor_ = program_.uniform("uFogColor");
-    uFogDensity_ = program_.uniform("uFogDensity");
+    fogUniforms_.locate(program_);  // W4
     return true;
 }
 
@@ -260,8 +260,11 @@ void DebugRenderer::drawMesh(const Camera& camera, const Mesh& mesh, bool lines,
 
 void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
     gl_.Viewport(0, 0, viewportW, viewportH);
-    gl_.ClearColor(kSkyColor[0], kSkyColor[1], kSkyColor[2], 1.0f);
+    // W4: below-horizon color is the shared haze color; the sky pass covers the rest.
+    const float* clear = atmosphere_ ? atmosphere_->fog().colorRgb : kSkyColor;
+    gl_.ClearColor(clear[0], clear[1], clear[2], 1.0f);
     gl_.Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (atmosphere_ && sky_) sky_->draw(camera, *atmosphere_);  // W4
     if (!haveWorld_ || !program_.valid()) return;
 
     // Keep the ground window centered on the camera, snapped to whole cells.
@@ -277,8 +280,11 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
     gl_.DepthFunc(GL_LEQUAL);
     gl_.Disable(GL_CULL_FACE);
     program_.use();
-    gl_.Uniform3f(uFogColor_, kFogColor[0], kFogColor[1], kFogColor[2]);
-    gl_.Uniform1f(uFogDensity_, static_cast<float>(kFogDensity));
+    // W4: fog comes from the shared atmosphere (falls back to the old constants without one).
+    world::FogParams fallbackFog;
+    std::copy(kFogColor, kFogColor + 3, fallbackFog.colorRgb);
+    fallbackFog.densityPerM = static_cast<float>(kFogDensity);
+    fogUniforms_.set(gl_, atmosphere_ ? atmosphere_->fog() : fallbackFog);
 
     // Fill pushed back so the grid lines and the runway (pulled forward) win depth ties.
     gl_.Enable(GL_POLYGON_OFFSET_FILL);

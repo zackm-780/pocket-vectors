@@ -40,7 +40,7 @@ struct Scenario {
     std::string startKind = "runway";  // runway | final | cruise
     double distanceNm = 6;             // final only
     double altitudeFt = 0;             // cruise only (0 = profile cruise altitude)
-    std::string timeUtc;               // reserved for lighting (not used yet)
+    std::string timeUtc;               // ISO "YYYY-MM-DDTHH:MM:SS" UTC; drives the sun (W4)
     float windFromTrueDeg = 0, windSpeedKt = 0;
     std::vector<ScriptEvent> inputs;  // sorted by time
 
