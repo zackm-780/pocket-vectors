@@ -17,6 +17,8 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "hud/Renderer2D.h"           // H1
+#include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "platform/Window.h"
 
 namespace fsim {
@@ -59,6 +61,10 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
     if (airport)
         renderer.setWorld(*airport, static_cast<float>(ftToM(sim.startCondition().fieldElevFt)));
 
+    // H1: 2D HUD renderer (one batched draw call per frame). The glyph sheet is a debug view.
+    Renderer2D hud2d(window.gl(), window.flavor());
+    if (!hud2d.init()) return 1;
+
     gfx::Camera camera;
     camera.setLens(kDefaultVFovDeg);
     DebugInput input;
@@ -100,6 +106,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
         camera.setViewport(w, h);
         camera.setPoseFromAircraft(sim.aircraft());
         renderer.render(camera, w, h);
+        if (opt.glyphSheet) {  // H1
+            hud2d.begin(w, h);
+            drawGlyphSheet(hud2d);
+            hud2d.end();
+        }
         ++frame;
 
         if (frames > 0 && frame >= frames) {

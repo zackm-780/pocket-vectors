@@ -18,6 +18,7 @@ struct CliOptions {
     int windowWidth = 1280, windowHeight = 960;  // 2x the device resolution
     bool fullscreen = false;
     bool showFps = false;
+    bool glyphSheet = false;  // H1: draw the 2D renderer / stroke font glyph sheet over the 3D view
     bool help = false;
 };
 

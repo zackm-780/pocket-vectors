@@ -37,6 +37,7 @@ std::string cliUsage() {
            "  --window <WxH>          window size (default 1280x960)\n"
            "  --fullscreen            fullscreen at the desktop resolution\n"
            "  --show-fps              show the frame rate in the window title and log\n"
+           "  --glyph-sheet           draw the HUD glyph sheet (stroke font, 2D renderer demo)\n"
            "  --data-dir <path>       terrain/nav data root (default <exe dir>/data)\n"
            "  --conf-dir <path>       settings/log directory (default ~/.config/flightsim)\n"
            "  --asset-dir <path>      asset root holding jsbsim/ and assets/ (default <exe dir>)\n"
@@ -61,6 +62,8 @@ bool parseCli(const std::vector<std::string>& args, CliOptions& out, std::string
             out.fullscreen = true;
         else if (a == "--show-fps")
             out.showFps = true;
+        else if (a == "--glyph-sheet")  // H1
+            out.glyphSheet = true;
         else if (a == "--help" || a == "-h")
             out.help = true;
         else if (a == "--scenario") {
