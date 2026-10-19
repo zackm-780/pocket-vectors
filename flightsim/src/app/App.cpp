@@ -19,6 +19,7 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "hud/Hud.h"                   // H2
 #include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "input/InputSystem.h"         // P2
@@ -93,6 +94,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths) {
     input.openControllers();
     PilotControls pilotControls;
     MessageQueue messages;
+    Hud hud;               // H2: flight HUD, drawn every frame after the 3D scene
+    HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
     unsigned long shownMessages = 0;
 
     int frames = opt.frames;
@@ -116,6 +119,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths) {
         while (SDL_PollEvent(&event)) input.handleEvent(event);
         const ActionState& actions = input.update(dtS);  // P2
         messages.tick(dtS);
+        Hud::applyActions(actions, hudOptions, &messages);  // H2: Action::HudDeclutter
         if (input.quitRequested()) break;
         if (actions.pressed[static_cast<int>(Action::Pause)]) {
             state = state == AppState::Flying ? AppState::Paused : AppState::Flying;
@@ -143,9 +147,15 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths) {
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(sim.aircraft().altAglFt));
         renderer.render(camera, w, h);
-        if (opt.glyphSheet) {  // H1
+        {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
+            hudOptions.paused = state == AppState::Paused;
+            hudOptions.magVarDeg = sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             hud2d.begin(w, h);
-            drawGlyphSheet(hud2d);
+            if (opt.glyphSheet)
+                drawGlyphSheet(hud2d);  // H1
+            else
+                hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
+                         messages, hudOptions);
             hud2d.end();
         }
         ++frame;
