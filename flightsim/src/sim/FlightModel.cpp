@@ -17,6 +17,8 @@
 #include <models/FGLGear.h>
 #include <models/FGMassBalance.h>
 #include <models/FGPropulsion.h>
+#include <models/FGPropagate.h>
+#include <models/atmosphere/FGWinds.h>
 #include <models/propulsion/FGEngine.h>
 
 #include "core/Geo.h"
@@ -263,6 +265,9 @@ void FlightModel::Impl::bindProps() {
         gears.push_back(std::move(gi));
     }
     limits = crashLimitsFor(profile, gearHeightFt);
+    LOG_DEBUG("%s: %d engines, %zu contacts, gear height %.2f ft, belly %.2f ft, hard landing %.0f fpm",
+              profile.id.c_str(), engineCount, gears.size(), gearHeightFt, limits.bellyAglFt,
+              limits.hardLandingFpm);
 
     steerFullKt = static_cast<float>(propNumber("ground.steer_full_below_kt", 15));
     steerMinKt = static_cast<float>(propNumber("ground.steer_min_above_kt", 60));
@@ -325,30 +330,23 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
     ic->SetPsiDegIC(sc.headingTrueDeg);
     ic->SetPhiDegIC(0.0);
     ic->SetThetaDegIC(0.0);
-    // Wind: the IC wind vector is the air-mass velocity (the direction the air moves toward), so a
-    // wind FROM 270 is a vector pointing east (verified in tests/sim: headwind raises IAS over GS).
-    // It must be applied after the speed, and it shifts the IC airspeed by about the wind speed, so
-    // airborne starts nudge the IC speed after trim until the trimmed IAS matches (below).
-    const double windFromRad = degToRad(sc.windFromTrueDeg);
-    const double windFps = ktToFps(sc.windSpeedKt);
-    auto setWind = [&] {
-        ic->SetWindNEDFpsIC(-windFps * std::cos(windFromRad), -windFps * std::sin(windFromRad),
-                            0.0);
-    };
+    // Wind is NOT put into the initial condition. JSBSim's IC wind keeps the ground velocity and
+    // shifts the airspeed, which leaves a crosswind start with a sideslip that cannot be trimmed.
+    // Instead the aircraft is trimmed in calm air at the requested IAS, and afterwards the wind is
+    // switched on while the body velocity is shifted by the same vector, so the air-relative state
+    // (IAS, alpha, beta, trim) is untouched and only the ground track and speed change.
     const bool airborne = sc.kind != StartCondition::Kind::Runway;
-    double icIasKt = sc.iasKt;
-    auto applyAirborneIc = [&](double iasKt) {
+    auto applyAirborneIc = [&](double headingTrueDeg) {
+        ic->SetPsiDegIC(headingTrueDeg);
         ic->SetAltitudeASLFtIC(sc.altMslFt);
-        ic->SetVcalibratedKtsIC(iasKt);  // speed first: the airspeed vector must follow the nose
-        setWind();                       // then wind (ground velocity is kept, airspeed shifts)
+        ic->SetVcalibratedKtsIC(sc.iasKt);
         ic->SetFlightPathAngleDegIC(sc.flightPathDeg);
     };
     if (airborne) {
-        applyAirborneIc(sc.iasKt);
+        applyAirborneIc(sc.headingTrueDeg);
     } else {
         ic->SetAltitudeASLFtIC(sc.fieldElevFt + 5.0);  // settled onto the gear by the ground trim
         ic->SetVgroundKtsIC(0.0);
-        setWind();
     }
     if (!fdm->RunIC()) {
         LOG_ERROR("JSBSim RunIC failed");
@@ -356,6 +354,22 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
     }
     fdm->GetPropulsion()->InitRunning(-1);  // all engines running
     bindProps();
+
+    // Wind vector (the direction the air moves toward) and the heading that makes the ground
+    // track follow the requested direction (a final approach keeps its centerline in a crosswind).
+    const double windFromRad = degToRad(sc.windFromTrueDeg);
+    const double windNFps = -ktToFps(sc.windSpeedKt) * std::cos(windFromRad);
+    const double windEFps = -ktToFps(sc.windSpeedKt) * std::sin(windFromRad);
+    if (airborne && sc.kind == StartCondition::Kind::Final && sc.windSpeedKt > 0.1f) {
+        const double trackRad = degToRad(sc.headingTrueDeg);
+        const double crossToRightFps =
+            -windNFps * std::sin(trackRad) + windEFps * std::cos(trackRad);
+        const double tasFps = ktToFps(pVt.get());
+        if (tasFps > 1.0) {
+            const double crab = std::asin(std::clamp(-crossToRightFps / tasFps, -0.7, 0.7));
+            applyAirborneIc(sc.headingTrueDeg + radToDeg(crab));
+        }
+    }
 
     const int detentIdx =
         std::clamp(sc.flapDetent, 0, static_cast<int>(profile.flapDetents.size()) - 1);
@@ -379,17 +393,21 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
         }
         fdm->SetHoldDown(false);
         if (!fdm->RunIC()) return false;
-        bool trimmed = trim();
-        // With wind the IC speed ends up a few knots off; nudge it until the trimmed IAS matches.
-        for (int pass = 0;
-             pass < 3 && trimmed && sc.windSpeedKt > 0.5f && std::fabs(pVc.get() - sc.iasKt) > 0.3;
-             ++pass) {
-            icIasKt += sc.iasKt - pVc.get();
-            applyAirborneIc(icIasKt);
+        // A failed trim must not leave half-solved controls behind: put them back.
+        double thr0[kMaxEngines] = {0, 0, 0, 0};
+        for (int i = 0; i < engineCount; ++i) thr0[i] = eng[i].throttleCmd.get();
+        const bool trimmed = trim();
+        if (!trimmed) {
+            LOG_WARN("could not trim %s; starting untrimmed", profile.id.c_str());
+            for (int i = 0; i < engineCount; ++i) eng[i].throttleCmd.set(thr0[i]);
+            cElevator.set(0.0);
+            cAileron.set(0.0);
+            cRudder.set(0.0);
+            pPitchTrim.set(0.0);
+            pRollTrim.set(0.0);
+            pYawTrim.set(0.0);
             if (!fdm->RunIC()) return false;
-            trimmed = trim();
         }
-        if (!trimmed) LOG_WARN("could not trim %s; starting untrimmed", profile.id.c_str());
         // Move the trim solution into the trim controls (the stick must be centered at start).
         const double elev = cElevator.get(), ail = cAileron.get(), rud = cRudder.get();
         pPitchTrim.set(clampf(static_cast<float>(pPitchTrim.get() + elev), -1.f, 1.f));
@@ -412,6 +430,18 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
         }
         // A short settle so the suspension has compressed before the first frame.
         for (int i = 0; i < 2 * kSimHz; ++i) fdm->Run();
+    }
+    // Switch the wind on (see the note above). For the parked aircraft the air-relative velocity
+    // is simply the wind; for an airborne one the body velocity moves with the air mass.
+    if (sc.windSpeedKt > 0.01f) {
+        fdm->GetWinds()->SetWindNED(windNFps, windEFps, 0.0);
+        if (airborne) {
+            auto propagate = fdm->GetPropagate();
+            const JSBSim::FGColumnVector3 windBody =
+                propagate->GetTl2b() * JSBSim::FGColumnVector3(windNFps, windEFps, 0.0);
+            for (unsigned i = 1; i <= 3; ++i)
+                propagate->SetUVW(i, propagate->GetUVW(static_cast<int>(i)) + windBody(i));
+        }
     }
     fdm->Setsim_time(0.0);
 
