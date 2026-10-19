@@ -586,7 +586,12 @@ Navigator::Angular Navigator::computeLoc(const AircraftState& ac) const {
         const double gsDistNm = distNm(ac.latDeg, ac.lonDeg, ils.gsLatDeg, ils.gsLonDeg);
         const double gsBrgDeg =
             radToDeg(initialBearingTrueRad(ils.gsLatDeg, ils.gsLonDeg, ac.latDeg, ac.lonDeg));
-        const double gsOffDeg = wrap180(gsBrgDeg - backDeg);
+        // Cone: measured from the point of the centerline abeam the GS antenna, so a real
+        // antenna's lateral offset (hundreds of feet) does not invalidate the signal close in.
+        const double alongNm = gsDistNm * std::cos(degToRad(wrap180(gsBrgDeg - backDeg)));
+        const double lateralNm = r.distToAntennaNm * std::sin(degToRad(r.offRightDeg));
+        const double gsOffDeg = alongNm > 1e-6 ? radToDeg(std::atan2(std::fabs(lateralNm), alongNm))
+                                               : 180.0;
         const double heightFt = ac.altMslFt - static_cast<double>(ils.gsElevFt);
         const double distFt = nmToFt(gsDistNm);
         const double elevDeg = radToDeg(std::atan2(heightFt, distFt));
