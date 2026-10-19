@@ -1,0 +1,29 @@
+# Build outputs
+build/
+build-*/
+dist/
+out/
+*.o
+*.a
+*.so
+*.so.*
+
+# Generated data packs (terrain tiles, nav DB, downloads) are never committed
+flightsim/data/
+flightsim/tools/**/cache/
+flightsim/tools/**/downloads/
+*.h16
+*.lc8
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Agent worktrees (local only)
+.claude/worktrees/

@@ -1,0 +1,6 @@
+"id","filename","ident","name","type","frequency_khz","latitude_deg","longitude_deg","elevation_ft","iso_country","dme_frequency_khz","dme_channel","dme_latitude_deg","dme_longitude_deg","dme_elevation_ft","slaved_variation_deg","magnetic_variation_deg","usageType","power","associated_airport"
+1,"a","SFO","San Francisco","VOR-DME",115800,37.6195,-122.374,13,"US",115800,"105X",,,,17.0,14.423,"BOTH","MEDIUM",
+2,"b","NDB1","Beacon One","NDB",379,37.5,-122.2,11,"US",,,,,,,,"TERMINAL","LOW",
+3,"c","OAK","Oakland","VORTAC",116800,37.7259,-122.2239,10,"US",116800,"115X",37.72,-122.22,10,17.0,14.4,"BOTH","HIGH",
+4,"d","BAD","Bad","FOO",100,1,1,1,"US",,,,,,,,,,
+5,"e","TCN","Tacan","TACAN",-1,10,10,1,"XX",,,,,,,,,,
