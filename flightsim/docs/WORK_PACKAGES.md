@@ -255,7 +255,7 @@ setting. Triangle counts are logged and stay within PLAN §3 budgets.
 `--out`. It downloads Copernicus GLO-30/GLO-90 DEM and ESA WorldCover for the needed cells
 (cached), mosaics, resamples to the tile pyramid (DATA §4: bilinear heights, mode for land class),
 fills voids, forces ocean to 0, and writes `pack.ini` with attribution. Also `--world` mode
-(levels 0–6 globally, GLO-90) and a size estimator (`--dry-run`). Region presets include `bayarea`.
+(levels 0–6 globally, GLO-90) and a size estimator (`--dry-run`). Region presets: **`pdx_oth`** (primary, PLAN D19: bbox −124.7,43.0,−121.4,46.3) and `bayarea`.
 **Acceptance:** builds a small preset end to end. A validation script checks tile edges match their
 neighbours and parents, and a spot elevation of a known peak is correct within the source accuracy.
 Documented runtime and size per preset.
@@ -291,8 +291,9 @@ shows 2 red / 2 white on the glidepath, all white when high, all red when low.
 direction, threshold displacement applied, headings computed from end coordinates, `approx` flag),
 `navaids.csv`. Optional FAA NASR → `ils.csv`, `fixes.csv`, `airways.csv`. WMM → `magvar.bin`.
 `nav.ini` records the source dates.
-**Acceptance:** schema validation script. Spot checks on KSFO 28R/28L thresholds and the ILS
-frequency. Runs offline from cached downloads.
+**Acceptance:** schema validation script. Spot checks on KPDX (10L/28R, 10R/28L, 03/21) and KOTH
+runway thresholds, plus their ILS frequencies when NASR is available, and KSFO. Runs offline from
+cached downloads.
 
 ## N2: Nav database runtime
 **Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** DATA §5–6, ARCHITECTURE §5 (NavDatabase)
@@ -313,6 +314,7 @@ interpolation, synthesized ILS geometry). Full-world load ≤ 3 s on desktop (de
 **Deliverables:** X-Plane 11 `.fms` parser and writer, plan building (resolve idents via
 `NavDatabase` with nearest-to-previous disambiguation), quick plan (origin/runway → destination,
 direct), insert/delete/direct-to, distances and ETE, and approach insertion API (used by N4/N5).
+Sample plans in `assets/plans/`: `KPDX-KOTH.fms` and `KOTH-KPDX.fms` (PLAN D19).
 **Acceptance:** round-trip tests on sample files (including SimBrief-style exports). Malformed files
 give readable errors.
 
@@ -325,7 +327,8 @@ give readable errors.
 approach) → `procedures/<ICAO>.proc` (format defined and documented by this WP in DATA §7). Runtime
 loader → `Leg` lists. Leg types IF/TF/CF/DF/CA/VA/FA/RF/HM/HA/HF, with others approximated and
 logged. Approach selection API by airport and runway.
-**Acceptance:** KSFO ILS 28R and an RNAV approach parse with correct fixes, altitudes and missed approach.
+**Acceptance:** the KOTH approaches (all of them) and KPDX ILS 10R/28L parse with correct fixes,
+altitudes and missed approach (checked against the published charts).
 Unsupported legs are counted in a report across all US airports.
 
 ## N5: Navigator and approach builder

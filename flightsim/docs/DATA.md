@@ -78,7 +78,7 @@ dem = <exact Copernicus DEM attribution string>
 landcover = ESA WorldCover 2021 v200, CC BY 4.0
 [regions]                ; informational, one line per build
 world = levels 0-6
-bayarea = bbox -123.2,36.9,-121.2,38.4 levels 7-10
+pdx_oth = bbox -124.7,43.0,-121.4,46.3 levels 7-10
 ```
 
 ### 4.2 Heights `.h16`
@@ -195,8 +195,8 @@ pip install -r flightsim/tools/terrain/requirements.txt -r flightsim/tools/nav/r
 # world coarse layer (once)
 python3 flightsim/tools/terrain/build_terrain.py --world --max-level 6 --out data/
 # detailed region
-python3 flightsim/tools/terrain/build_terrain.py --preset bayarea --min-level 7 --max-level 10 --out data/
-python3 flightsim/tools/terrain/build_terrain.py --bbox -123.2,36.9,-121.2,38.4 --max-level 10 --out data/ --dry-run
+python3 flightsim/tools/terrain/build_terrain.py --preset pdx_oth --min-level 7 --max-level 10 --out data/
+python3 flightsim/tools/terrain/build_terrain.py --bbox -124.7,43.0,-121.4,46.3 --max-level 10 --out data/ --dry-run
 # nav database (OurAirports + WMM; FAA optional)
 python3 flightsim/tools/nav/build_navdb.py --out data/nav [--faa-nasr NASR.zip] [--cifp CIFP.zip]
 ```

@@ -80,6 +80,7 @@ Append new decisions at the bottom. Don't rewrite old ones; supersede them with 
 | D16 | **Treat JSBSim geodetic altitude as MSL** and ignore geoid undulation everywhere. | Terrain (EGM2008 heights) and airport elevations are MSL. Using one consistent datum keeps runways on the ground. |
 | D17 | **Dependencies allowed:** SDL2 (zlib), JSBSim (LGPL-2.1, shared), doctest (MIT, tests only), stb_image_write (public domain/MIT, screenshots). | Minimal set. Anything else needs a new decision entry. |
 | D18 | **Implementers are Sonnet agents at medium or high effort, supervised by Opus at extra-high effort** (see [AGENTS.md](AGENTS.md)). | User direction. Cheap, fast parallel implementation with strong review and planning. |
+| D19 | **First detailed region = PDX–OTH corridor**, terrain preset `pdx_oth` = bbox lon −124.7..−121.4, lat 43.0..46.3, levels 7–10 (≈ 0.4 GB with land class). It covers KPDX, KOTH, the Oregon coast, the Coast Range, Willamette Valley, Mt Hood and Mt St Helens. **Primary test route: KPDX ⇄ KOTH** (~190 NM). Real-data scenarios, sample plans and acceptance tests use these airports. XTST stays the synthetic test airport for data-free unit tests. | User's home area and most-flown route. Good mix of mountains, coast, valley, ILS and RNAV approaches. |
 
 ## 5. Fleet
 
@@ -103,9 +104,9 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 |---|---|---|
 | **M0 Hello Device** | WP-00, P1 | Desktop build and CI green. The port zip launches on the RG40XXH and quits with Select+Start 📱. Probe report recorded in DEVICE.md 📱. |
 | **M1 First Flight** | F1, P2, H1, H2, W4, W5 (synthetic airport) | Cessna 172 takes off, flies and lands at the synthetic airport XTST over flat ground. HUD shows every status field in HUD.md section 4. Gamepad controls per CONTROLS.md. ≥ 30 fps on device 📱. |
-| **M2 Real World** | W1, W2, W3, F3, N1, N2, W5 (real data) | Fly over real terrain in one detailed region with the world coarse layer around it. Land on real runways that sit flat on the terrain. The aircraft collides with terrain. Device ≥ 30 fps 📱. |
+| **M2 Real World** | W1, W2, W3, F3, N1, N2, W5 (real data) | Fly over real terrain in the PDX–OTH corridor (D19) with the world coarse layer around it. Take off from KPDX and land at KOTH on runways that sit flat on the terrain. Mt Hood is recognizable. The aircraft collides with terrain. Device ≥ 30 fps 📱. |
 | **M3 Approaches** | N5, N6, H3, H5 | Start on 10 NM final at any runway. Fly a synthesized ILS by hand with HUD deviation scales, or with the AP coupled. Autopilot modes and FMA work. Airport and runway search menu. |
-| **M4 Flight Plans** | N3, N4, H4 | Import an `.fms`, follow it with the HUD, FD and AP (LNAV), load a real CIFP ILS or RNAV approach at a US airport, fly it including the missed approach. Moving map shows the route. |
+| **M4 Flight Plans** | N3, N4, H4 | Fly **KPDX → KOTH** from an imported `.fms` plan, following it with the HUD, FD and AP (LNAV). Load a real CIFP approach at KOTH, fly it including the missed approach, then fly back to KPDX with a real ILS. Moving map shows the route. |
 | **M5 Fleet** | F2, F4 | All core aircraft pass the flyability tests and are selectable. Then the extended fleet. |
 | **M6 Polish** | P3, S1, X1–X4 | Settings persistence, audio, manual and METAR weather, terrain warnings, device performance pass, night lighting (stretch). |
 
@@ -114,7 +115,7 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 | # | Question | Default until answered |
 |---|---|---|
 | Q1 | Final project/port name? | Working title "Flight Sim", port name `flightsim` |
-| Q2 | Which region gets high-detail terrain first? Your home airport is a good choice. | San Francisco Bay Area preset (good terrain variety, many airports with ILS and CIFP data) |
-| Q3 | Fly mostly in the US? Real published approaches are free only for US airports. | Assume US first. Synthesized approaches everywhere else. |
+| Q2 | ~~Which region gets high-detail terrain first?~~ **Answered:** the PDX–OTH corridor (D19). | Preset `pdx_oth` |
+| Q3 | ~~Fly mostly in the US?~~ **Answered:** yes. The main route is Portland (KPDX) ⇄ Southwest Oregon Regional, North Bend (KOTH), both covered by FAA CIFP. | US first |
 | Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the P1 probe and recorded in DEVICE.md |
 | Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg as a setting later. |
