@@ -117,7 +117,13 @@ below show names, units and semantics. WP-00 also added `core/SimTime.h` (`kSimH
 `kMaxFrameDtS`), `core/Assert.h`, the `LatLon` / `Vec3d` / `Mat3d` types in `Geo.h`
 (`crossTrackM` and `alongTrackM` take `LatLon`), `wrap2Pi` / `wrap180`,
 `AircraftProfile::eyeOffsetBodyM[3]` + `hasEyeOffset`, and `FlatTerrain` / `SyntheticNavDb`
-(with `findRunway()`). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
+(with `findRunway()`). Later additive changes: P2 added `Axis::BugRate`, `Action::Quit`,
+`ActionState::repeatCount[]` (auto-repeats fired in the current hold, for accelerated bug steps)
+and `core/MessageQueue.h` (fixed ring of short HUD feedback messages, ticked once per frame). N2
+documented `Ils::locWidthDeg` as the total course width and `freqMhz = 0` as untuned. The
+supervisor added `Approach` / `ApproachTransition` to `NavTypes.h` (the one approach type that N4's
+real CIFP procedures and N5's synthesized approaches both produce) and
+`NavDatabase::navaidsNear()` (default empty). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
 must have safe defaults, so a zero-initialised value means "nothing / invalid".
 
 ```cpp
@@ -293,6 +299,7 @@ struct FlightPlan {
   float cruiseAltFt = 0;
   std::vector<Leg> legs;
   int activeLeg = -1;                      // index into legs, -1 = none
+  int approachStartLeg = -1;               // first approach leg (legs[approachStartLeg..] = approach+missed), -1 = none (N3)
 };
 
 // ---------- core/NavDatabase.h ----------   implemented by nav/ (N2); WP-00 ships SyntheticNavDb (XTST)

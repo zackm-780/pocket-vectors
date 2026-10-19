@@ -34,3 +34,18 @@
 
 ## 3. Field notes
 Add observations from device tests here (date, build, what was seen).
+
+## 4. How to run the probe
+The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in
+`tools/probe/README.md`). Every row of the table in section 2 has a matching entry in the report's
+KEY FACTS block.
+1. Get `flightsim-probe-portmaster.zip` from the `device` CI workflow artifact (or `tools/build_device.sh`).
+2. Unzip it into your PortMaster ports folder on the SD card (`Flight Sim Probe.sh` and `flightsimprobe/`
+   side by side).
+3. Run "Flight Sim Probe" from the Ports menu. Hands off for the first 1.5 s, then press what each prompt
+   asks (never Select and Start together: that exits). About 2 minutes in total.
+4. Send back `flightsimprobe/probe_report.txt` and `flightsimprobe/log.txt`.
+5. Paste the KEY FACTS block under section 5 and fill in the table in section 2.
+
+## 5. Probe results
+_tbd_: paste the KEY FACTS block of `probe_report.txt` here (device firmware, date, probe version).

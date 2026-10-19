@@ -17,7 +17,8 @@ All geometry is **true** internally. Magnetic is used only for display and user 
 
 ### 2.1 Files: X-Plane 11 `.fms` (D10)
 - Location: `data/plans/*.fms` (plus samples in `assets/plans/`). Import and export.
-- Format (plain text, verify details against X-Plane's documentation, which N3 records in `src/nav/README.md`):
+- Format (plain text, verified against X-Plane's documentation; details and our conventions are in
+  `src/nav/README_FMS.md`):
   ```
   I
   1100 Version
@@ -38,7 +39,11 @@ All geometry is **true** internally. Magnetic is used only for display and user 
   `DRCT`/airway name (airways are flattened to their fixes in v1). Field 4 = altitude ft (0 = none).
   Unknown keys are ignored with a log line. Coordinates in the file win over the DB if the ident is
   ambiguous or missing.
-- SimBrief, Little Navmap and similar tools export this format. The user builds plans on a PC and
+- SimBrief, Little Navmap and similar tools export this format.
+- **Conventions (N3):** `depRunway`/`arrRunway` use DB idents (`28L`) and the file uses `RW28L`.
+  `APP` uses CIFP-style idents without `RW` (`I05` = ILS 05, `R28L` = RNAV, `V10` = VOR). The
+  file carries only the approach *name*; legs come from N4/N5 at load time. `FlightPlan::approachStartLeg`
+  marks the first approach leg. The user builds plans on a PC and
   copies them to the SD card.
 
 ### 2.2 In-game planning (H5 UI, N3 logic)
@@ -84,6 +89,9 @@ All geometry is **true** internally. Magnetic is used only for display and user 
 - **Validity:** LOC within 18 NM and ±35° of the inbound course and in front of the antenna. GS within
   10 NM and ±8° of course, and above the antenna.
 - **DME:** distance to the threshold.
+- **Representation (N2):** `Ils::locWidthDeg` is the **total** course width (twice the half-width
+  above). Synthesized ILS have ident `I<rwy>` and `freqMhz = 0`, meaning untuned. The navigator treats them as
+  available without tuning.
 - **Signs (CONVENTIONS §3):** `cdiDeflection = −angularOffset / halfWidth` (aircraft right of course →
   negative → "fly left"). `gsDeflection = (gsAngle − elevationAngleFromGsAntenna) / 0.7°` (aircraft
   low → positive → "fly up"). Clamp the display at ±1.25 (pegged).

@@ -1,0 +1,9 @@
+libstdc++ and libgcc (statically linked)
+========================================
+
+The binaries are linked with -static-libstdc++ -static-libgcc so they do not depend on the device's
+C++ runtime. These libraries come from GCC 10.2.1 (Debian 11 "bullseye" cross toolchain,
+g++-10-aarch64-linux-gnu) and are licensed under the GNU GPL v3 WITH the GCC Runtime Library
+Exception v3.1, which permits distributing programs linked against them under any licence terms.
+Text: https://www.gnu.org/licenses/gcc-exception-3.1.html . Source: Debian source package gcc-10.
+glibc (libc, libm, libdl, libpthread, librt) is used dynamically from the device (LGPL-2.1).
