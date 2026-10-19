@@ -113,4 +113,21 @@ if [ "${SKIP_QEMU:-0}" != 1 ] && command -v qemu-aarch64 >/dev/null 2>&1 && [ "$
   grep -E "RESULT: c172p" "$SMOKE/stdout.txt" || { tail -20 "$SMOKE/stdout.txt"; echo "no CPU result in the smoke test" >&2; exit 1; }
   echo "smoke test ok (timings under emulation are meaningless)"
 fi
+
+# Smoke test: fly the packaged aarch64 game headless (no display needed) under qemu-user.
+if [ "${SKIP_QEMU:-0}" != 1 ] && command -v qemu-aarch64 >/dev/null 2>&1 && [ -f "$DIST/flightsim-portmaster.zip" ]; then
+  echo "== qemu-user smoke test: flightsim --headless (c172p 6 NM final, 30 s)"
+  GSMOKE="$BUILD/smoke-game"
+  rm -rf "$GSMOKE"; mkdir -p "$GSMOKE"
+  unzip -q "$DIST/flightsim-portmaster.zip" -d "$GSMOKE"
+  ( cd "$GSMOKE/flightsim" &&
+    QEMU_LD_PREFIX="/usr/${TRIPLE}" \
+    qemu-aarch64 -E "LD_LIBRARY_PATH=$PWD/libs.aarch64:/usr/lib/${TRIPLE}" \
+        ./flightsim.aarch64 --headless --scenario assets/scenarios/c172_final_xtst.ini --duration 30 ) \
+      > "$GSMOKE/stdout.txt" 2>&1 \
+      || { tail -20 "$GSMOKE/stdout.txt"; echo "qemu game smoke test FAILED" >&2; exit 1; }
+  grep -E "^c172p: simulated 30\.0 s .*\| ok$" "$GSMOKE/stdout.txt" \
+      || { tail -20 "$GSMOKE/stdout.txt"; echo "game smoke test did not end in a valid, uncrashed state" >&2; exit 1; }
+  echo "game smoke test ok"
+fi
 echo "== done: $(printf '%s ' "${ZIPS[@]}")"

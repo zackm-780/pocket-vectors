@@ -29,9 +29,9 @@ on:
   workflow_dispatch:
     inputs:
       require_main:
-        description: "Fail if the game itself (WP-00) cannot be built"
+        description: "Fail if the game itself cannot be built (on by default since WP-00 landed)"
         type: boolean
-        default: false
+        default: true
 
 jobs:
   device-zip:
@@ -51,8 +51,8 @@ jobs:
       - name: Build and check the device packages (Docker, Debian 11)
         working-directory: flightsim
         env:
-          # Set to 1 (or remove the condition) once WP-00 has landed so a broken game build fails CI.
-          REQUIRE_MAIN: ${{ github.event.inputs.require_main == 'true' && '1' || '0' }}
+          # WP-00 has landed: a broken game build fails CI (a manual run can opt out).
+          REQUIRE_MAIN: ${{ github.event.inputs.require_main == 'false' && '0' || '1' }}
         run: tools/build_device.sh --docker
 
       - name: Show package contents
