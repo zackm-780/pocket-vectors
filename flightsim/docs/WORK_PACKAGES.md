@@ -153,7 +153,7 @@ any deviation is documented in the PR.
 pasted into DEVICE.md, and the main port launches and exits with Select+Start 📱.
 
 ## P2: Input system and control mapping
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** CONTROLS, ARCHITECTURE §5 (Actions, ControlInputs)
+**Status:** done (merged wp/P2-input; needs device test: button labels, L2/R2 analog, feel) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** CONTROLS, ARCHITECTURE §5 (Actions, ControlInputs)
 
 **Owns:** `src/input/`, `tests/input/`, `assets/controls_default.ini`.
 
