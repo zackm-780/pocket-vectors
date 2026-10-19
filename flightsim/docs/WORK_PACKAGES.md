@@ -89,7 +89,7 @@ graph LR
 ---
 
 ## WP-00: Foundation skeleton
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** ARCHITECTURE (all), CONVENTIONS, BUILD_AND_DEPLOY §1–4
+**Status:** in progress (wp/WP-00-foundation) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** ARCHITECTURE (all), CONVENTIONS, BUILD_AND_DEPLOY §1–4
 
 **Owns:** `flightsim/CMakeLists.txt`, `flightsim/cmake/` (except the aarch64 toolchain, which P1 owns),
 `src/main.cpp`, `src/core/`, `src/app/`, `src/platform/`, `src/gfx/` (base files), minimal
@@ -125,7 +125,7 @@ ground grid and runway from the cockpit eye point. CI green. ARCHITECTURE §5 ma
 any deviation is documented in the PR.
 
 ## P1: Device toolchain, PortMaster package, device probe
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** none to start; WP-00 for packaging the main binary · **Specs:** BUILD_AND_DEPLOY, DEVICE
+**Status:** in progress (wp/P1-device-toolchain) · **Model / effort:** Sonnet / high · **Depends:** none to start; WP-00 for packaging the main binary · **Specs:** BUILD_AND_DEPLOY, DEVICE
 
 **Owns:** `cmake/toolchain-aarch64.cmake`, `tools/docker/`, `tools/build_device.sh`, `tools/probe/`,
 `port/`, `.github/workflows/device.yml`, `docs/DEVICE.md` (results section).
@@ -247,7 +247,7 @@ horizon culling budget.
 setting. Triangle counts are logged and stay within PLAN §3 budgets.
 
 ## W3: Terrain data pipeline (Python)
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
+**Status:** in progress (wp/W3-terrain-pipeline) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
 
 **Owns:** `tools/terrain/` (including `tools/terrain/requirements.txt`).
 
@@ -283,7 +283,7 @@ generic apron and building blocks. Registers flatten areas with `TerrainQuery`.
 shows 2 red / 2 white on the glidepath, all white when high, all red when low.
 
 ## N1: Nav data pipeline (Python)
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** none · **Specs:** DATA §5–6
+**Status:** in progress (wp/N1-nav-pipeline) · **Model / effort:** Sonnet / medium · **Depends:** none · **Specs:** DATA §5–6
 
 **Owns:** `tools/nav/` (except `cifp*`; including `tools/nav/requirements.txt`).
 
