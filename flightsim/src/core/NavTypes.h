@@ -87,6 +87,26 @@ struct Leg {
 
 enum class ApproachKind { None, Ils, Loc, Rnav, Vor, Ndb, Visual };
 
+// One instrument/visual approach to one runway, as produced by nav/Procedures (N4, real FAA CIFP)
+// or nav/ApproachBuilder (N5, synthesized for any runway). Inserted into a FlightPlan as
+// transition legs + finalLegs + missedLegs (missedLegs all have missedApproach = true).
+struct ApproachTransition {
+    std::string name;  // IAF / transition ident; empty = "vectors" (straight to the final segment)
+    std::vector<Leg> legs;
+};
+struct Approach {
+    std::string
+        id;  // CIFP-style ident without "RW": "I05", "R28L", "V10", "L13" (see NAVIGATION 2.1)
+    std::string airportIdent, runwayIdent;  // runwayIdent in DB style ("05", "28L")
+    ApproachKind kind = ApproachKind::None;
+    std::vector<ApproachTransition> transitions;
+    std::vector<Leg> finalLegs;   // IF/FAF ... MAP
+    std::vector<Leg> missedLegs;  // after the MAP
+    float minimumsFt = 0;         // DA or MDA, ft MSL; 0 = unknown
+    bool minimumsIsDa = true;
+    bool synthesized = false;
+};
+
 struct FlightPlan {
     std::string originIdent, destIdent, depRunway, arrRunway, approachId;
     ApproachKind approachKind = ApproachKind::None;

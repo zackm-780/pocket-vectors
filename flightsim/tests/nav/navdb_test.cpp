@@ -295,3 +295,16 @@ TEST_CASE("nav: full-database checks (manual, set FSIM_NAV_DATA_DIR)") {
     CHECK(varOth > 14.0f);
     CHECK(varOth < 17.0f);
 }
+
+TEST_CASE("nav: navaidsNear returns navaids within the radius, nearest first") {
+    const NavDatabase& db = fixtureDb();
+    // KPDX field: PDX VOR is ~0.4 NM away, BTG ~9.5 NM, UBG ~21 NM, OTH far south.
+    const auto near10 = db.navaidsNear(45.5887, -122.598, 10.0f);
+    REQUIRE(near10.size() == 2);
+    CHECK(near10[0]->ident == "PDX");
+    CHECK(near10[1]->ident == "BTG");
+    const auto near30 = db.navaidsNear(45.5887, -122.598, 30.0f);
+    REQUIRE(near30.size() == 3);
+    CHECK(near30[2]->ident == "UBG");
+    CHECK(db.navaidsNear(0.0, 0.0, 50.0f).empty());
+}

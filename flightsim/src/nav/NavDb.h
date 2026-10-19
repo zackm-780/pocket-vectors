@@ -58,6 +58,8 @@ public:
                                                 float maxDistNm) const override;
     std::vector<const Airport*> searchAirports(std::string_view text, int maxCount) const override;
     std::vector<const Navaid*> findNavaids(std::string_view ident) const override;
+    std::vector<const Navaid*> navaidsNear(double latDeg, double lonDeg,
+                                           float radiusNm) const override;
     std::vector<Waypoint> findFixes(std::string_view ident) const override;
     std::vector<const Airport*> airportsInBox(double south, double west, double north,
                                               double east) const override;

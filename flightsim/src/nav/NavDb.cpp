@@ -543,6 +543,24 @@ std::vector<const Navaid*> CsvNavDatabase::findNavaids(std::string_view ident) c
     return out;
 }
 
+std::vector<const Navaid*> CsvNavDatabase::navaidsNear(double latDeg, double lonDeg,
+                                                       float radiusNm) const {
+    // Linear scan: ~11k navaids, called only when planning (not per frame).
+    std::vector<std::pair<double, const Navaid*>> hits;
+    const double radiusM = static_cast<double>(radiusNm) * kMPerNm;
+    for (const Navaid& n : navaids_) {
+        if (std::fabs(n.latDeg - latDeg) * 60.0 > radiusNm) continue;  // cheap latitude reject
+        const double dM = greatCircleDistM(latDeg, lonDeg, n.latDeg, n.lonDeg);
+        if (dM <= radiusM) hits.emplace_back(dM, &n);
+    }
+    std::sort(hits.begin(), hits.end(),
+              [](const auto& a, const auto& b) { return a.first < b.first; });
+    std::vector<const Navaid*> out;
+    out.reserve(hits.size());
+    for (const auto& h : hits) out.push_back(h.second);
+    return out;
+}
+
 std::vector<Waypoint> CsvNavDatabase::findFixes(std::string_view ident) const {
     const std::string key = toUpper(ident);
     auto first =
