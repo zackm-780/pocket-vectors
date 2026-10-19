@@ -93,6 +93,9 @@ struct FlightPlan {
     float cruiseAltFt = 0;
     std::vector<Leg> legs;
     int activeLeg = -1;  // index into legs, -1 = none
+    // Index of the first approach leg (transition, final and missed legs run to the end of legs);
+    // -1 = no approach inserted. Maintained by nav/FlightPlan insertApproach() (N3).
+    int approachStartLeg = -1;
 };
 
 }  // namespace fsim
