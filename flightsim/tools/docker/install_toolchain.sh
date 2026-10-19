@@ -12,9 +12,14 @@ set -euo pipefail
 # archive.debian.org. Override with DEBIAN_MIRROR=http://archive.debian.org/debian if the default fails.
 MIRROR="${DEBIAN_MIRROR:-http://deb.debian.org/debian}"
 
+# bullseye-security is required: the debian:bullseye Docker image already carries security updates
+# (e.g. libc6 2.31-13+deb11u14), and without the same repo the matching libc6-dev and libc6:arm64
+# versions are not installable. The security archive is a sibling of the main one.
+SECURITY_MIRROR="${DEBIAN_SECURITY_MIRROR:-${MIRROR%/debian}/debian-security}"
 cat > /etc/apt/sources.list <<EOF
 deb ${MIRROR} bullseye main
 deb ${MIRROR} bullseye-updates main
+deb ${SECURITY_MIRROR} bullseye-security main
 EOF
 # bullseye-updates does not exist on archive.debian.org; drop it there.
 case "${MIRROR}" in *archive.debian.org*) sed -i '/bullseye-updates/d' /etc/apt/sources.list ;;
