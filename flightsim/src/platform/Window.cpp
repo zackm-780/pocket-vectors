@@ -45,7 +45,11 @@ bool Window::create(const WindowConfig& cfg) {
 
     // GLES2 first (device baseline), then desktop GL 2.1; each with MSAA first when requested.
     std::vector<ContextAttempt> attempts;
+    // FLIGHTSIM_FORCE_GL21=1 skips the ES attempts so the desktop fallback can be tested.
+    const char* forceGl21 = std::getenv("FLIGHTSIM_FORCE_GL21");
+    const bool skipEs = forceGl21 && forceGl21[0] == '1';
     for (bool es : {true, false}) {
+        if (es && skipEs) continue;
         if (cfg.preferMsaa) attempts.push_back({es, 4});
         attempts.push_back({es, 0});
     }
