@@ -283,7 +283,7 @@ generic apron and building blocks. Registers flatten areas with `TerrainQuery`.
 shows 2 red / 2 white on the glidepath, all white when high, all red when low.
 
 ## N1: Nav data pipeline (Python)
-**Status:** in progress (wp/N1-nav-pipeline) · **Model / effort:** Sonnet / medium · **Depends:** none · **Specs:** DATA §5–6
+**Status:** done (merged wp/N1-nav-pipeline) · **Model / effort:** Sonnet / medium · **Depends:** none · **Specs:** DATA §5–6
 
 **Owns:** `tools/nav/` (except `cifp*`; including `tools/nav/requirements.txt`).
 

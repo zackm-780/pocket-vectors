@@ -145,8 +145,13 @@ wmm = WMM2025, epoch used <decimal year>
 - `start_*` = physical start of pavement. `thr_*` = landing threshold (start moved by
   `displaced_ft` along the heading). `end_*` = far end. Heading is computed from start→end coordinates.
 - `surface` is normalized to `asphalt,concrete,grass,dirt,gravel,water,other`. `hard` = asphalt or concrete.
+- Runway idents are **zero-padded** (`01L`, `09`), matching FAA/CIFP usage.
 - `approx = 1` when end coordinates were missing and geometry was synthesized from the airport
-  reference point, published heading and length. Skip the row if even that is impossible.
+  reference point, published heading and length. If no heading is published either, the heading
+  is derived from the runway number (×10° + WMM declination, typically ±5° off). N1's
+  `--no-ident-heading` turns this off. Skip the row if even that is impossible.
+- **Runtime rule:** `approx` runways are drawn and usable for takeoff and landing, but get **no
+  synthesized ILS, PAPI or approach lights**, because their geometry is only approximate.
 
 ### 5.4 `navaids.csv`
 `ident,type,name,freq_khz,lat_deg,lon_deg,elev_ft,magvar_deg,range_nm,dme_lat_deg,dme_lon_deg,iso_country`
@@ -154,12 +159,17 @@ wmm = WMM2025, epoch used <decimal year>
 
 ### 5.5 `ils.csv` (US from NASR; other regions are synthesized at runtime by N2)
 `airport_ident,rwy_ident,loc_ident,freq_mhz,loc_lat_deg,loc_lon_deg,loc_course_true_deg,loc_width_deg,has_gs,gs_lat_deg,gs_lon_deg,gs_elev_ft,gs_angle_deg,tch_ft,dme_lat_deg,dme_lon_deg,category`
+- NASR has no localizer width or TCH, so those fields are usually empty. The runtime then uses the
+  `Ils` defaults (width from NAVIGATION §3.2, TCH 50 ft). Rows may be localizer-only (`has_gs = 0`).
 
 ### 5.6 `fixes.csv` (US)
 `ident,region,lat_deg,lon_deg`
 
 ### 5.7 `airways.csv` (US, optional)
 `airway,seq,fix_ident,fix_lat_deg,fix_lon_deg,mea_ft`
+- When one designator has disjoint segments (for example V1 in the contiguous US and Hawaii), `seq`
+  restarts at 1001, 2001, … for each further segment. Consumers must not connect points across a
+  thousand boundary.
 
 ## 6. `magvar.bin`
 - Header: 8 bytes ASCII `MAGVAR01`, then little-endian `float32 epochYear`, `int16 latMinDeg(-90)`,

@@ -68,7 +68,7 @@ All geometry is **true** internally. Magnetic is used only for display and user 
 ### 3.1 Available approaches per runway
 | Kind | Source | Lateral | Vertical | Minimums |
 |---|---|---|---|---|
-| ILS | Real ILS data (US NASR) or **synthesized** for any hard runway ≥ 3,000 ft | LOC (angular) | GS (angular) | DA = threshold + 200 ft |
+| ILS | Real ILS data (US NASR) or **synthesized** for any hard, non-`approx` runway ≥ 3,000 ft | LOC (angular) | GS (angular) | DA = threshold + 200 ft |
 | RNAV (GPS) | CIFP (US), or synthesized for any runway | GPS (linear, APR scaling) | Advisory 3° VNAV (hollow diamond) | Synthesized: MDA = threshold + 400 ft (rounded up to 10 ft). CIFP: from the procedure if present, otherwise as synthesized. |
 | VOR / NDB | CIFP (US) | Course from the procedure (GPS overlay in v1) | none | From the procedure or threshold + 500 ft |
 | Visual | synthesized | Extended centerline | 3° advisory | none |
