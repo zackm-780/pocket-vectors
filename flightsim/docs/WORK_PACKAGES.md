@@ -249,7 +249,7 @@ setting. Triangle counts are logged and stay within PLAN §3 budgets.
 ## W3: Terrain data pipeline (Python)
 **Status:** todo · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
 
-**Owns:** `tools/terrain/`, `tools/requirements.txt` (terrain section).
+**Owns:** `tools/terrain/` (including `tools/terrain/requirements.txt`).
 
 **Deliverables:** `build_terrain.py` with `--bbox` / `--preset`, `--min-level`, `--max-level` and
 `--out`. It downloads Copernicus GLO-30/GLO-90 DEM and ESA WorldCover for the needed cells
@@ -285,7 +285,7 @@ shows 2 red / 2 white on the glidepath, all white when high, all red when low.
 ## N1: Nav data pipeline (Python)
 **Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** none · **Specs:** DATA §5–6
 
-**Owns:** `tools/nav/` (except `cifp*`), `tools/requirements.txt` (nav section).
+**Owns:** `tools/nav/` (except `cifp*`; including `tools/nav/requirements.txt`).
 
 **Deliverables:** `build_navdb.py`: OurAirports → `airports.csv`, `runways.csv` (one row per landing
 direction, threshold displacement applied, headings computed from end coordinates, `approx` flag),

@@ -15,8 +15,8 @@
 - Prefer plain structs and free functions over deep class hierarchies. Interfaces only where
   `core/` defines them.
 - **Python tools:** Python ≥ 3.10, type hints, `argparse` CLIs, `--help` that explains every
-  option, deterministic outputs, caches in `tools/**/cache/` (git-ignored), and pinned dependencies in
-  `tools/requirements.txt`.
+  option, deterministic outputs, caches in `tools/**/cache/` (git-ignored), and pinned dependencies in a
+  `requirements.txt` per tool directory (`tools/terrain/`, `tools/nav/`).
 
 ## 2. Units and angles (mandatory)
 - Every variable, field or parameter holding a physical quantity carries a unit suffix:

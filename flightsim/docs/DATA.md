@@ -190,7 +190,8 @@ END
 ## 8. Pipeline CLIs (to be implemented by W3/N1/N4)
 
 ```bash
-python3 -m venv .venv && . .venv/bin/activate && pip install -r flightsim/tools/requirements.txt
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r flightsim/tools/terrain/requirements.txt -r flightsim/tools/nav/requirements.txt
 # world coarse layer (once)
 python3 flightsim/tools/terrain/build_terrain.py --world --max-level 6 --out data/
 # detailed region
