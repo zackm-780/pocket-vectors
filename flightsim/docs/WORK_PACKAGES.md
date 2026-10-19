@@ -307,7 +307,7 @@ SyntheticNavDb (XTST always present). Load time measured.
 interpolation, synthesized ILS geometry). Full-world load ≤ 3 s on desktop (device time recorded later).
 
 ## N3: Flight plans and `.fms` IO
-**Status:** done (wp/N3-flightplans, awaiting review) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** NAVIGATION §2
+**Status:** done (merged wp/N3-flightplans) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** NAVIGATION §2
 
 **Owns:** `src/nav/FlightPlan*`, `src/nav/Fms*`, `tests/nav/plan*`, `assets/plans/` (samples).
 
