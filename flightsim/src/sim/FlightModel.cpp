@@ -16,8 +16,8 @@
 #include <models/FGGroundReactions.h>
 #include <models/FGLGear.h>
 #include <models/FGMassBalance.h>
-#include <models/FGPropulsion.h>
 #include <models/FGPropagate.h>
+#include <models/FGPropulsion.h>
 #include <models/atmosphere/FGWinds.h>
 #include <models/propulsion/FGEngine.h>
 
@@ -30,7 +30,7 @@
 namespace fsim {
 namespace {
 
-constexpr double kGraceAfterStartS = 1.0;       // no crash verdicts right after a start
+constexpr double kGraceAfterStartS = 1.0;        // no crash verdicts right after a start
 constexpr float kStallWarnHysteresisDeg = 1.0f;  // warning clears this far below its threshold
 constexpr double kTerrainSlopeProbeM = 60.0;     // distance ahead used to estimate the slope
 
@@ -92,9 +92,8 @@ struct FlightModel::Impl {
     // by the engine index.
     std::string pathFor(const char* key, const char* def, int engine = 0) const {
         const auto it = profile.properties.find(key);
-        const std::string& base = (it != profile.properties.end() && !it->second.empty())
-                                      ? it->second
-                                      : std::string(def);
+        const std::string& base =
+            (it != profile.properties.end() && !it->second.empty()) ? it->second : std::string(def);
         return replaceAll(base, "{n}", std::to_string(engine));
     }
     double propNumber(const char* key, double def) const {
@@ -135,7 +134,7 @@ struct FlightModel::Impl {
 
     struct GearInfo {
         std::shared_ptr<JSBSim::FGLGear> unit;
-        bool structure = false;       // non-wheel contact point (wing tip, tail, belly...)
+        bool structure = false;  // non-wheel contact point (wing tip, tail, belly...)
         bool retractable = false;
         const char* reason = nullptr;  // crash reason when a structure point touches
     };
@@ -226,7 +225,8 @@ void FlightModel::Impl::bindProps() {
         e.n1 = pathProp("engine_n1", "propulsion/engine[{n}]/n1", i);
         e.n2 = pathProp("engine_n2", "propulsion/engine[{n}]/n2", i);
         e.rpm = pathProp("engine_rpm", "propulsion/engine[{n}]/engine-rpm", i);
-        if (!e.rpm.valid()) e.rpm = prop("propulsion/engine[" + std::to_string(i) + "]/propeller-rpm");
+        if (!e.rpm.valid())
+            e.rpm = prop("propulsion/engine[" + std::to_string(i) + "]/propeller-rpm");
         e.thrust = pathProp("engine_thrust", "propulsion/engine[{n}]/thrust-lbs", i);
         if (profile.hasReversers)
             e.reverser = pathProp("reverser_cmd", "propulsion/engine[{n}]/reverser-angle-rad", i);
@@ -254,9 +254,9 @@ void FlightModel::Impl::bindProps() {
         gi.unit = gr->GetGearUnit(i);
         gi.retractable = gi.unit->GetRetractable();
         const std::string& name = gi.unit->GetName();
-        gi.structure = !gi.unit->IsBogey() ||
-                       std::find(structureNames.begin(), structureNames.end(), name) !=
-                           structureNames.end();
+        gi.structure =
+            !gi.unit->IsBogey() ||
+            std::find(structureNames.begin(), structureNames.end(), name) != structureNames.end();
         gi.reason = gi.structure ? structureCrashReason(name) : nullptr;
         if (!gi.structure) {
             // body z is down-positive: the wheel is below the CG by +z
@@ -265,9 +265,10 @@ void FlightModel::Impl::bindProps() {
         gears.push_back(std::move(gi));
     }
     limits = crashLimitsFor(profile, gearHeightFt);
-    LOG_DEBUG("%s: %d engines, %zu contacts, gear height %.2f ft, belly %.2f ft, hard landing %.0f fpm",
-              profile.id.c_str(), engineCount, gears.size(), gearHeightFt, limits.bellyAglFt,
-              limits.hardLandingFpm);
+    LOG_DEBUG(
+        "%s: %d engines, %zu contacts, gear height %.2f ft, belly %.2f ft, hard landing %.0f fpm",
+        profile.id.c_str(), engineCount, gears.size(), gearHeightFt, limits.bellyAglFt,
+        limits.hardLandingFpm);
 
     steerFullKt = static_cast<float>(propNumber("ground.steer_full_below_kt", 15));
     steerMinKt = static_cast<float>(propNumber("ground.steer_min_above_kt", 60));
@@ -597,9 +598,8 @@ void FlightModel::Impl::refresh(AircraftState& s) {
     // where the air moves TO, so "from" is the opposite direction.
     const double windN = pWindN.get() + pGustN.get(), windE = pWindE.get() + pGustE.get();
     s.windKt = static_cast<float>(fpsToKt(std::hypot(windN, windE)));
-    s.windFromTrueDeg = s.windKt > 0.01f
-                            ? static_cast<float>(wrap360(radToDeg(std::atan2(-windE, -windN))))
-                            : 0.f;
+    s.windFromTrueDeg =
+        s.windKt > 0.01f ? static_cast<float>(wrap360(radToDeg(std::atan2(-windE, -windN)))) : 0.f;
     for (int i = 0; i < 3; ++i) s.eyeBodyM[i] = eyeBodyM[i];
 
     s.flapPosNorm = static_cast<float>(pFlap.get());
@@ -636,8 +636,8 @@ void FlightModel::Impl::refresh(AircraftState& s) {
         e.throttleCmdNorm = static_cast<float>(eng[i].throttleCmd.get());
         e.n1Pct = eng[i].turbine ? static_cast<float>(eng[i].n1.get()) : 0.f;
         e.n2Pct = eng[i].turbine ? static_cast<float>(eng[i].n2.get()) : 0.f;
-        e.rpm = profile.category == AircraftCategory::Jet ? 0.0f
-                                                           : static_cast<float>(eng[i].rpm.get());
+        e.rpm =
+            profile.category == AircraftCategory::Jet ? 0.0f : static_cast<float>(eng[i].rpm.get());
         e.thrustLbf = static_cast<float>(eng[i].thrust.get());
         e.reverserDeployed = profile.hasReversers && reverserPos > 0.5f;
     }
@@ -646,7 +646,8 @@ void FlightModel::Impl::refresh(AircraftState& s) {
     // Warnings. The stall warning has hysteresis so it does not chatter at the threshold.
     if (profile.stallWarnAlphaDeg > 0 && !s.wowAny) {
         const float on = profile.stallWarnAlphaDeg;
-        stallWarnLatched = s.alphaDeg > on || (stallWarnLatched && s.alphaDeg > on - kStallWarnHysteresisDeg);
+        stallWarnLatched =
+            s.alphaDeg > on || (stallWarnLatched && s.alphaDeg > on - kStallWarnHysteresisDeg);
     } else {
         stallWarnLatched = false;
     }

@@ -99,8 +99,8 @@ TEST_CASE("profile: parser rejects broken profiles with a message") {
     CHECK_FALSE(parseAircraftProfile("[flaps]\ndetents = UP:0\n", p, err));
     CHECK(err.find("[aircraft]") != std::string::npos);
     CHECK_FALSE(parseAircraftProfile("[aircraft]\nid = x\nengines = 9\n", p, err));
-    CHECK_FALSE(parseAircraftProfile(
-        "[aircraft]\nid = x\n[flaps]\ndetents = UP:0, 10:1.5\n", p, err));
+    CHECK_FALSE(
+        parseAircraftProfile("[aircraft]\nid = x\n[flaps]\ndetents = UP:0, 10:1.5\n", p, err));
     CHECK_FALSE(parseAircraftProfile(
         "[aircraft]\nid = x\n[flaps]\ndetents = UP:0\napproach_detent = 3\n", p, err));
     CHECK(parseAircraftProfile("[aircraft]\nid = x\n", p, err));

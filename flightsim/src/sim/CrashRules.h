@@ -16,12 +16,12 @@
 namespace fsim {
 
 struct CrashLimits {
-    float hardLandingFpm = 900;         // sink rate at first wheel contact beyond which we crash
-    float touchdownBankDeg = 25;        // |bank| limit during the touchdown window
-    float touchdownPitchUpDeg = 20;     // nose-up limit (tail strike)
-    float touchdownPitchDownDeg = 15;   // nose-down limit (nose strike)
-    float bellyAglFt = 0;               // CG height above ground at which the belly touches
-    float touchdownWindowS = 1.0f;      // how long after a wheel touches the attitude limits apply
+    float hardLandingFpm = 900;        // sink rate at first wheel contact beyond which we crash
+    float touchdownBankDeg = 25;       // |bank| limit during the touchdown window
+    float touchdownPitchUpDeg = 20;    // nose-up limit (tail strike)
+    float touchdownPitchDownDeg = 15;  // nose-down limit (nose strike)
+    float bellyAglFt = 0;              // CG height above ground at which the belly touches
+    float touchdownWindowS = 1.0f;     // how long after a wheel touches the attitude limits apply
 };
 
 // Category defaults, then profile overrides ([crash] section, stored as "crash.<key>" in
