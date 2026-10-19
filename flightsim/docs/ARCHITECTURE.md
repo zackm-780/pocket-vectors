@@ -120,7 +120,10 @@ below show names, units and semantics. WP-00 also added `core/SimTime.h` (`kSimH
 (with `findRunway()`). Later additive changes: P2 added `Axis::BugRate`, `Action::Quit`,
 `ActionState::repeatCount[]` (auto-repeats fired in the current hold, for accelerated bug steps)
 and `core/MessageQueue.h` (fixed ring of short HUD feedback messages, ticked once per frame). N2
-documented `Ils::locWidthDeg` as the total course width and `freqMhz = 0` as untuned. After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
+documented `Ils::locWidthDeg` as the total course width and `freqMhz = 0` as untuned. The
+supervisor added `Approach` / `ApproachTransition` to `NavTypes.h` (the one approach type that N4's
+real CIFP procedures and N5's synthesized approaches both produce) and
+`NavDatabase::navaidsNear()` (default empty). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
 must have safe defaults, so a zero-initialised value means "nothing / invalid".
 
 ```cpp
