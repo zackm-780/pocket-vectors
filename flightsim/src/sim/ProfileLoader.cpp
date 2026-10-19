@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <vector>
 
 #include "core/AircraftState.h"
 #include "core/Ini.h"
@@ -60,6 +62,10 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
         std::strncpy(up.label, "UP", sizeof up.label - 1);
         p.flapDetents.push_back(up);
     }
+    // Optional per-detent Vfe, one value per detent in order ("160, 110, 85, 85"); 0 = unspecified.
+    const std::vector<std::string> vfeList = splitTrim(ini.getString("flaps", "vfe_kt"), ',');
+    for (size_t i = 0; i < vfeList.size() && i < p.flapDetents.size(); ++i)
+        p.flapDetents[i].vfeKt = std::strtof(vfeList[i].c_str(), nullptr);
     p.takeoffFlapDetent = ini.getInt("flaps", "takeoff_detent", 0);
     p.approachFlapDetent = ini.getInt("flaps", "approach_detent", 0);
 
@@ -87,7 +93,18 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
     for (const auto& [key, value] : ini.entries("autopilot"))
         p.autopilot[key] = std::strtof(value.c_str(), nullptr);
     for (const auto& [key, value] : ini.entries("properties")) p.properties[key] = value;
+    // [crash] and [ground] numbers travel in the same map under a section prefix (the flight
+    // model reads "crash.hard_landing_fpm", "ground.steer_full_below_kt", ...).
+    for (const char* section : {"crash", "ground"})
+        for (const auto& [key, value] : ini.entries(section))
+            p.properties[std::string(section) + "." + key] = value;
 
+    for (const FlapDetent& d : p.flapDetents) {
+        if (d.cmdNorm < 0.f || d.cmdNorm > 1.f) {
+            error = std::string("flap detent '") + d.label + "' command outside 0..1";
+            return false;
+        }
+    }
     const int detents = static_cast<int>(p.flapDetents.size());
     if (p.approachFlapDetent < 0 || p.approachFlapDetent >= detents || p.takeoffFlapDetent < 0 ||
         p.takeoffFlapDetent >= detents) {
