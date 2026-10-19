@@ -3,10 +3,12 @@
 // pilot controls -> autopilot -> flight model -> nav (ARCHITECTURE section 3). Owns no window or
 // GL, so tests and --headless runs use it directly.
 
+#include <functional>
 #include <memory>
 #include <string>
 
 #include "app/Scenario.h"
+#include "app/SpawnGate.h"  // F3
 #include "app/StubSystems.h"
 #include "app/Trace.h"
 #include "core/AircraftProfile.h"
@@ -28,6 +30,13 @@ public:
     bool init(const Scenario& scenario, const std::string& aircraftOverride, std::string& error);
 
     bool openTrace(const std::string& path) { return trace_.open(path); }
+
+    // F3: spawn gating. init() prefetches terrain around the start (and the landing runway) and
+    // waits, up to the timeout, until the finest detail there is resident. The pump integrates
+    // finished tiles (TerrainService::update); without one init() does not wait.
+    void setTerrainPump(TerrainPump pump) { terrainPump_ = std::move(pump); }
+    void setSpawnGateTimeoutS(double timeoutS) { spawnTimeoutS_ = timeoutS; }
+    const SpawnGateResult& spawnGate() const { return spawnGate_; }  // outcome of the last init()
 
     // Advance by wall-clock time using the fixed-step accumulator; returns steps executed.
     int advance(double wallDtS);
@@ -68,6 +77,10 @@ private:
     double accumulatorS_ = 0;
     double nextTraceS_ = 0;
     bool paused_ = false;
+    TerrainPump terrainPump_;         // F3
+    double spawnTimeoutS_ = 10.0;     // F3
+    SpawnGateResult spawnGate_;       // F3
+    std::string flattenedRunway_;     // F3: temporary until W5
 };
 
 }  // namespace fsim
