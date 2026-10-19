@@ -84,6 +84,9 @@ All geometry is **true** internally. Magnetic is used only for display and user 
 - **Validity:** LOC within 18 NM and ±35° of the inbound course and in front of the antenna. GS within
   10 NM and ±8° of course, and above the antenna.
 - **DME:** distance to the threshold.
+- **Representation (N2):** `Ils::locWidthDeg` is the **total** course width (twice the half-width
+  above). Synthesized ILS have ident `I<rwy>` and `freqMhz = 0`, meaning untuned. The navigator treats them as
+  available without tuning.
 - **Signs (CONVENTIONS §3):** `cdiDeflection = −angularOffset / halfWidth` (aircraft right of course →
   negative → "fly left"). `gsDeflection = (gsAngle − elevationAngleFromGsAntenna) / 0.7°` (aircraft
   low → positive → "fly up"). Clamp the display at ±1.25 (pegged).

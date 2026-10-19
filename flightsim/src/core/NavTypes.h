@@ -11,10 +11,10 @@ enum class AirportType { Large, Medium, Small, Seaplane, Unknown };
 
 struct Ils {
     char ident[6] = {0};
-    float freqMhz = 0;
+    float freqMhz = 0;  // 0 = untuned (synthesized ILS)
     double locLatDeg = 0, locLonDeg = 0;
     float locCourseTrueDeg = 0;
-    float locWidthDeg = 5;
+    float locWidthDeg = 5;  // TOTAL course width (full-scale left to full-scale right)
     double gsLatDeg = 0, gsLonDeg = 0;
     float gsElevFt = 0;
     float gsAngleDeg = 3;
