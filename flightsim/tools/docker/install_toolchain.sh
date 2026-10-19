@@ -14,8 +14,10 @@ MIRROR="${DEBIAN_MIRROR:-http://deb.debian.org/debian}"
 
 # bullseye-security is required: the debian:bullseye Docker image already carries security updates
 # (e.g. libc6 2.31-13+deb11u14), and without the same repo the matching libc6-dev and libc6:arm64
-# versions are not installable. The security archive is a sibling of the main one.
-SECURITY_MIRROR="${DEBIAN_SECURITY_MIRROR:-${MIRROR%/debian}/debian-security}"
+# versions are not installable. Since bullseye LTS ended, deb.debian.org and security.debian.org
+# still serve the bullseye-security index but its pool files are gone (404), so the default is the
+# archive, which has both.
+SECURITY_MIRROR="${DEBIAN_SECURITY_MIRROR:-http://archive.debian.org/debian-security}"
 cat > /etc/apt/sources.list <<EOF
 deb ${MIRROR} bullseye main
 deb ${MIRROR} bullseye-updates main
