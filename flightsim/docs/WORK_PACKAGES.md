@@ -125,7 +125,7 @@ ground grid and runway from the cockpit eye point. CI green. ARCHITECTURE §5 ma
 any deviation is documented in the PR.
 
 ## P1: Device toolchain, PortMaster package, device probe
-**Status:** in progress (wp/P1-device-toolchain) · **Model / effort:** Sonnet / high · **Depends:** none to start; WP-00 for packaging the main binary · **Specs:** BUILD_AND_DEPLOY, DEVICE
+**Status:** done (merged wp/P1-device-toolchain; needs device test) · **Model / effort:** Sonnet / high · **Depends:** none to start; WP-00 for packaging the main binary · **Specs:** BUILD_AND_DEPLOY, DEVICE
 
 **Owns:** `cmake/toolchain-aarch64.cmake`, `tools/docker/`, `tools/build_device.sh`, `tools/probe/`,
 `port/`, `.github/workflows/device.yml`, `docs/DEVICE.md` (results section).
@@ -153,7 +153,7 @@ any deviation is documented in the PR.
 pasted into DEVICE.md, and the main port launches and exits with Select+Start 📱.
 
 ## P2: Input system and control mapping
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** CONTROLS, ARCHITECTURE §5 (Actions, ControlInputs)
+**Status:** done (merged wp/P2-input; needs device test: button labels, L2/R2 analog, feel) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** CONTROLS, ARCHITECTURE §5 (Actions, ControlInputs)
 
 **Owns:** `src/input/`, `tests/input/`, `assets/controls_default.ini`.
 
@@ -169,7 +169,7 @@ input is ignored when `FLIGHTSIM_PLATFORM=portmaster`, because gptokeyb may inje
 playable with keyboard and any gamepad. Default mapping matches CONTROLS.md exactly.
 
 ## P3: Settings, persistence, paths
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00, P2 · **Specs:** ARCHITECTURE §8, CONTROLS §4
+**Status:** in progress (wp/P3-settings) · **Model / effort:** Sonnet / medium · **Depends:** WP-00, P2 · **Specs:** ARCHITECTURE §8, CONTROLS §4
 
 **Owns:** `src/app/Settings*`, `tests/app/settings*`.
 
@@ -261,7 +261,7 @@ neighbours and parents, and a spot elevation of a known peak is correct within t
 Documented runtime and size per preset.
 
 ## W4: Sky, atmosphere, fog
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** ARCHITECTURE §6
+**Status:** done (merged wp/W4-sky; needs device test: sky cost on Mali) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** ARCHITECTURE §6
 
 **Owns:** `src/world/Sky*`, `src/world/Atmosphere*`, `tests/world/sky*`.
 
@@ -270,7 +270,7 @@ parameters (visibility setting, haze color), and a sun direction for terrain sha
 **Acceptance:** screenshots at ground level and 35,000 ft. The fog matches between sky and ground.
 
 ## W5: Airports and runways rendering
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** WP-00; W1 interface (flatten); N2 for real data · **Specs:** NAVIGATION §3 (lights/PAPI), DATA §5
+**Status:** in progress (wp/W5-airports) · **Model / effort:** Sonnet / high · **Depends:** WP-00; W1 interface (flatten); N2 for real data · **Specs:** NAVIGATION §3 (lights/PAPI), DATA §5
 
 **Owns:** `src/world/Airport*`, `tests/world/airport*`.
 
@@ -296,7 +296,7 @@ runway thresholds, plus their ILS frequencies when NASR is available, and KSFO. 
 cached downloads.
 
 ## N2: Nav database runtime
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** DATA §5–6, ARCHITECTURE §5 (NavDatabase)
+**Status:** done (merged wp/N2-navdb; device load time to be measured) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** DATA §5–6, ARCHITECTURE §5 (NavDatabase)
 
 **Owns:** `src/nav/NavDb*`, `src/nav/MagVar*`, `tests/nav/navdb*`, `tests/fixtures/nav/`.
 
@@ -307,7 +307,7 @@ SyntheticNavDb (XTST always present). Load time measured.
 interpolation, synthesized ILS geometry). Full-world load ≤ 3 s on desktop (device time recorded later).
 
 ## N3: Flight plans and `.fms` IO
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** NAVIGATION §2
+**Status:** done (merged wp/N3-flightplans) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** NAVIGATION §2
 
 **Owns:** `src/nav/FlightPlan*`, `src/nav/Fms*`, `tests/nav/plan*`, `assets/plans/` (samples).
 
@@ -319,7 +319,7 @@ Sample plans in `assets/plans/`: `KPDX-KOTH.fms` and `KOTH-KPDX.fms` (PLAN D19).
 give readable errors.
 
 ## N4: Instrument procedures (FAA CIFP)
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N1, N3 · **Specs:** NAVIGATION §3, DATA §7
+**Status:** in progress (wp/N4-cifp) · **Model / effort:** Sonnet / high · **Depends:** N1, N3 · **Specs:** NAVIGATION §3, DATA §7
 
 **Owns:** `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*`.
 
@@ -332,7 +332,7 @@ altitudes and missed approach (checked against the published charts).
 Unsupported legs are counted in a report across all US airports.
 
 ## N5: Navigator and approach builder
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N2, N3 · **Specs:** NAVIGATION §3–4
+**Status:** in progress (wp/N5-navigator) · **Model / effort:** Sonnet / high · **Depends:** N2, N3 · **Specs:** NAVIGATION §3–4
 
 **Owns:** `src/nav/Navigator*`, `src/nav/ApproachBuilder*`, `tests/nav/navigator*`.
 
@@ -356,7 +356,7 @@ overshoot < 100 ft. ILS from 10 NM holds within 1 dot to 200 ft AGL. LNAV throug
 XTK < 0.3 NM after the intercept.
 
 ## H1: 2D renderer and stroke font
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** HUD §2
+**Status:** done (merged wp/H1-renderer2d; needs device test: edge quality without MSAA) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** HUD §2
 
 **Owns:** `src/hud/Renderer2D*`, `src/hud/StrokeFont*`, `tests/hud/font*`.
 
@@ -367,7 +367,7 @@ rects, clipping rects, color and alpha, the virtual 640×480 transform, and a st
 HUD batch.
 
 ## H2: Flight HUD
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** H1 · **Specs:** HUD (all except §6 nav details)
+**Status:** in progress (wp/H2-flight-hud) · **Model / effort:** Sonnet / high · **Depends:** H1 · **Specs:** HUD (all except §6 nav details)
 
 **Owns:** `src/hud/Hud*`, `tests/hud/hud*`.
 

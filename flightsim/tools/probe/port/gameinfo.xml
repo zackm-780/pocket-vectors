@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gameList>
+  <game>
+    <path>./Flight Sim Probe.sh</path>
+    <name>Flight Sim Probe</name>
+    <desc>Measures the handheld for the Flight Sim project: libc, SDL and OpenGL ES details, controller buttons and sticks, GPU and CPU speed. Writes probe_report.txt.</desc>
+    <releasedate>20261019T000000</releasedate>
+    <developer>retro-games contributors</developer>
+    <publisher>Open Source</publisher>
+    <genre>Utility</genre>
+    <image>./flightsimprobe/screenshot.png</image>
+  </game>
+</gameList>

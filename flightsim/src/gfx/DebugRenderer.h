@@ -11,6 +11,11 @@
 #include "gfx/Camera.h"
 #include "gfx/GlApi.h"
 #include "gfx/Shader.h"
+#include "world/Atmosphere.h"  // W4
+
+namespace fsim::world {
+class Sky;  // W4
+}
 
 namespace fsim::gfx {
 
@@ -22,6 +27,11 @@ public:
     DebugRenderer& operator=(const DebugRenderer&) = delete;
 
     bool init();
+    // W4: shared fog/haze/sun parameters and the sky pass (both optional; owned by the caller).
+    void setAtmosphere(const world::Atmosphere* atmosphere, world::Sky* sky) {
+        atmosphere_ = atmosphere;
+        sky_ = sky;
+    }
     // The airport's runways are drawn on flat ground at groundElevM; the ground grid is anchored
     // to the airport reference point.
     void setWorld(const Airport& airport, float groundElevM);
@@ -49,7 +59,10 @@ private:
     const GlApi& gl_;
     GlFlavor flavor_;
     ShaderProgram program_;
-    GLint uMvp_ = -1, uMv_ = -1, uColor_ = -1, uFogColor_ = -1, uFogDensity_ = -1;
+    GLint uMvp_ = -1, uMv_ = -1, uColor_ = -1;
+    world::FogUniforms fogUniforms_;                 // W4: shared fog uniforms
+    const world::Atmosphere* atmosphere_ = nullptr;  // W4
+    world::Sky* sky_ = nullptr;                      // W4
 
     Airport airport_;
     bool haveWorld_ = false;

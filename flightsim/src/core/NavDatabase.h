@@ -22,6 +22,11 @@ public:
     virtual std::vector<const Airport*> airportsInBox(double south, double west, double north,
                                                       double east) const = 0;
     virtual float magVarDeg(double latDeg, double lonDeg) const = 0;  // + = east
+    // Navaids within radiusNm of a point, nearest first (additive; used by quick-plan "via navaids").
+    virtual std::vector<const Navaid*> navaidsNear(double /*latDeg*/, double /*lonDeg*/,
+                                                   float /*radiusNm*/) const {
+        return {};
+    }
 };
 
 }  // namespace fsim

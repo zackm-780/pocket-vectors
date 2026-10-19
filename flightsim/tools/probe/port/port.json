@@ -1,0 +1,33 @@
+{
+  "version": 4,
+  "name": "flightsimprobe.zip",
+  "items": [
+    "Flight Sim Probe.sh",
+    "flightsimprobe"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Flight Sim Probe",
+    "porter": [
+      "retro-games contributors"
+    ],
+    "desc": "Measures the handheld for the Flight Sim project: libc, SDL and OpenGL ES details, controller buttons and sticks, GPU and CPU speed. Writes probe_report.txt.",
+    "desc_md": null,
+    "inst": "Ready to run. Follow the on-screen prompts (about 2 minutes), then send back probe_report.txt from the flightsimprobe folder.",
+    "inst_md": null,
+    "genres": [
+      "utility"
+    ],
+    "image": null,
+    "rtr": true,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "full",
+    "reqs": [],
+    "arch": [
+      "aarch64"
+    ],
+    "min_glibc": "2.31"
+  }
+}

@@ -1,0 +1,13 @@
+ident,type,name,lat_deg,lon_deg,elev_ft,iso_country,iso_region,municipality,iata,has_ils
+00AL,small,Epps Airpark,34.864799,-86.770302,820,US,US-AL,Harvest,,0
+04W,small,Field of Dreams Airport,46.0228,-92.895401,1021,US,US-MN,Hinckley,,0
+04WN,small,Stillwater Creek Airport,46.95835,-119.63864,1510,US,US-WA,Royal City,,0
+KEUG,medium,Eugene Airport,44.124599,-123.211998,374,US,US-OR,Eugene,EUG,1
+KHIO,medium,Portland Hillsboro Airport,45.540401,-122.949997,208,US,US-OR,Portland,HIO,1
+KLAX,large,Los Angeles International Airport,33.942501,-118.407997,125,US,US-CA,Los Angeles,LAX,1
+KOTH,medium,Southwest Oregon Regional Airport,43.417099,-124.246002,17,US,US-OR,North Bend,OTH,1
+KPDX,large,Portland International Airport,45.588699,-122.598,31,US,US-OR,Portland,PDX,1
+KSEA,large,Seattle–Tacoma International Airport,47.447943,-122.310276,433,US,US-WA,Seattle,SEA,1
+KSFO,large,San Francisco International Airport,37.619806,-122.374821,13,US,US-CA,San Francisco,SFO,1
+KTTD,medium,Portland Troutdale Airport,45.5494,-122.401001,39,US,US-OR,Portland,TTD,0
+KVUO,small,Pearson Field,45.620499,-122.655998,25,US,US-WA,Vancouver,,0
