@@ -3,7 +3,8 @@
 
 namespace fsim {
 
-enum class Axis { Pitch, Roll, Rudder, ThrottleRate, LookYaw, LookPitch, Count };
+// BugRate (additive, P2): L1 + right stick Y, rate-based VS / speed bug adjust, +1 = increase.
+enum class Axis { Pitch, Roll, Rudder, ThrottleRate, LookYaw, LookPitch, BugRate, Count };
 
 enum class Action {
     TrimNoseUp,
@@ -47,6 +48,7 @@ enum class Action {
     MenuAccept,
     MenuBack,
     Screenshot,
+    Quit,  // additive (P2): Select+Start chord or Ctrl+Q
     Count
 };
 
@@ -55,6 +57,9 @@ struct ActionState {
     bool down[static_cast<int>(Action::Count)] = {};  // held
     bool pressed[static_cast<int>(Action::Count)] =
         {};  // edge this frame (auto-repeat where bound)
+    // Additive (P2): auto-repeats fired so far in the current hold (0 on the first press).
+    // Consumers use it to accelerate bug steps (see input/InputCurves.h acceleratedStep).
+    int repeatCount[static_cast<int>(Action::Count)] = {};
 };
 
 }  // namespace fsim

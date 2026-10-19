@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "app/DebugInput.h"
 #include "app/Simulation.h"
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
+#include "core/MessageQueue.h"  // P2
 #include "core/Paths.h"
 #include "core/SimTime.h"
 #include "core/SyntheticNavDb.h"
@@ -17,6 +17,8 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "input/InputSystem.h"    // P2
+#include "input/PilotControls.h"  // P2
 #include "platform/Window.h"
 
 namespace fsim {
@@ -45,7 +47,7 @@ int runHeadless(Simulation& sim, const CliOptions& opt) {
     return 0;
 }
 
-int runWindowed(Simulation& sim, const CliOptions& opt) {
+int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths) {
     Window window;
     WindowConfig wc;
     wc.width = opt.windowWidth;
@@ -61,7 +63,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
 
     gfx::Camera camera;
     camera.setLens(kDefaultVFovDeg);
-    DebugInput input;
+    // P2: gamepad/keyboard -> ActionState -> pilot controls; feedback goes to the message queue
+    // (the HUD, H2, will draw it later; for now it is logged).
+    InputSystem input;
+    input.loadFiles(paths.asset("assets/controls_default.ini"), paths.conf("controls.ini"));
+    input.openControllers();
+    PilotControls pilotControls;
+    MessageQueue messages;
+    unsigned long shownMessages = 0;
 
     int frames = opt.frames;
     if (!opt.screenshotPath.empty() && frames == 0) frames = kDefaultScreenshotFrames;
@@ -82,18 +91,27 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) input.handleEvent(event);
+        const ActionState& actions = input.update(dtS);  // P2
+        messages.tick(dtS);
         if (input.quitRequested()) break;
-        if (input.consumePauseToggle()) {
+        if (actions.pressed[static_cast<int>(Action::Pause)]) {
             state = state == AppState::Flying ? AppState::Paused : AppState::Flying;
             sim.setPaused(state == AppState::Paused);
         }
 
         if (state == AppState::Flying) {
             if (interactive)
-                input.update(dtS, sim.profile().engineCount,
-                             static_cast<int>(sim.profile().flapDetents.size()), sim.pilot());
+                pilotControls.update(actions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
+                                     &messages);  // P2
             sim.advance(dtS);
         }
+
+        // P2: log new feedback messages (until the HUD draws them)
+        shownMessages = std::max(shownMessages, messages.totalPosted() - messages.size());
+        for (; shownMessages < messages.totalPosted(); ++shownMessages)
+            LOG_INFO(
+                "%s",
+                messages.newest(static_cast<int>(messages.totalPosted() - shownMessages - 1)).text);
 
         int w = 0, h = 0;
         window.drawableSize(w, h);
@@ -164,7 +182,8 @@ int App::run() {
         return 2;
     }
 
-    const int rc = options_.headless ? runHeadless(sim, options_) : runWindowed(sim, options_);
+    const int rc =
+        options_.headless ? runHeadless(sim, options_) : runWindowed(sim, options_, paths);
     log::closeFile();
     return rc;
 }
