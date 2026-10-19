@@ -261,7 +261,7 @@ neighbours and parents, and a spot elevation of a known peak is correct within t
 Documented runtime and size per preset.
 
 ## W4: Sky, atmosphere, fog
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** ARCHITECTURE §6
+**Status:** in review (wp/W4-sky) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** ARCHITECTURE §6
 
 **Owns:** `src/world/Sky*`, `src/world/Atmosphere*`, `tests/world/sky*`.
 

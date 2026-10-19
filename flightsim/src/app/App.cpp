@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 
@@ -18,6 +19,8 @@
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
 #include "platform/Window.h"
+#include "world/Atmosphere.h"  // W4
+#include "world/Sky.h"         // W4
 
 namespace fsim {
 namespace {
@@ -59,6 +62,19 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
     if (airport)
         renderer.setWorld(*airport, static_cast<float>(ftToM(sim.startCondition().fieldElevFt)));
 
+    // W4: shared atmosphere (time from the scenario, else local solar noon) and the sky pass.
+    world::Atmosphere atmosphere;
+    if (!atmosphere.setUtcText(sim.scenario().timeUtc)) {
+        world::UtcTime noon;  // 21 June, 12:00 local mean solar time at the start longitude
+        const double utcH = 12.0 - sim.aircraft().lonDeg / 15.0;
+        noon.hour = static_cast<int>(std::floor(std::fmod(utcH + 24.0, 24.0)));
+        noon.minute = static_cast<int>((std::fmod(utcH + 24.0, 24.0) - noon.hour) * 60.0);
+        atmosphere.setUtc(noon);
+    }
+    world::Sky sky(window.gl(), window.flavor());
+    if (!sky.init()) return 1;
+    renderer.setAtmosphere(&atmosphere, &sky);
+
     gfx::Camera camera;
     camera.setLens(kDefaultVFovDeg);
     DebugInput input;
@@ -99,6 +115,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
         window.drawableSize(w, h);
         camera.setViewport(w, h);
         camera.setPoseFromAircraft(sim.aircraft());
+        atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
+                               ftToM(sim.aircraft().altAglFt));
         renderer.render(camera, w, h);
         ++frame;
 
