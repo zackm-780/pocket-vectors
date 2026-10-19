@@ -125,7 +125,7 @@ ground grid and runway from the cockpit eye point. CI green. ARCHITECTURE §5 ma
 any deviation is documented in the PR.
 
 ## P1: Device toolchain, PortMaster package, device probe
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** none to start; WP-00 for packaging the main binary · **Specs:** BUILD_AND_DEPLOY, DEVICE
+**Status:** in review (branch wp/P1-device-toolchain; probe + packaging done, needs device test; game packaging waits for WP-00) · **Model / effort:** Sonnet / high · **Depends:** none to start; WP-00 for packaging the main binary · **Specs:** BUILD_AND_DEPLOY, DEVICE
 
 **Owns:** `cmake/toolchain-aarch64.cmake`, `tools/docker/`, `tools/build_device.sh`, `tools/probe/`,
 `port/`, `.github/workflows/device.yml`, `docs/DEVICE.md` (results section).

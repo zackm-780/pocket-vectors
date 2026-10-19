@@ -1,0 +1,69 @@
+name: device
+
+# Builds the RG40XXH (aarch64, glibc 2.31) PortMaster packages inside the Debian 11 image from
+# flightsim/tools/docker/, checks them (GLIBC <= 2.31, dependency whitelist, layout) and uploads the zips.
+
+on:
+  push:
+    paths:
+      - "flightsim/cmake/**"
+      - "flightsim/tools/docker/**"
+      - "flightsim/tools/probe/**"
+      - "flightsim/tools/build_device.sh"
+      - "flightsim/port/**"
+      - "flightsim/src/**"
+      - "flightsim/CMakeLists.txt"
+      - "flightsim/assets/**"
+      - ".github/workflows/device.yml"
+  pull_request:
+    paths:
+      - "flightsim/cmake/**"
+      - "flightsim/tools/docker/**"
+      - "flightsim/tools/probe/**"
+      - "flightsim/tools/build_device.sh"
+      - "flightsim/port/**"
+      - "flightsim/src/**"
+      - "flightsim/CMakeLists.txt"
+      - "flightsim/assets/**"
+      - ".github/workflows/device.yml"
+  workflow_dispatch:
+    inputs:
+      require_main:
+        description: "Fail if the game itself (WP-00) cannot be built"
+        type: boolean
+        default: false
+
+jobs:
+  device-zip:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        working-directory: flightsim
+        run: |
+          for f in tools/build_device.sh tools/docker/*.sh port/*.sh; do bash -n "$f"; done
+          bash -n "port/Flight Sim.sh"
+          bash -n "tools/probe/port/Flight Sim Probe.sh"
+          shellcheck -S warning tools/build_device.sh tools/docker/*.sh port/package_port.sh port/check_package.sh
+
+      - name: Build and check the device packages (Docker, Debian 11)
+        working-directory: flightsim
+        env:
+          # Set to 1 (or remove the condition) once WP-00 has landed so a broken game build fails CI.
+          REQUIRE_MAIN: ${{ github.event.inputs.require_main == 'true' && '1' || '0' }}
+        run: tools/build_device.sh --docker
+
+      - name: Show package contents
+        working-directory: flightsim
+        run: |
+          ls -la dist
+          for z in dist/*.zip; do echo "== $z"; unzip -l "$z" | grep -v "jsbsim/" ; done
+
+      - name: Upload device zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: flightsim-device-zips
+          path: flightsim/dist/*.zip
+          if-no-files-found: error
