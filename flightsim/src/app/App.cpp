@@ -19,6 +19,8 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "hud/Renderer2D.h"            // H1
+#include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "nav/NavDb.h"
 #include "platform/Window.h"
 #include "world/Atmosphere.h"  // W4
@@ -76,6 +78,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
     world::Sky sky(window.gl(), window.flavor());
     if (!sky.init()) return 1;
     renderer.setAtmosphere(&atmosphere, &sky);
+    // H1: 2D HUD renderer (one batched draw call per frame). The glyph sheet is a debug view.
+    Renderer2D hud2d(window.gl(), window.flavor());
+    if (!hud2d.init()) return 1;
 
     gfx::Camera camera;
     camera.setLens(kDefaultVFovDeg);
@@ -120,6 +125,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt) {
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(sim.aircraft().altAglFt));
         renderer.render(camera, w, h);
+        if (opt.glyphSheet) {  // H1
+            hud2d.begin(w, h);
+            drawGlyphSheet(hud2d);
+            hud2d.end();
+        }
         ++frame;
 
         if (frames > 0 && frame >= frames) {

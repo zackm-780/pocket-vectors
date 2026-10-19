@@ -356,7 +356,7 @@ overshoot < 100 ft. ILS from 10 NM holds within 1 dot to 200 ft AGL. LNAV throug
 XTK < 0.3 NM after the intercept.
 
 ## H1: 2D renderer and stroke font
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** HUD §2
+**Status:** done (merged wp/H1-renderer2d; needs device test: edge quality without MSAA) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** HUD §2
 
 **Owns:** `src/hud/Renderer2D*`, `src/hud/StrokeFont*`, `tests/hud/font*`.
 
