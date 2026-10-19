@@ -296,7 +296,7 @@ runway thresholds, plus their ILS frequencies when NASR is available, and KSFO. 
 cached downloads.
 
 ## N2: Nav database runtime
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** DATA §5–6, ARCHITECTURE §5 (NavDatabase)
+**Status:** done (branch wp/N2-navdb, awaiting review) · **Model / effort:** Sonnet / medium · **Depends:** WP-00 · **Specs:** DATA §5–6, ARCHITECTURE §5 (NavDatabase)
 
 **Owns:** `src/nav/NavDb*`, `src/nav/MagVar*`, `tests/nav/navdb*`, `tests/fixtures/nav/`.
 

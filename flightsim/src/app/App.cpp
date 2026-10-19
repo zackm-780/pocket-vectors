@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 
 #include "app/DebugInput.h"
 #include "app/Simulation.h"
@@ -17,6 +18,7 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "nav/NavDb.h"
 #include "platform/Window.h"
 
 namespace fsim {
@@ -149,7 +151,20 @@ int App::run() {
     }
 
     // Missing data never crashes (ARCHITECTURE section 8): the synthetic world is always there.
-    SyntheticNavDb navDb;
+    // N2: with a nav pack at <data root>/nav (nav.ini present) use CsvNavDatabase, which merges XTST
+    // in; otherwise the synthetic XTST-only database.
+    std::unique_ptr<NavDatabase> navDbOwner;
+    const std::string navDir = paths.data("nav");
+    if (fileExists(Paths::join(navDir, "nav.ini"))) {
+        auto csvNav = std::make_unique<CsvNavDatabase>();
+        std::string navError;
+        if (csvNav->load(navDir, navError))
+            navDbOwner = std::move(csvNav);
+        else
+            LOG_ERROR("nav database: %s; using the synthetic database", navError.c_str());
+    }
+    if (!navDbOwner) navDbOwner = std::make_unique<SyntheticNavDb>();
+    const NavDatabase& navDb = *navDbOwner;
     FlatTerrain terrain;
     if (const Airport* airport = navDb.findAirport(scenario.airportIdent))
         terrain.setElevationM(static_cast<float>(ftToM(airport->elevFt)));
