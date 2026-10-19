@@ -223,7 +223,7 @@ synthetic terrain rolls flat. The c172p can't sink through terrain at 120 Hz.
 Profiles plus flyability tests and autopilot gains for `pa28`, `c182`, `J3Cub`, `DHC6`, `A320`, `787-8`, `MD11`.
 
 ## W1: Terrain runtime
-**Status:** in review (branch wp/W1-terrain-runtime) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** DATA §3–4, ARCHITECTURE §3, §5
+**Status:** done (merged wp/W1-terrain-runtime; needs device test: SD-card load times) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** DATA §3–4, ARCHITECTURE §3, §5
 
 **Owns:** `src/world/terrain/`, `tests/world/terrain/`, `tools/fixtures/make_synthetic_terrain.py`.
 
@@ -235,7 +235,7 @@ prefetch, `isDetailReady`), and an API for W2 to enumerate resident tiles and LO
 flatten blend). No blocking on the main thread. Cache stays under its cap in a fly-through test.
 
 ## W2: Terrain renderer
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
+**Status:** in progress (wp/W2-terrain-renderer) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
 
 **Owns:** `src/world/TerrainRenderer*`, `src/gfx/` additions it needs (new files only), `assets/shaders/terrain*` if shaders are external.
 
