@@ -76,21 +76,30 @@ created_utc = 2026-10-19T12:00:00Z
 [attribution]
 dem = <exact Copernicus DEM attribution string>
 landcover = ESA WorldCover 2021 v200, CC BY 4.0
-[regions]                ; informational, one line per build
+landcover_credit = © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium
+; informational, one line per build
+[regions]
 world = levels 0-6
 pdx_oth = bbox -124.7,43.0,-121.4,46.3 levels 7-10
 ```
+**INI rule (applies to all our INI files):** values may contain `;`, `#`, `©` and other UTF-8. A
+comment is a line whose first non-blank character is `;` or `#`. There are no inline comments.
+Values are kept verbatim, with surrounding whitespace trimmed.
 
 ### 4.2 Heights `.h16`
 - **257 × 257** samples, **little-endian int16**, meters MSL, no header. File size exactly 132,098 bytes.
 - **Row-major, north-up:** row `r` (0..256) is at lat `north − r·step`. Column `c` (0..256) is at
   lon `west + c·step`, where `step = span/256`.
-- Samples are **grid-corner point samples**, and edges are **shared** with neighbours (column 256 of
-  tile x equals column 0 of tile x+1). The pipeline must produce identical edge values.
-- `-32768` = no data (runtime falls back to the parent tile for that tile). Valid range is −500..9000.
-- Ocean = 0 (with land class Water).
-- Resampling: bilinear from the source DEM at each tile's own spacing. Coarser levels are built from
-  the source (or by 2× downsampling the finer level), never by point decimation.
+- Samples sit at **grid corners**, and edges are **shared** with neighbours (column 256 of tile x
+  equals column 0 of tile x+1). The pipeline produces bit-identical edge values.
+- `-32768` = no data. W3 never writes it (voids are filled), but readers must handle it by falling
+  back to the parent tile. Valid range is −500..9000.
+- Ocean = 0 (with land class Water). **All-ocean tiles are omitted.** A missing tile means "ocean
+  or not built": the runtime uses the finest ancestor present, or elevation 0 / Water if none exists.
+- **Samples are area averages:** each corner sample is the box average (width = that level's
+  spacing) of the bilinear source surface. Every level is built from the source (GLO-90 for
+  k ≤ 6, GLO-30 above, each falling back to the other), never by point decimation. Parents
+  therefore match their children only up to smoothing, which is expected.
 
 ### 4.3 Land class `.lc8`
 - **256 × 256** cells, `uint8`, row-major north-up, **cell-centered**: cell `(r,c)` covers
@@ -111,12 +120,19 @@ pdx_oth = bbox -124.7,43.0,-121.4,46.3 levels 7-10
 - Runtime: the finest present level covering a point is found from the bitmaps. A missing bitmap
   means "no tiles at this level".
 
-### 4.5 Size guide (heights only, land tiles, plus about ⅓ for coarser levels)
-| Coverage | Levels | ≈ Size |
+### 4.5 Size guide (measured by W3 where noted)
+| Coverage | Levels | Size |
 |---|---|---|
-| World coarse layer | 0–6 | ~1.5–2 GB |
-| 500 × 500 km region | 7–10 | ~0.5 GB |
-| Contiguous US | 7–9 | ~5 GB |
+| `pdx_oth` (heights + land class) | 7–10 | **326 MB measured** (1,650 + 1,650 tiles, 104 s on 4 cores) |
+| `bayarea` (heights + land class) | 7–10 | 88 MB measured |
+| Pacific NW far-range layer, bbox −128,40,−114,50 | 5–6 | ~18 MB (1.2 GB of source downloads) |
+| World, heights only (default for `--world`) | 0–6 | ≤ 2.85 GB (~50 GB GLO-90 download) |
+| World with land class | 0–6 | ≤ 4.3 GB (plus ~150 GB WorldCover download) |
+
+**Far-range coverage:** without the world layer, the terrain beyond a region renders as flat sea
+level. A cheap fix is a coarse layer (levels 5–6) over a wider box around the region, as in the
+Pacific NW row. Levels below 5 need very large GLO-90 footprints (a level-0 tile is 90° wide), so
+always `--dry-run` first.
 
 ## 5. Nav database format v1 (CSV)
 

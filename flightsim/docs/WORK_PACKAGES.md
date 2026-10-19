@@ -247,7 +247,7 @@ horizon culling budget.
 setting. Triangle counts are logged and stay within PLAN §3 budgets.
 
 ## W3: Terrain data pipeline (Python)
-**Status:** in progress (wp/W3-terrain-pipeline) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
+**Status:** done (merged wp/W3-terrain-pipeline) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
 
 **Owns:** `tools/terrain/` (including `tools/terrain/requirements.txt`).
 
