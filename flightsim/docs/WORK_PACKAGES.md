@@ -223,7 +223,7 @@ synthetic terrain rolls flat. The c172p can't sink through terrain at 120 Hz.
 Profiles plus flyability tests and autopilot gains for `pa28`, `c182`, `J3Cub`, `DHC6`, `A320`, `787-8`, `MD11`.
 
 ## W1: Terrain runtime
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** DATA §3–4, ARCHITECTURE §3, §5
+**Status:** in review (branch wp/W1-terrain-runtime) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** DATA §3–4, ARCHITECTURE §3, §5
 
 **Owns:** `src/world/terrain/`, `tests/world/terrain/`, `tools/fixtures/make_synthetic_terrain.py`.
 
