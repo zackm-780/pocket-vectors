@@ -17,7 +17,7 @@
 namespace fsim::test {
 
 // Local metric coordinates around XTST (40 N, 100 W): east and north in meters.
-inline double xtstEastM(double latDeg, double lonDeg) {
+inline double xtstEastM(double /*latDeg*/, double lonDeg) {
     return (lonDeg - SyntheticNavDb::kLonDeg) * kRadPerDeg * kEarthRadiusM *
            std::cos(degToRad(SyntheticNavDb::kLatDeg));
 }

@@ -54,6 +54,7 @@ public:
     TerrainGroundCallback(const TerrainQuery* terrain, double semiMajorFt, double semiMinorFt,
                           const GroundCallbackConfig& config = {});
 
+    using JSBSim::FGGroundCallback::GetAGLevel;  // keep the five-argument overload visible
     double GetAGLevel(double t, const JSBSim::FGLocation& location, JSBSim::FGLocation& contact,
                       JSBSim::FGColumnVector3& normal, JSBSim::FGColumnVector3& v,
                       JSBSim::FGColumnVector3& w) const override;
