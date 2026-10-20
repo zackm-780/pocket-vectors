@@ -373,6 +373,29 @@ std::string scenarioToIni(const Scenario& sc) {
     if (!sc.approachId.empty()) out += "approach = " + sc.approachId + "\n";  // N5
     out += "\n[wind]\nfrom_true_deg = " + num(sc.windFromTrueDeg) +
            "\nspeed_kt = " + num(sc.windSpeedKt) + "\n";
+    {   // X1: [weather]. A uniform wind (legacy [wind] only) stays in [wind]; gusts or aloft keys
+        // make it a profile wind and the wind keys move here.
+        const world::WeatherSetup& w = sc.weather;
+        std::string wx;
+        auto put = [&](const char* key, const std::optional<float>& v) {
+            if (v) wx += std::string(key) + " = " + num(*v) + "\n";
+        };
+        if (!w.uniformWind) {
+            put("wind_from_true_deg", w.windFromTrueDeg);
+            put("wind_kt", w.windKt);
+        }
+        put("gust_kt", w.gustKt);
+        put("aloft_from_true_deg", w.aloftFromTrueDeg);
+        put("aloft_kt", w.aloftKt);
+        put("visibility_m", w.visibilityM);
+        put("qnh_hpa", w.qnhHpa);
+        put("altimeter_hpa", w.altimeterHpa);
+        put("temp_c", w.tempC);
+        put("turbulence", w.turbulence);
+        if (w.metar) wx += std::string("metar = ") + (*w.metar ? "on" : "off") + "\n";
+        if (w.seed != 1) wx += "seed = " + std::to_string(w.seed) + "\n";
+        if (!wx.empty()) out += "\n[weather]\n" + wx;
+    }
     if (!sc.apEngage.empty() || sc.hasHdgBug || sc.hasAltBug) {
         out += "\n[autopilot]\n";
         if (!sc.apEngage.empty()) {
