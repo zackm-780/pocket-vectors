@@ -463,5 +463,5 @@ Profile on device, tune LOD and budgets, add a quality preset (low/med/high), an
 the measured numbers.
 
 ## X4: Night lighting (stretch)
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** W2, W4, W5
+**Status:** in progress (wp/X4-night) · **Model / effort:** Sonnet / medium · **Depends:** W2, W4, W5
 Time of day, dark terrain with lit runways and approach lights, and city light speckle from urban land class.
