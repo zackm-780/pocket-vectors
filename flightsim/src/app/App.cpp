@@ -39,6 +39,7 @@
 #include "world/Atmosphere.h"              // W4
 #include "world/Sky.h"                     // W4
 #include "world/TerrainRenderer.h"         // W2
+#include "world/Weather.h"                 // X1
 #include "world/terrain/TerrainService.h"  // W1
 
 namespace fsim {
@@ -110,6 +111,13 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         atmosphere.setUtc(noon);
     };
     setSkyTime();
+    // X1: weather visibility drives the fog (a flight without any keeps the default).
+    auto setWeatherVisibility = [&]() {
+        const world::WeatherConditions& wc = sim.weather().conditions();
+        atmosphere.setVisibilityM(wc.hasVisibility ? world::fogVisibilityM(wc)
+                                                   : world::Atmosphere::kDefaultVisibilityM);
+    };
+    setWeatherVisibility();
     world::Sky sky(window.gl(), window.flavor());
     if (!sky.init()) return 1;
     renderer.setAtmosphere(&atmosphere, &sky);
@@ -233,6 +241,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         if (const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent))
             renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
         setSkyTime();
+        setWeatherVisibility();  // X1
         menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
     };
     auto startOrReport = [&](const Scenario& sc) {
@@ -494,6 +503,12 @@ int App::run() {
     if (startAirport) world::registerAirportFlatten(*startAirport, terrainQuery);
 
     Simulation sim(paths, navDb, terrainQuery);
+    // X1: weather options from the settings (re-read for each menu-started flight below)
+    auto applyWeatherOptions = [&]() {
+        sim.setWeatherOptions(
+            {settings.weatherMetar, settings.weatherGusts, settings.weatherTurbulence});
+    };
+    applyWeatherOptions();
     // F3: spawn gating needs finished tiles integrated while it waits for the start detail.
     if (terrainSvc)
         sim.setTerrainPump([svc = terrainSvc.get()](double latDeg, double lonDeg) {
@@ -520,6 +535,7 @@ int App::run() {
             terrain.setElevationM(static_cast<float>(ftToM(ap->elevFt)));
             world::registerAirportFlatten(*ap, terrainQuery);
         }
+        applyWeatherOptions();  // X1
         if (!sim.init(sc, "", err)) return false;
         flightBegun = true;
         if (terrainSvc) {

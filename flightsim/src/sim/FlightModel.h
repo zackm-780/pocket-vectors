@@ -65,6 +65,13 @@ public:
     // Profile of the running aircraft (valid after a successful start()).
     const AircraftProfile& profile() const;
 
+    // X1 additions (additive) ---------------------------------------------------------------
+    // Wind the aircraft flies in, JSBSim convention (where the air moves TO), ft/s. Call before
+    // step(); the start-condition wind is switched on by start() as before.
+    void setWindNedFps(double northFps, double eastFps, double downFps);
+    // Real sea-level pressure and the altimeter setting; fills AircraftState::altBaroOffsetFt.
+    void setBaro(double qnhHpa, double altimeterSettingHpa);
+
     // Direct JSBSim property access for tests and debugging only.
     double getProperty(const std::string& path) const;
     void setProperty(const std::string& path, double value);

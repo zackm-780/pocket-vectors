@@ -19,6 +19,7 @@
 #include "core/TerrainQuery.h"
 #include "nav/Navigator.h"  // N5
 #include "sim/FlightModel.h"
+#include "world/Weather.h"  // X1
 
 namespace fsim {
 
@@ -38,6 +39,11 @@ public:
     void setTerrainPump(TerrainPump pump) { terrainPump_ = std::move(pump); }
     void setSpawnGateTimeoutS(double timeoutS) { spawnTimeoutS_ = timeoutS; }
     const SpawnGateResult& spawnGate() const { return spawnGate_; }  // outcome of the last init()
+
+    // X1: weather. Options (settings) apply to the next init(); the conditions are resolved there
+    // from the scenario, a METAR file for its airport and the options.
+    void setWeatherOptions(const world::WeatherOptions& o) { weatherOptions_ = o; }
+    const world::Weather& weather() const { return weather_; }
 
     // Advance by wall-clock time using the fixed-step accumulator; returns steps executed.
     int advance(double wallDtS);
@@ -85,6 +91,8 @@ private:
     TerrainPump terrainPump_;      // F3
     double spawnTimeoutS_ = 10.0;  // F3
     SpawnGateResult spawnGate_;    // F3
+    world::Weather weather_;       // X1
+    world::WeatherOptions weatherOptions_;
 };
 
 }  // namespace fsim

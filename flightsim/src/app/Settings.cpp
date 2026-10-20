@@ -97,6 +97,7 @@ void Settings::clampAll() {
     };
     fix(fovVerticalDeg, 30.0f, 110.0f, 55.0f);
     for (float* s : {&pitchSens, &rollSens, &rudderSens}) fix(*s, 0.25f, 2.0f, 1.0f);
+    fix(weatherTurbulence, 0.0f, 1.0f, 0.0f);  // X1
     for (float* e : {&pitchExpo, &rollExpo, &rudderExpo}) fix(*e, 0.0f, 1.0f, 0.0f);
     volumePct = std::clamp(volumePct, 0, 100);
     if (simHz != 60 && simHz != 120) simHz = 120;
@@ -164,6 +165,9 @@ int Settings::applyText(const std::string& text) {
     num("pitch_expo", pitchExpo);
     num("roll_expo", rollExpo);
     num("rudder_expo", rudderExpo);
+    flag("weather_metar", weatherMetar);  // X1
+    flag("weather_gusts", weatherGusts);
+    num("weather_turbulence", weatherTurbulence);
     str("last_aircraft", lastAircraft);
 
     if (ini.has(kSection, "sim_hz") && simHz != 60 && simHz != 120)
@@ -234,6 +238,9 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"pitch_expo", fmtFloat(s.pitchExpo)},
         {"roll_expo", fmtFloat(s.rollExpo)},
         {"rudder_expo", fmtFloat(s.rudderExpo)},
+        {"weather_metar", b(s.weatherMetar)},  // X1
+        {"weather_gusts", b(s.weatherGusts)},
+        {"weather_turbulence", fmtFloat(s.weatherTurbulence)},
         {"last_aircraft", s.lastAircraft},
     };
 }
