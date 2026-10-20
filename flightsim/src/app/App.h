@@ -7,7 +7,8 @@
 namespace fsim {
 
 // Game state machine (stubbed in WP-00): menus (H5) and the map (H4) add states later.
-enum class AppState { Flying, Paused };
+// H5: Menu = a full-screen menu (startup / main menu), Paused = the pause menu over a frozen flight.
+enum class AppState { Flying, Paused, Menu };
 
 class App {
 public:

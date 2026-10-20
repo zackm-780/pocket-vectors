@@ -413,7 +413,7 @@ North-up / track-up modes, zoom 2–160 NM, route legs and waypoints, airports a
 symbol, optional terrain shading from coarse tiles, and a waypoint info panel.
 
 ## H5: Menus and flight setup
-**Status:** in progress (wp/H5-menus) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
+**Status:** done, ready for review (wp/H5-menus, needs device test) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
 
 **Owns:** `src/ui/` (except MapPage), `tests/ui/`.
 Menu framework (D-pad/A/B), pause menu, aircraft select, airport search (on-screen keyboard plus

@@ -3,9 +3,11 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <memory>
 
 #include "app/Settings.h"  // P3
@@ -30,6 +32,7 @@
 #include "nav/NavDb.h"
 #include "platform/Window.h"
 #include "ui/MapPage.h"                    // H4
+#include "ui/MenuSystem.h"                 // H5
 #include "world/AirportGeometry.h"         // W5
 #include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
@@ -66,8 +69,13 @@ int runHeadless(Simulation& sim, const CliOptions& opt, terrain::TerrainService*
     return 0;
 }
 
+// H5: (re)starts a flight from a menu-built scenario: flat-terrain elevation, runway pads, the
+// simulation and the terrain prefetch. Returns false with `error` when the simulation refuses.
+using BeginFlightFn = std::function<bool(const Scenario&, std::string&)>;
+
 int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
-                terrain::TerrainService* terrainSvc, const Settings& settings) {
+                terrain::TerrainService* terrainSvc, Settings& settings,
+                const BeginFlightFn& beginFlight, bool startInMenu) {
     Window window;
     WindowConfig wc;
     wc.width = opt.windowWidth;
@@ -86,13 +94,15 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
 
     // W4: shared atmosphere (time from the scenario, else local solar noon) and the sky pass.
     world::Atmosphere atmosphere;
-    if (!atmosphere.setUtcText(sim.scenario().timeUtc)) {
+    auto setSkyTime = [&]() {  // H5: also called when a menu starts another flight
+        if (atmosphere.setUtcText(sim.scenario().timeUtc)) return;
         world::UtcTime noon;  // 21 June, 12:00 local mean solar time at the start longitude
         const double utcH = 12.0 - sim.aircraft().lonDeg / 15.0;
         noon.hour = static_cast<int>(std::floor(std::fmod(utcH + 24.0, 24.0)));
         noon.minute = static_cast<int>((std::fmod(utcH + 24.0, 24.0) - noon.hour) * 60.0);
         atmosphere.setUtc(noon);
-    }
+    };
+    setSkyTime();
     world::Sky sky(window.gl(), window.flavor());
     if (!sky.init()) return 1;
     renderer.setAtmosphere(&atmosphere, &sky);
@@ -148,7 +158,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     input.openControllers();
     PilotControls pilotControls;
     pilotControls.setStickTuning(settings.stickTuning());  // P3
-    const bool showFps = effectiveShowFps(opt, settings);  // P3
+    bool showFps = effectiveShowFps(opt, settings);        // P3
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
@@ -170,12 +180,64 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     case HudDeclutter::Min: hudOptions.declutter = Declutter::Min; break;
     }
     unsigned long shownMessages = 0;
+    // H5: menus (main, new flight, pause, settings). The flight context lets the pause menu edit
+    // the flight plan; the menu itself never touches the simulation.
+    MenuEnv menuEnv;
+    menuEnv.nav = &sim.navDb();
+    menuEnv.settings = &settings;
+    menuEnv.settingsPath = paths.conf("settings.ini");
+    menuEnv.aircraftDir = paths.asset("assets/aircraft");
+    menuEnv.planDirs = {paths.data("plans"), paths.asset("assets/plans")};
+    menuEnv.lastFlightPath = paths.conf("last_flight.ini");
+    menuEnv.menuPlanPath = paths.conf("menu_plan.fms");
+    menuEnv.navDir = paths.data("nav");
+    MenuSystem menu(menuEnv);
+    menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
+    if (!opt.menuSpec.empty()) {
+        std::string menuError;
+        if (!menu.openCanned(opt.menuSpec, menuError)) {
+            LOG_ERROR("--menu: %s", menuError.c_str());
+            return 2;
+        }
+    } else if (startInMenu) {
+        menu.openMain();
+    }
 
     int frames = opt.frames;
     if (!opt.screenshotPath.empty() && frames == 0) frames = kDefaultScreenshotFrames;
     const bool interactive = frames == 0;  // --frames runs are scripted and deterministic
 
     AppState state = AppState::Flying;
+    bool quitRequested = false;
+    // H5: applies edited settings to the running game (HUD color, sticks, FOV, FPS display).
+    auto applySettings = [&]() {
+        switch (settings.hudColor) {
+        case HudColor::White: hudOptions.color = HudPalette::White; break;
+        case HudColor::Amber: hudOptions.color = HudPalette::Amber; break;
+        case HudColor::Green: hudOptions.color = HudPalette::Green; break;
+        }
+        pilotControls.setStickTuning(settings.stickTuning());
+        camera.setLens(settings.fovVerticalDeg);
+        showFps = showFps || settings.showFps;
+    };
+    // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
+    auto flightStarted = [&]() {
+        if (const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent))
+            renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
+        setSkyTime();
+        menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
+    };
+    auto startOrReport = [&](const Scenario& sc) {
+        std::string err;
+        if (beginFlight(sc, err)) {
+            menu.close();
+            flightStarted();
+        } else {
+            LOG_ERROR("%s", err.c_str());
+            for (char& c : err) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            menu.showError(err);
+        }
+    };
     int frame = 0;
     int fpsFrames = 0;
     std::uint64_t lastCounter = SDL_GetPerformanceCounter();
@@ -207,7 +269,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         messages.tick(dtS);
         // H4: the map takes MapToggle; while shown it consumes the D-pad / A / B / Y actions.
         ActionState flightActions = actions;
-        if (actions.pressed[static_cast<int>(Action::MapToggle)] && !mapShown) {
+        if (menu.active()) {
+            // H5: an open menu owns the input; the map page stays as it was
+        } else if (actions.pressed[static_cast<int>(Action::MapToggle)] && !mapShown) {
             mapShown = true;
             mapPage.resetSelection();
         } else if (mapShown) {
@@ -224,12 +288,31 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 flightActions.down[static_cast<int>(a)] = false;
             }
         }
-        Hud::applyActions(flightActions, hudOptions, &messages);  // H2: Action::HudDeclutter
         if (input.quitRequested()) break;
-        if (actions.pressed[static_cast<int>(Action::Pause)]) {
-            state = state == AppState::Flying ? AppState::Paused : AppState::Flying;
-            sim.setPaused(state == AppState::Paused);
+        // H5: an open menu consumes the input (X/Y/Start are menu buttons there); otherwise the
+        // Pause button opens the pause menu.
+        if (menu.active()) {
+            const MenuResult res = menu.update(menuInputFromActions(actions));
+            if (!res.message.empty()) messages.post(res.message.c_str());
+            if (res.settingsChanged) applySettings();
+            switch (res.action) {
+            case MenuAction::StartFlight: startOrReport(res.scenario); break;
+            case MenuAction::RestartFlight: startOrReport(Scenario(sim.scenario())); break;
+            case MenuAction::ResumeFlight: menu.close(); break;
+            case MenuAction::Quit: quitRequested = true; break;
+            case MenuAction::None: break;
+            }
+        } else {
+            Hud::applyActions(flightActions, hudOptions, &messages);  // H2: Action::HudDeclutter
+            if (actions.pressed[static_cast<int>(Action::Pause)]) {
+                mapShown = false;
+                menu.openPause();
+            }
         }
+        if (quitRequested) break;
+        state = !menu.active() ? AppState::Flying
+                               : (menu.fullScreen() ? AppState::Menu : AppState::Paused);
+        sim.setPaused(state != AppState::Flying);
 
         if (state == AppState::Flying) {
             if (interactive)
@@ -257,7 +340,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         renderer.render(camera, w, h);
         airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
-            hudOptions.paused = state == AppState::Paused;
+            hudOptions.paused = false;  // H5: the pause menu says PAUSED itself
             hudOptions.magVarDeg =
                 sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             {  // H3: nav / autopilot state for the overlay (or a canned one with --hud-fake)
@@ -279,10 +362,15 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 mapPage.draw(hud2d, sim.aircraft(), sim.navState(),
                              sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
                              sim.navDb(), hudOptions.magVarDeg);
-            else
+            else if (state != AppState::Menu)
                 hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
                          messages, hudOptions);
             hud2d.end();
+            if (menu.active()) {  // H5: own batch, so its panels cover the HUD strokes beneath
+                hud2d.begin(w, h);
+                menu.draw(hud2d);
+                hud2d.end();
+            }
         }
         ++frame;
 
@@ -404,10 +492,27 @@ int App::run() {
         return 2;
     }
 
-    const int rc = options_.headless
-                       ? runHeadless(sim, options_, terrainSvc.get())
-                       : runWindowed(sim, options_, paths, terrainSvc.get(), settings);
-    if (rc == 0 && interactiveRun) {  // P3: clean exit -> remember the flight
+    // H5: no --scenario / --resume on an interactive run (the device launch) shows the main menu.
+    const bool startInMenu = interactiveRun && options_.scenarioPath.empty() && !options_.resume;
+    bool flightBegun = false;  // a menu-started flight exists (else the default one stays unsaved)
+    const BeginFlightFn beginFlight = [&](const Scenario& sc, std::string& err) {
+        if (const Airport* ap = navDb.findAirport(sc.airportIdent)) {
+            terrain.setElevationM(static_cast<float>(ftToM(ap->elevFt)));
+            world::registerAirportFlatten(*ap, terrainQuery);
+        }
+        if (!sim.init(sc, "", err)) return false;
+        flightBegun = true;
+        if (terrainSvc) {
+            terrainSvc->prefetch(sim.startCondition().latDeg, sim.startCondition().lonDeg,
+                                 15000.0f);
+            terrainSvc->update(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+        }
+        return true;
+    };
+    const int rc = options_.headless ? runHeadless(sim, options_, terrainSvc.get())
+                                     : runWindowed(sim, options_, paths, terrainSvc.get(), settings,
+                                                   beginFlight, startInMenu);
+    if (rc == 0 && interactiveRun && (!startInMenu || flightBegun)) {  // P3: remember the flight
         Scenario last = sim.scenario();
         last.aircraftId = sim.profile().id;
         writeLastFlight(paths.conf("last_flight.ini"), last);

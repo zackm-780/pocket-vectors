@@ -23,6 +23,7 @@ struct CliOptions {
     double mapZoomNm = 0;  // H4: --map <nm> opens the map page at that range (0 = closed)
     bool mapTrackUp = false;  // H4: --map-track starts the map track-up
     bool resume = false;      // P3: --resume loads <conf>/last_flight.ini as the scenario
+    std::string menuSpec;     // H5: --menu <screen[:arg]> opens that menu screen (docs/UI.md)
     bool help = false;
 };
 
