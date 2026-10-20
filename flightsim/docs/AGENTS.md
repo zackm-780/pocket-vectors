@@ -81,3 +81,18 @@ You are a Sonnet implementer agent on the RG40XXH flight sim. Your work package 
   (for example, N4 owns DATA §7). Everything else goes through the supervisor.
 - The device is a shared, human-only resource. Batch "needs device test" items per milestone and give the
   user one checklist.
+
+## 5. Usage budget
+All agents (implementers and the supervisor) share one account usage limit. Every agent step
+re-sends that agent's whole conversation, so a session's cost grows with its length times its
+number of steps, and running more agents at once does not finish more work per usage window: it
+only reaches the limit sooner. Each resume after a limit stop also replays the full transcript.
+- **At most 3 implementer agents at a time.** Start the next WP when one is merged.
+- **Small WPs.** If a WP will not fit comfortably in one session, the supervisor splits it.
+- **Targeted reading.** The brief names the doc sections to read. Read your own WORK_PACKAGES
+  entry, not the whole file. Read source files in the ranges you need.
+- **Short tool output.** Pipe builds, tests and traces through `tail` or `grep`. Never print whole
+  logs, CSV traces or large diffs.
+- **Images only to check something.** Open a screenshot only when verifying it, and prefer the
+  640×480 version.
+- **Effort:** medium by default. High only where the WP's math or physics needs it (see §1).
