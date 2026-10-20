@@ -1,6 +1,7 @@
 #include "app/Simulation.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "core/Log.h"
 #include "core/SimTime.h"
@@ -67,6 +68,7 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
         weather_.meanWindAt(startAglFt, start_.windFromTrueDeg, start_.windSpeedKt);
         const world::WeatherConditions& wc = weather_.conditions();
         model_.setBaro(wc.qnhHpa, wc.altimeterSettingHpa);
+        altimeterSettingHpa_ = wc.altimeterSettingHpa;
         LOG_INFO("weather (%s): wind %03.0f/%.0f kt gust %.0f, vis %.0f m, QNH %.1f hPa",
                  wc.source.c_str(), start_.windFromTrueDeg, start_.windSpeedKt, wc.gustKt,
                  wc.hasVisibility ? wc.visibilityM : -1.0f, wc.qnhHpa);
@@ -169,6 +171,20 @@ void Simulation::stepOnce() {
     if (trace_.isOpen() && s.simTimeS + 1e-9 >= nextTraceS_) {
         trace_.write(s, navState_, autopilot_.state(), final_);
         nextTraceS_ += kTraceIntervalS;
+    }
+}
+
+void Simulation::setAltimeterSettingHpa(float hpa) {
+    altimeterSettingHpa_ = std::clamp(hpa, 900.0f, 1100.0f);
+    model_.setBaro(weather_.conditions().qnhHpa, altimeterSettingHpa_);
+}
+
+void Simulation::stepAltimeter(int steps, bool inHg) {
+    if (inHg) {
+        const double inHgNow = std::round(hpaToInHg(altimeterSettingHpa_) * 100.0) / 100.0;
+        setAltimeterSettingHpa(static_cast<float>(inHgToHpa(inHgNow + 0.01 * steps)));
+    } else {
+        setAltimeterSettingHpa(static_cast<float>(std::round(altimeterSettingHpa_) + steps));
     }
 }
 

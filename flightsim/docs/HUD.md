@@ -63,7 +63,7 @@ altitudes, flaps, gear, trim, throttle and engines, brakes, nav, autopilot) must
 | Speed tape | 16, 70, 80, 300 | IAS kt, ticks every 10, labels every 20, current box at center, speed bug, bands (red below Vs0/Vs1, white flap band Vs0..Vfe, red above Vne/Vmo), 10 s trend arrow |
 | Below speed tape | 16, 374 | `GS 128` (ground speed); `M.78` when mach > 0.40 |
 | Altitude tape | 544, 70, 80, 300 | ft MSL, ticks every 100, labels every 500, current box (thousands larger), altitude bug, minimums bug, ground band (terrain elevation) when in range |
-| Below altitude tape | 544, 374 | `VS +700` (fpm, rounded to 50) and `RA 450` (radio altitude when AGL < 2,500 ft). Below 1,000 ft AGL, RA also shows as large text under the FPV. |
+| Below altitude tape | 544, 374 | `VS +700` (fpm, rounded to 50) and `RA 450` (radio altitude when AGL < 2,500 ft). Below 1,000 ft AGL, RA also shows as large text under the FPV. The altimeter setting (X1) is the third line: `STD`, `29.92` (inHg) or `1013` (hPa) per the pressure-units setting. |
 | LOC scale | horizontal, centered (320, 392), ±2 dots | Diamond = deviation. Shown when NavState.locValid, or GPS/CDI in approach phase. |
 | GS scale | vertical, (500, 240), ±2 dots | Diamond = glidepath. Shown when gsValid. Hollow when only advisory VNAV. |
 | Nav box | 440, 368, 196, 60 | GPS: `GPS → CEPIN 12.4NM` / `DTK 281 XTK 0.2R ETE 6:12` / `NEXT ARCHI 3000A`. ILS: `ILS 28R 111.70 CRS 297` / `DME 8.4 DA 213`. VOR: radial and DME. |

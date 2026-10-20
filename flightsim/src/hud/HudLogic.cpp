@@ -236,6 +236,15 @@ void formatMach(char* out, int n, float mach) {
         std::snprintf(out, static_cast<size_t>(n), "M.%02d", hundredths);
 }
 
+void formatAltimeterSetting(char* out, int n, float settingHpa, bool inHg) {
+    if (std::fabs(settingHpa - 1013.25f) < 0.01f)
+        std::snprintf(out, static_cast<size_t>(n), "STD");
+    else if (inHg)
+        std::snprintf(out, static_cast<size_t>(n), "%.2f", hpaToInHg(settingHpa));
+    else
+        std::snprintf(out, static_cast<size_t>(n), "%d", static_cast<int>(std::lround(settingHpa)));
+}
+
 void formatVs(char* out, int n, float vsFpm) {
     const int v = roundToStep(vsFpm, 50);
     if (v == 0)

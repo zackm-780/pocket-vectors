@@ -64,6 +64,8 @@ While the map is open, trim, flaps and gear inputs are ignored.
 | R1 + B | Flight director on/off |
 | R1 + X | Sync bugs (heading bug = current heading, altitude bug = current altitude rounded to 100) |
 | R1 + Y | Nav source cycle GPS → LOC/VOR (when tuned) → GPS |
+| R1 + D-pad ↑ / ↓ | Altimeter setting +/− 0.01 inHg or 1 hPa (per the pressure-units setting; hold repeats) |
+| R1 + Select | Altimeter to standard (STD, 1013.25 hPa) |
 
 ### L2 held: look layer
 | Input | Action |

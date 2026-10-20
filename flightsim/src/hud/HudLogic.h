@@ -49,7 +49,8 @@ struct HudOptions {
     Declutter declutter = Declutter::Full;
     HudPalette color = HudPalette::Green;
     bool paused = false;
-    float magVarDeg = 0;  // + = east; heading and wind are shown magnetic (true - magVar)
+    bool baroInHg = false;  // altimeter setting shown in inHg instead of hPa (P3 pressure units)
+    float magVarDeg = 0;    // + = east; heading and wind are shown magnetic (true - magVar)
     // OR of warningBit() values raised by other modules: PullUp, Terrain, SinkRate (X2), ApOff (H3).
     std::uint32_t extraWarnings = 0;
 };
@@ -163,8 +164,10 @@ private:
 int roundToStep(float value, int step);             // nearest multiple (half away from zero)
 void formatThousands(char* out, int n, int value);  // 9840 -> "9 840"
 void formatMach(char* out, int n, float mach);      // 0.78 -> "M.78", 1.02 -> "M1.02"
-void formatVs(char* out, int n, float vsFpm);       // "VS +700" (rounded to 50)
-int roundRadioAltFt(float agl);                     // 5 ft below 100, 10 below 500, else 50
+// X1: "STD" at the standard setting, else "29.92" (inHg) or "1013" (hPa).
+void formatAltimeterSetting(char* out, int n, float settingHpa, bool inHg);
+void formatVs(char* out, int n, float vsFpm);               // "VS +700" (rounded to 50)
+int roundRadioAltFt(float agl);                             // 5 ft below 100, 10 below 500, else 50
 void formatAltBoxThousands(char* out, int n, float altFt);  // "35" (thousands, sign kept)
 void formatAltBoxRest(char* out, int n, float altFt);       // "000" (20 ft steps)
 void formatFlightTime(char* out, int n, double simTimeS);   // "T+00:42:10"

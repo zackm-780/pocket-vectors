@@ -407,6 +407,9 @@ void drawAltTape(const Ctx& k) {
         std::snprintf(t, sizeof t, "RA %d", roundRadioAltFt(k.s.altAglFt));
         r.text(x0, 404, t, TextSize::M, k.base, HAlign::Left, VAlign::Baseline);
     }
+    // X1: altimeter setting, "STD", "29.92" or "1013".
+    formatAltimeterSetting(t, sizeof t, k.s.altimeterSettingHpa, k.opt.baroInHg);
+    r.text(x0, 420, t, TextSize::M, k.base, HAlign::Left, VAlign::Baseline);
     r.setLineWidth(2.0f);
 }
 

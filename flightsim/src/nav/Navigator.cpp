@@ -9,6 +9,7 @@
 #include "core/SyntheticNavDb.h"  // findRunway
 #include "core/Units.h"
 #include "nav/FlightPlan.h"
+#include "nav/Procedures.h"
 
 namespace fsim {
 namespace {
@@ -144,6 +145,16 @@ void Navigator::clearPlan() {
     state_ = NavState{};
 }
 
+// Real procedures: a transition may join the final segment later than its first fix (N4), so the
+// final legs before the join are not flown. Synthesized approaches have no such transitions.
+static std::vector<Leg> planLegsFor(const Approach& approach, int transitionIndex) {
+    if (!approach.synthesized && transitionIndex >= 0 &&
+        transitionIndex < static_cast<int>(approach.transitions.size()))
+        return assembleApproachLegs(
+            approach, approach.transitions[static_cast<size_t>(transitionIndex)].name);
+    return approachPlanLegs(approach, transitionIndex);
+}
+
 // ---- approach -------------------------------------------------------------------------------------
 
 bool Navigator::loadApproach(const Approach& approach, int transitionIndex) {
@@ -157,8 +168,9 @@ bool Navigator::loadApproach(const Approach& approach, int transitionIndex) {
         transitionIndex = selectTransition(approach, prev);
     }
     std::string error;
-    if (!insertApproach(plan_, approach.id, approach.kind, approach.runwayIdent,
-                        approachPlanLegs(approach, transitionIndex), &error)) {
+    std::vector<Leg> legs = planLegsFor(approach, transitionIndex);
+    if (!insertApproach(plan_, approach.id, approach.kind, approach.runwayIdent, std::move(legs),
+                        &error)) {
         LOG_WARN("navigator: cannot insert approach %s: %s", approach.id.c_str(), error.c_str());
         return false;
     }
@@ -344,6 +356,17 @@ void Navigator::refreshCache() {
                 c.fafIdx = i;
                 break;
             }
+        // Real procedures publish the FAF: the last plan leg ending at that fix.
+        if (c.fafIdx < 0 && approach_ && approach_->fafFinalLeg >= 0 &&
+            approach_->fafFinalLeg < static_cast<int>(approach_->finalLegs.size())) {
+            const std::string& fafIdent =
+                approach_->finalLegs[static_cast<size_t>(approach_->fafFinalLeg)].to.ident;
+            for (int i = c.mapIdx - 1; i >= appStart; --i)
+                if (plan_.legs[static_cast<size_t>(i)].to.ident == fafIdent) {
+                    c.fafIdx = i;
+                    break;
+                }
+        }
         if (c.fafIdx < 0) {
             float bestNm = 0.5f;
             for (int i = c.firstFinalIdx; i < c.mapIdx; ++i) {

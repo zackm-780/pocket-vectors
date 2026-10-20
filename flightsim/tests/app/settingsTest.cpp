@@ -317,6 +317,43 @@ TEST_CASE("settings: default scenario also round trips") {
     CHECK(scenarioToIni(r) == scenarioToIni(sc));
 }
 
+TEST_CASE("settings: the [weather] section round trips through the last flight file") {
+    const char* text =
+        "[scenario]\naircraft = c172p\nairport = XTST\nrunway = 27\nstart = final\n"
+        "[weather]\nwind_from_true_deg = 200\nwind_kt = 14\ngust_kt = 24\naloft_from_true_deg = "
+        "230\n"
+        "aloft_kt = 30\nvisibility_m = 3000\nqnh_hpa = 1005\naltimeter_hpa = 1013.25\ntemp_c = 4\n"
+        "turbulence = 0.4\nmetar = off\nseed = 7\n";
+    Scenario a, b;
+    std::string err;
+    REQUIRE_MESSAGE(parseScenario(text, a, err), err);
+    REQUIRE_MESSAGE(parseScenario(scenarioToIni(a), b, err), err);
+    const world::WeatherSetup &x = a.weather, &y = b.weather;
+    CHECK(y.windFromTrueDeg == x.windFromTrueDeg);
+    CHECK(y.windKt == x.windKt);
+    CHECK(y.gustKt == x.gustKt);
+    CHECK(y.aloftFromTrueDeg == x.aloftFromTrueDeg);
+    CHECK(y.aloftKt == x.aloftKt);
+    CHECK(y.visibilityM == x.visibilityM);
+    CHECK(y.qnhHpa == x.qnhHpa);
+    CHECK(y.altimeterHpa == x.altimeterHpa);
+    CHECK(y.tempC == x.tempC);
+    CHECK(y.turbulence == x.turbulence);
+    CHECK(y.metar == x.metar);
+    CHECK(y.seed == 7u);
+    CHECK(y.uniformWind == x.uniformWind);
+    CHECK(scenarioToIni(b) == scenarioToIni(a));
+
+    // legacy [wind] only: stays a uniform wind
+    Scenario c, d;
+    REQUIRE(parseScenario("[scenario]\nairport = XTST\n[wind]\nfrom_true_deg = 90\nspeed_kt = 8\n",
+                          c, err));
+    REQUIRE(parseScenario(scenarioToIni(c), d, err));
+    CHECK(d.weather.uniformWind);
+    CHECK(d.weather.windKt == c.weather.windKt);
+    CHECK_FALSE(d.weather.gustKt.has_value());
+}
+
 TEST_CASE("settings: stick tuning reaches the pilot controls") {
     Settings s;
     s.pitchSens = 0.5f;

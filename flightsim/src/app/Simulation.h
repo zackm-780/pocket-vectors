@@ -44,6 +44,11 @@ public:
     // from the scenario, a METAR file for its airport and the options.
     void setWeatherOptions(const world::WeatherOptions& o) { weatherOptions_ = o; }
     const world::Weather& weather() const { return weather_; }
+    // X1: the pilot's altimeter setting. setAltimeterSettingHpa clamps to 900..1100 hPa;
+    // stepAltimeter moves it by `steps` of 0.01 inHg (inHg = true) or 1 hPa, snapping to the grid.
+    float altimeterSettingHpa() const { return altimeterSettingHpa_; }
+    void setAltimeterSettingHpa(float hpa);
+    void stepAltimeter(int steps, bool inHg);
 
     // Advance by wall-clock time using the fixed-step accumulator; returns steps executed.
     int advance(double wallDtS);
@@ -92,6 +97,7 @@ private:
     double spawnTimeoutS_ = 10.0;  // F3
     SpawnGateResult spawnGate_;    // F3
     world::Weather weather_;       // X1
+    float altimeterSettingHpa_ = 1013.25f;
     world::WeatherOptions weatherOptions_;
 };
 

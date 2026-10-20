@@ -14,6 +14,7 @@
 #include "app/Simulation.h"
 #include "audio/AudioControl.h"  // S1
 #include "audio/AudioEngine.h"   // S1
+#include "core/Baro.h"           // X1
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
 #include "core/MessageQueue.h"  // P2
@@ -26,6 +27,7 @@
 #include "gfx/Screenshot.h"
 #include "hud/GpwsMonitor.h"           // X2
 #include "hud/Hud.h"                   // H2
+#include "hud/HudLogic.h"              // X1
 #include "hud/NavHud.h"                // H3
 #include "hud/NavHudFake.h"            // H3
 #include "hud/Renderer2D.h"            // H1
@@ -74,6 +76,14 @@ int runHeadless(Simulation& sim, const CliOptions& opt, terrain::TerrainService*
                      sim.aircraft().altAglFt);
         // W1: integrate finished tiles and keep the load ring on the aircraft.
         if (terrainSvc) terrainSvc->update(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+        // I1: [scenario] end_agl_ft: stop on the way down (a coupled-approach demo ends before the
+        // AP disconnect hands the landing to nobody).
+        const float endAglFt = sim.scenario().endAglFt;
+        if (endAglFt > 0 && sim.aircraft().altAglFt <= endAglFt && sim.aircraft().vsFpm < 0 &&
+            !sim.aircraft().wowAny) {
+            LOG_INFO("scenario end: descended through %.0f ft AGL", endAglFt);
+            break;
+        }
     }
     printSummary(sim, sim.aircraft().simTimeS);
     return 0;
@@ -187,6 +197,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     NavHud navHud;  // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
     hud.setOverlay(&navHud);
     // H2: P3 settings give the starting HUD color and declutter level.
+    hudOptions.baroInHg = settings.pressureUnits == PressureUnits::InHg;
     switch (settings.hudColor) {
     case HudColor::White: hudOptions.color = HudPalette::White; break;
     case HudColor::Amber: hudOptions.color = HudPalette::Amber; break;
@@ -245,6 +256,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         case HudColor::Amber: hudOptions.color = HudPalette::Amber; break;
         case HudColor::Green: hudOptions.color = HudPalette::Green; break;
         }
+        hudOptions.baroInHg = settings.pressureUnits == PressureUnits::InHg;
         pilotControls.setStickTuning(settings.stickTuning());
         camera.setLens(settings.fovVerticalDeg);
         showFps = showFps || settings.showFps;
@@ -351,6 +363,18 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             // N6: AP / FD / A/T engage, mode and bug actions.
             if (interactive)
                 sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
+            if (interactive) {  // X1: altimeter setting (R1 + D-pad up/down, R1 + Select = STD)
+                const bool inHg = settings.pressureUnits == PressureUnits::InHg;
+                auto pr = [&](Action a) { return actions.pressed[static_cast<int>(a)]; };
+                if (pr(Action::BaroStd)) sim.setAltimeterSettingHpa(static_cast<float>(kStdQnhHpa));
+                const int steps = (pr(Action::BaroInc) ? 1 : 0) - (pr(Action::BaroDec) ? 1 : 0);
+                if (steps != 0) sim.stepAltimeter(steps, inHg);
+                if (pr(Action::BaroStd) || steps != 0) {
+                    char t[16];
+                    formatAltimeterSetting(t, sizeof t, sim.altimeterSettingHpa(), inHg);
+                    messages.postf("ALTIMETER %s", t);
+                }
+            }
             sim.advance(dtS);
         }
         gpwsToneBuf.clear();

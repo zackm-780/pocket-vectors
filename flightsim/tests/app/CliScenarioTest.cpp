@@ -236,3 +236,12 @@ TEST_CASE("profile: placeholder profiles parse") {
     CHECK_FALSE(parseAircraftProfile("[other]\n", p, err));
     CHECK_FALSE(loadAircraftProfile("/no/such.ini", p, err));
 }
+
+TEST_CASE("scenario: end_agl_ft is parsed, and the ILS demos end above the flare") {
+    Scenario sc;
+    std::string err;
+    REQUIRE_MESSAGE(parseScenario("[scenario]\nairport = XTST\nend_agl_ft = 100\n", sc, err), err);
+    CHECK(sc.endAglFt == doctest::Approx(100.0f));
+    REQUIRE(parseScenario("[scenario]\nairport = XTST\n", sc, err));
+    CHECK(sc.endAglFt == 0.0f);
+}

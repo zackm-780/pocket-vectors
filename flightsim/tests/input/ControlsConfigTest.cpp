@@ -75,6 +75,9 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
     CHECK(hasPadBinding(c, PadLayer::R1, PadInput::B, Action::FdToggle));
     CHECK(hasPadBinding(c, PadLayer::R1, PadInput::X, Action::SyncBugs));
     CHECK(hasPadBinding(c, PadLayer::R1, PadInput::Y, Action::NavSourceCycle));
+    CHECK(hasPadBinding(c, PadLayer::R1, PadInput::DpadUp, Action::BaroInc));
+    CHECK(hasPadBinding(c, PadLayer::R1, PadInput::DpadDown, Action::BaroDec));
+    CHECK(hasPadBinding(c, PadLayer::R1, PadInput::Select, Action::BaroStd));
     // L2 layer
     CHECK(hasPadBinding(c, PadLayer::L2, PadInput::DpadLeft, Action::LookLeft));
     CHECK(hasPadBinding(c, PadLayer::L2, PadInput::DpadRight, Action::LookRight));
