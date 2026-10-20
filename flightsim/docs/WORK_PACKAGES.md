@@ -235,7 +235,7 @@ prefetch, `isDetailReady`), and an API for W2 to enumerate resident tiles and LO
 flatten blend). No blocking on the main thread. Cache stays under its cap in a fly-through test.
 
 ## W2: Terrain renderer
-**Status:** done, awaiting review (wp/W2-terrain-renderer; needs device test: GPU cost on Mali-G31, depth precision, upload hitching) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
+**Status:** done, merged (needs device test: GPU cost on Mali-G31, depth precision, upload hitching; Portland view is 46k triangles, over the 40k budget) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
 
 **Owns:** `src/world/TerrainRenderer*`, `src/gfx/` additions it needs (new files only), `assets/shaders/terrain*` if shaders are external.
 
@@ -339,7 +339,7 @@ Sample plans in `assets/plans/`: `KPDX-KOTH.fms` and `KOTH-KPDX.fms` (PLAN D19).
 give readable errors.
 
 ## N4: Instrument procedures (FAA CIFP)
-**Status:** in progress (wp/N4-cifp) · **Model / effort:** Sonnet / high · **Depends:** N1, N3 · **Specs:** NAVIGATION §3, DATA §7
+**Status:** done, merged (needs device test: procedures pack load time; follow-ups for N5: assembleApproachLegs for late-joining transitions, fafFinalLeg) · **Model / effort:** Sonnet / high · **Depends:** N1, N3 · **Specs:** NAVIGATION §3, DATA §7
 
 **Owns:** `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*`.
 

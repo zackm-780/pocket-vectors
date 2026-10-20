@@ -188,7 +188,7 @@ TEST_CASE("nav: perfect pilot flies real KOTH approaches from the IAF to the thr
         std::string seq;
         for (const auto& i : r.idents) seq += i + " ";
         MESSAGE(std::string(c.id) << ": reached MAP " << r.reachedMap << " after " << r.timeS
-                     << " s, active fixes: " << seq);
+                                  << " s, active fixes: " << seq);
         CHECK(r.reachedMap);
         CHECK_FALSE(r.legsOutOfOrder);
         CHECK_FALSE(r.anyMissed);
