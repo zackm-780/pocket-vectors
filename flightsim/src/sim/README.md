@@ -95,7 +95,10 @@ Engine and gear counts: `engineCount` is `min(profile engines, model engines, kM
   nose as `BOGEY` contacts; list those names in `structure_contacts` so they count as structure
   rather than wheels. `c182` and `pa28` main wheels are castering (`max_steer 360`): steer with
   differential brakes. `global5000`, `B747`, `A320` use `direct` thrusters, so reversers work as for
-  the 737. `c310` opens output sockets 1138 and 1139 (F2).
+  the 737. The stock `c310` sockets 1138/1139 are commented out in v1.3.3; its constant-speed
+  propeller cannot be trimmed (JSBSim resets blade pitch at every initial condition), so the
+  overlay fits a fixed-pitch propeller (F2). The stock `global5000` writes `global5000.csv` to
+  the working directory; the overlay removes that output block (F2).
 - Turboprops reverse through `propulsion/engine[{n}]/reverser` (a bool), not an angle: set
   `reverser_cmd = propulsion/engine[{n}]/reverser`, `reverser_on = 1`, `reverser_off = 0`,
   `reverser_travel_s = 0`.
@@ -198,9 +201,34 @@ Nothing is judged in the first second after a start. The first matching rule set
 5. **Attitude during the touchdown window**: |bank| above the limit "wing strike", pitch above the
    limit "tail strike", below minus the limit "nose strike".
 
-Terrain plug-in for F3: call `FlightModel::setTerrain(const TerrainQuery*)`. The slope and water
-rules read it each time they are needed (not every step). F3 installs the JSBSim ground callback
-for the real surface; rules 3 and 4 then work on real terrain with no further change here.
+Terrain plug-in: call `FlightModel::setTerrain(const TerrainQuery*)`. The slope and water rules
+read it each time they are needed (not every step), and F3 installs the JSBSim ground callback
+for the real surface (next section).
+
+## Ground contact (WP F3: `GroundCallback.*`)
+
+`setTerrain()` (before or after `start()`) installs `TerrainGroundCallback`, a `JSBSim::FGGroundCallback`
+over the `TerrainQuery`; `start()` installs it before the initial condition. With no terrain the
+default JSBSim ground stays: flat at `StartCondition::fieldElevFt`. With a terrain set, **the
+terrain is the ground**: `fieldElevFt` is only the Runway start's height reference, so the caller
+must put it on the terrain (`Simulation::init` does; tests use `placeStartOnTerrain`).
+
+- AGL = vertical (geodetic) height above `elevationM(lat, lon)`; D16: meters MSL = geodetic feet.
+- Contact point = the ground point below the query; normal = ECEF up tilted by the surface
+  gradient (central differences, +-20 m, slope limited to 70 degrees); surface velocity zero.
+  Runway flatten areas are inside `elevationM`, so a pad is exactly flat with an up normal.
+- Cost: five elevation lookups per distinct location, a 4-entry memo per sim step answers the
+  repeated CG queries. 0.2 us per call on a pack (desktop), +1 us per flight step.
+- The ground does not wait for tiles: until a finer tile is resident `elevationM` answers from the
+  coarser one and the ground can step by the difference. Starts avoid this with the spawn gate
+  (`app/SpawnGate.*`): `Simulation::init` prefetches around the start (and the landing runway),
+  pumps `TerrainService::update` through `setTerrainPump` and waits up to 10 s for
+  `isDetailReady`, then starts anyway with a warning. Runway pads are W5's
+  (`world::registerAirportFlatten`, called by `App` before `Simulation::init`): the runway start
+  height comes from `elevationM` at the start point, so it sits on the flattened runway.
+- Water rule: any weight on any contact point while `landClass` is `Water` ("water impact");
+  closure rule: touchdown vs or the speed against the slope 60 m ahead above the limit
+  ("terrain impact"); contact by a non-wheel point is a structure strike as before.
 
 ## Inputs with rules
 

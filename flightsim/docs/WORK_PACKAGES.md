@@ -195,7 +195,7 @@ trim. (c) Reset 100 times with no growth in RSS. (d) Hard-impact scenario sets `
 cruise start holds altitude ±200 ft for 60 s.
 
 ## F2: Core fleet profiles and flyability tests
-**Status:** in progress (wp/F2-core-fleet) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
+**Status:** done, merged (needs device test: c310 fixed-pitch feel; follow-up: per-detent stall-warning alpha for the 747/737) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
 
 **Owns:** `assets/aircraft/{c172p,c310,global5000,737,B747}.ini`, `assets/jsbsim-overlay/` (only if
 a stock file needs a fix), `tests/fleet/`.
@@ -209,7 +209,7 @@ reversers if present).
 **Acceptance:** all 5 aircraft pass, or a documented exception approved by the supervisor.
 
 ## F3: Terrain ground contact
-**Status:** in progress (wp/F3-ground-contact) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
+**Status:** done, merged (needs device test: step cost with terrain; follow-up: DEM vs runway elevation step at KPDX pads) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
 
 **Owns:** `src/sim/GroundCallback*`, `tests/sim/ground*`.
 
@@ -235,7 +235,7 @@ prefetch, `isDetailReady`), and an API for W2 to enumerate resident tiles and LO
 flatten blend). No blocking on the main thread. Cache stays under its cap in a fly-through test.
 
 ## W2: Terrain renderer
-**Status:** in progress (wp/W2-terrain-renderer) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
+**Status:** done, merged (needs device test: GPU cost on Mali-G31, depth precision, upload hitching; Portland view is 46k triangles, over the 40k budget) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
 
 **Owns:** `src/world/TerrainRenderer*`, `src/gfx/` additions it needs (new files only), `assets/shaders/terrain*` if shaders are external.
 
@@ -245,6 +245,17 @@ detail texture and slope shading, flat water, fog, a GPU upload budget per frame
 horizon culling budget.
 **Acceptance:** screenshots of synthetic and real regions. No cracks or popping at the default
 setting. Triangle counts are logged and stay within PLAN §3 budgets.
+
+**As built (W2):** CDLOD quadtree of 16x16-cell patches ("nodes", `src/world/TerrainRendererMesh.h`
+explains the scheme). Node level m reads tile level m-4 at step 1, the coarsest tile at a larger
+step above that, and the finest resident ancestor while its natural tile streams in. A node splits
+when its box is closer than `cellMeters * focalPx / pixelsPerCell` (default 10 px on a 480-line
+screen, shrunk by sqrt(sin grazing angle) for foreshortened views) and only once its four children
+have meshes, so nothing disappears while data loads. Skirts hide cracks; geomorphing removes
+popping. One shared 16-bit index buffer, 357 vertices (32 B) per node, one draw per node plus one
+for the camera-centred sea disc (ocean = no tile). Tuning knobs: `TerrainRenderConfig` / `LodConfig`.
+Dev hooks (environment, no CLI flags exist yet): `FSIM_W2_CAMERA=lat,lon,altFt,hdgTrueDeg[,pitchDeg]`,
+`FSIM_W2_VISIBILITY_KM`, `FSIM_W2_PX_PER_CELL`.
 
 ## W3: Terrain data pipeline (Python)
 **Status:** done (merged wp/W3-terrain-pipeline) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
@@ -328,7 +339,7 @@ Sample plans in `assets/plans/`: `KPDX-KOTH.fms` and `KOTH-KPDX.fms` (PLAN D19).
 give readable errors.
 
 ## N4: Instrument procedures (FAA CIFP)
-**Status:** in progress (wp/N4-cifp) · **Model / effort:** Sonnet / high · **Depends:** N1, N3 · **Specs:** NAVIGATION §3, DATA §7
+**Status:** done, merged (needs device test: procedures pack load time; follow-ups for N5: assembleApproachLegs for late-joining transitions, fafFinalLeg) · **Model / effort:** Sonnet / high · **Depends:** N1, N3 · **Specs:** NAVIGATION §3, DATA §7
 
 **Owns:** `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*`.
 
@@ -353,7 +364,7 @@ runway (NAVIGATION §3.2), and missed-approach sequencing.
 headless "perfect pilot" (ideal follower) flies a full XTST plan and approach.
 
 ## N6: Autopilot, flight director, autothrottle
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+**Status:** in progress (wp/N6-autopilot) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
 
 **Owns:** `src/autopilot/`, `tests/autopilot/`, `[autopilot]` keys in aircraft profiles (coordinate with F2/F4).
 
@@ -388,21 +399,21 @@ warnings, transient messages, and declutter levels.
 HUD.md. Every status field is visible in FULL declutter.
 
 ## H3: Nav and autopilot HUD
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
+**Status:** done, merged (needs device test: S-size text legibility, FD cue and dot spacing; `--hud-fake <name>` shows canned modes) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
 
 **Owns:** `src/hud/NavHud*`, `tests/hud/navhud*`.
 FMA line, nav box, CDI, LOC/GS scales, bearing and DTK marks on the heading tape, bugs, FD guidance
 cue, and minimums. **Acceptance:** screenshot set with faked NavState/AutopilotState covering every mode.
 
 ## H4: Moving map page
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
+**Status:** queued (wp/H4-map started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
 
 **Owns:** `src/ui/MapPage*`, `tests/ui/map*`.
 North-up / track-up modes, zoom 2–160 NM, route legs and waypoints, airports and navaids, aircraft
 symbol, optional terrain shading from coarse tiles, and a waypoint info panel.
 
 ## H5: Menus and flight setup
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
+**Status:** in progress (wp/H5-menus) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
 
 **Owns:** `src/ui/` (except MapPage), `tests/ui/`.
 Menu framework (D-pad/A/B), pause menu, aircraft select, airport search (on-screen keyboard plus
