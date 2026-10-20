@@ -367,7 +367,7 @@ rects, clipping rects, color and alpha, the virtual 640×480 transform, and a st
 HUD batch.
 
 ## H2: Flight HUD
-**Status:** in progress (wp/H2-flight-hud) · **Model / effort:** Sonnet / high · **Depends:** H1 · **Specs:** HUD (all except §6 nav details)
+**Status:** implemented on wp/H2-flight-hud, awaiting review (needs device test) · **Model / effort:** Sonnet / high · **Depends:** H1 · **Specs:** HUD (all except §6 nav details)
 
 **Owns:** `src/hud/Hud*`, `tests/hud/hud*`.
 

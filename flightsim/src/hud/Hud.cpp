@@ -79,7 +79,8 @@ bool projectHorizon(const Ctx& k, Pt2& pointOnHorizon, Pt2& dirRight) {
     for (double offDeg : kOffsetsDeg) {
         const double off = degToRad(offDeg);
         Pt2 a, b;
-        if (k.proj.projectAzEl(psi - off, 0, a.x, a.y) && k.proj.projectAzEl(psi + off, 0, b.x, b.y)) {
+        if (k.proj.projectAzEl(psi - off, 0, a.x, a.y) &&
+            k.proj.projectAzEl(psi + off, 0, b.x, b.y)) {
             pointOnHorizon = a;
             dirRight = norm({b.x - a.x, b.y - a.y});
             return true;
@@ -171,7 +172,8 @@ void drawBankScale(const Ctx& k) {
         }
     }
     // Fixed index above the arc (zero bank).
-    r.fillTriangle({cx - 5, kCenterY - kBankArcRadiusPx - 10}, {cx + 5, kCenterY - kBankArcRadiusPx - 10},
+    r.fillTriangle({cx - 5, kCenterY - kBankArcRadiusPx - 10},
+                   {cx + 5, kCenterY - kBankArcRadiusPx - 10},
                    {cx, kCenterY - kBankArcRadiusPx - 2}, k.base, FillMode::Front);
     // Sky pointer: up on the screen is rotated by -roll (the world turns counter-clockwise when
     // the aircraft banks right). Slip/skid bar rides under the pointer.
@@ -452,8 +454,8 @@ float drawSeg(const Ctx& k, float x, float baseY, const StatusSeg& seg, TextSize
             r.line(tx, yMid - cap * 0.25f, tx, yMid + cap * 0.25f, col);
         }
         const float mx = x + w * (0.5f + seg.a / 200.0f);
-        r.fillTriangle({mx - 3, baseY - cap - 1}, {mx + 3, baseY - cap - 1}, {mx, baseY - cap * 0.7f},
-                       col, FillMode::FrontOutlined);
+        r.fillTriangle({mx - 3, baseY - cap - 1}, {mx + 3, baseY - cap - 1},
+                       {mx, baseY - cap * 0.7f}, col, FillMode::FrontOutlined);
         r.setLineWidth(2.0f);
         break;
     }
@@ -489,8 +491,9 @@ void drawStatusRows(const Ctx& k) {
         // Natural widths with 1.5 cell gaps; fall back to the small font when it does not fit.
         int cells10 = 0;
         for (int i = 0; i < n; ++i) cells10 += fieldCells10(f[i]) + (i > 0 ? 15 : 0);
-        const TextSize size =
-            cells10 * 0.1f * StrokeFont::advancePx(TextSize::M) <= avail ? TextSize::M : TextSize::S;
+        const TextSize size = cells10 * 0.1f * StrokeFont::advancePx(TextSize::M) <= avail
+                                  ? TextSize::M
+                                  : TextSize::S;
         const float adv = StrokeFont::advancePx(size);
         float x = r.leftX() + margin;
         for (int i = 0; i < n; ++i) {

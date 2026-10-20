@@ -102,7 +102,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     pilotControls.setStickTuning(settings.stickTuning());  // P3
     const bool showFps = effectiveShowFps(opt, settings);  // P3
     MessageQueue messages;
-    Hud hud;               // H2: flight HUD, drawn every frame after the 3D scene
+    Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
     // H2: P3 settings give the starting HUD color and declutter level.
     switch (settings.hudColor) {
@@ -170,7 +170,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         renderer.render(camera, w, h);
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
             hudOptions.paused = state == AppState::Paused;
-            hudOptions.magVarDeg = sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+            hudOptions.magVarDeg =
+                sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             hud2d.begin(w, h);
             if (opt.glyphSheet)
                 drawGlyphSheet(hud2d);  // H1

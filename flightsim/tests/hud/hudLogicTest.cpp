@@ -577,7 +577,7 @@ TEST_CASE("hud: new warnings flash at 2 Hz for 3 s, then stay steady") {
     CHECK(t.ageS(WarningId::Stall, 101.4) == doctest::Approx(0.4));
     CHECK_FALSE(t.visible(WarningId::Stall, 101.4));
     CHECK(t.visible(WarningId::Stall, 104.5));
-    t.update(0, 105.0);  // cleared
+    t.update(0, 105.0);      // cleared
     t.update(stall, 106.0);  // raised again: flashes again
     CHECK(t.ageS(WarningId::Stall, 106.0) == doctest::Approx(0.0));
 }

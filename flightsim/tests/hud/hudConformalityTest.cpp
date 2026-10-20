@@ -63,7 +63,8 @@ TEST_CASE("hud: pitch ladder lines sit at the camera's own projection of the sam
             float x = 0, y = 0;
             REQUIRE(proj.projectAzEl(s.headingTrueRad, degToRad(lineDeg), x, y));
             // Independent expectation: pure pitch rotation about the lateral axis.
-            const float expectedY = 240.0f - f * std::tan(static_cast<float>(degToRad(lineDeg - pitchDeg)));
+            const float expectedY =
+                240.0f - f * std::tan(static_cast<float>(degToRad(lineDeg - pitchDeg)));
             CHECK(x == doctest::Approx(320.0f).epsilon(1e-3));
             CHECK(y == doctest::Approx(expectedY).epsilon(1e-3));
             // And the same point through the camera API directly (NED direction -> eye -> HUD).
@@ -114,7 +115,8 @@ TEST_CASE("hud: look direction changes are followed by the projection") {
     const HudProjector proj(cam, kLatDeg, kLonDeg);
     float x = 0, y = 0;
     REQUIRE(proj.projectAzEl(s.headingTrueRad, 0, x, y));
-    CHECK(x == doctest::Approx(320.0f - focalPx(55.0f) * std::tan(static_cast<float>(degToRad(20)))).epsilon(1e-3));
+    CHECK(x == doctest::Approx(320.0f - focalPx(55.0f) * std::tan(static_cast<float>(degToRad(20))))
+                   .epsilon(1e-3));
     CHECK(y == doctest::Approx(240.0f).epsilon(1e-3));
     // Looking back: the heading direction is behind the eye.
     cam.setPoseFromAircraft(s, static_cast<float>(degToRad(180)), 0);
@@ -144,7 +146,8 @@ TEST_CASE("hud: flight path vector follows the velocity vector") {
     s.velDownMps = 0;
     fpv = computeFpv(proj, s, rx, ry, rw, rh);
     CHECK(fpv.xHud == doctest::Approx(320.0f).epsilon(1e-3));
-    CHECK(fpv.yHud == doctest::Approx(240.0f + f * std::tan(static_cast<float>(degToRad(3)))).epsilon(1e-3));
+    CHECK(fpv.yHud ==
+          doctest::Approx(240.0f + f * std::tan(static_cast<float>(degToRad(3)))).epsilon(1e-3));
 
     // Track 10 degrees to the right of the heading (crab): the FPV is right of the boresight.
     AircraftState level = makeState(90, 0, 0);
@@ -154,7 +157,8 @@ TEST_CASE("hud: flight path vector follows the velocity vector") {
     level.velNorthMps = static_cast<float>(60 * std::cos(trackRad));
     level.velEastMps = static_cast<float>(60 * std::sin(trackRad));
     fpv = computeFpv(proj2, level, rx, ry, rw, rh);
-    CHECK(fpv.xHud == doctest::Approx(320.0f + f * std::tan(static_cast<float>(degToRad(10)))).epsilon(2e-3));
+    CHECK(fpv.xHud ==
+          doctest::Approx(320.0f + f * std::tan(static_cast<float>(degToRad(10)))).epsilon(2e-3));
     CHECK(fpv.yHud == doctest::Approx(240.0f).epsilon(1e-3));
 
     // Descending at 5 m/s with 50 m/s ground speed: -5.7 degrees, below the nose by that much.

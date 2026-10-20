@@ -308,7 +308,8 @@ void formatFlapLabel(char* out, int n, const AircraftProfile& p, int detent) {
 bool flapsMoving(const AircraftState& s, const AircraftProfile& p) {
     const int count = static_cast<int>(p.flapDetents.size());
     if (s.flapDetent < 0 || s.flapDetent >= count) return false;
-    return std::fabs(s.flapPosNorm - p.flapDetents[s.flapDetent].cmdNorm) > kFlapMovingToleranceNorm;
+    return std::fabs(s.flapPosNorm - p.flapDetents[s.flapDetent].cmdNorm) >
+           kFlapMovingToleranceNorm;
 }
 
 float flapVfeLimitKt(const AircraftState& s, const AircraftProfile& p) {
@@ -330,8 +331,9 @@ bool flapsOverVfe(const AircraftState& s, const AircraftProfile& p) {
 }
 
 void formatTrim(char* out, int n, float elevTrimNorm) {
-    const char* arrow = elevTrimNorm > 0.005f ? FSIM_SYM_ARROW_UP
-                                              : (elevTrimNorm < -0.005f ? FSIM_SYM_ARROW_DOWN : " ");
+    const char* arrow = elevTrimNorm > 0.005f
+                            ? FSIM_SYM_ARROW_UP
+                            : (elevTrimNorm < -0.005f ? FSIM_SYM_ARROW_DOWN : " ");
     const float shown = std::fabs(elevTrimNorm) < 0.005f ? 0.0f : elevTrimNorm;  // no "-0.00"
     std::snprintf(out, static_cast<size_t>(n), "TRIM %s %+.2f", arrow, static_cast<double>(shown));
 }
@@ -449,7 +451,8 @@ int buildStatusRow1(const StatusInputs& in, StatusField* out) {
         formatTrim(t.text, sizeof t.text, s.elevTrimNorm);
         StatusSeg& scale = addSeg(f);
         scale.kind = StatusSeg::Kind::TrimScale;
-        scale.a = static_cast<int>(std::lround(std::max(-1.0f, std::min(1.0f, s.elevTrimNorm)) * 100));
+        scale.a =
+            static_cast<int>(std::lround(std::max(-1.0f, std::min(1.0f, s.elevTrimNorm)) * 100));
         char side[12];
         formatSideTrim(side, sizeof side, s.rudderTrimNorm);
         if (side[0]) setText(addSeg(f), Role::Normal, "RTRIM %s", side);
@@ -554,9 +557,8 @@ std::uint32_t activeWarnings(const AircraftState& s, const ControlInputs& c,
     if ((s.parkingBrake || c.parkingBrake) && maxThrottleNorm(c, engines) > 0.5f)
         m |= warningBit(WarningId::ParkBrk);
     if (opt.paused) m |= warningBit(WarningId::Paused);
-    m |= opt.extraWarnings &
-         (warningBit(WarningId::PullUp) | warningBit(WarningId::Terrain) |
-          warningBit(WarningId::SinkRate) | warningBit(WarningId::ApOff));
+    m |= opt.extraWarnings & (warningBit(WarningId::PullUp) | warningBit(WarningId::Terrain) |
+                              warningBit(WarningId::SinkRate) | warningBit(WarningId::ApOff));
     return m;
 }
 

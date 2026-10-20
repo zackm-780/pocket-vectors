@@ -36,9 +36,9 @@ struct HudFrame {
     const AircraftProfile& profile;
     const HudOptions& options;
     const HudVisibility& visibility;
-    Color color;              // base HUD color (green / white / amber setting)
-    float headingMagDeg;      // current magnetic heading, tape center
-    double nowS;              // HUD clock (MessageQueue::nowS())
+    Color color;          // base HUD color (green / white / amber setting)
+    float headingMagDeg;  // current magnetic heading, tape center
+    double nowS;          // HUD clock (MessageQueue::nowS())
 };
 
 // H3 extension point (FMA row, nav box, LOC / GS scales, heading tape marks, FD cue, minimums).

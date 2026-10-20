@@ -77,31 +77,36 @@ struct HudRect {
     float x, y, w, h;
 };
 namespace hudzones {
-constexpr HudRect kFma{0, 0, 640, 22};            // H3: FMA row (centered)
-constexpr HudRect kHeadingTape{170, 26, 300, 30};  // H2 draws, H3 adds marks (centered)
-constexpr HudRect kNavBox{440, 368, 196, 60};     // H3: nav box (right anchored)
+constexpr HudRect kFma{0, 0, 640, 22};              // H3: FMA row (centered)
+constexpr HudRect kHeadingTape{170, 26, 300, 30};   // H2 draws, H3 adds marks (centered)
+constexpr HudRect kNavBox{440, 368, 196, 60};       // H3: nav box (right anchored)
 constexpr HudRect kLadderClip{120, 100, 400, 300};  // pitch ladder clip (centered); HUD.md says
-                                                    // y 70, trimmed so lines stay inside the bank arc
-constexpr float kLocScaleY = 392;                  // H3: LOC scale, horizontal, centered
-constexpr float kGsScaleX = 500;                   // H3: GS scale, vertical (centered x)
-constexpr float kCenterY = 240;                    // boresight and tape value boxes
+    // y 70, trimmed so lines stay inside the bank arc
+constexpr float kLocScaleY = 392;  // H3: LOC scale, horizontal, centered
+constexpr float kGsScaleX = 500;   // H3: GS scale, vertical (centered x)
+constexpr float kCenterY = 240;    // boresight and tape value boxes
 }  // namespace hudzones
 
 // ---------------------------------------------------------------------------------------------
 // Tapes
 // ---------------------------------------------------------------------------------------------
 struct TapeGeom {
-    float centerY = 240;     // y of the current-value box
-    float pxPerUnit = 1;     // virtual px per ft or kt
+    float centerY = 240;  // y of the current-value box
+    float pxPerUnit = 1;  // virtual px per ft or kt
     float topY = 70, bottomY = 370;
-    float yOf(float value, float centerValue) const { return centerY - (value - centerValue) * pxPerUnit; }
-    float valueAt(float y, float centerValue) const { return centerValue + (centerY - y) / pxPerUnit; }
+    float yOf(float value, float centerValue) const {
+        return centerY - (value - centerValue) * pxPerUnit;
+    }
+    float valueAt(float y, float centerValue) const {
+        return centerValue + (centerY - y) / pxPerUnit;
+    }
 };
-constexpr TapeGeom kSpeedTapeGeom{240, 2.0f, 70, 370};   // 10 kt = 20 px
-constexpr TapeGeom kAltTapeGeom{240, 0.16f, 70, 370};    // 100 ft = 16 px
+constexpr TapeGeom kSpeedTapeGeom{240, 2.0f, 70, 370};  // 10 kt = 20 px
+constexpr TapeGeom kAltTapeGeom{240, 0.16f, 70, 370};   // 100 ft = 16 px
 
 struct TickRange {
-    int first = 0, last = -1;  // tick values (multiples of step), first <= v <= last; empty if last < first
+    int first = 0,
+        last = -1;  // tick values (multiples of step), first <= v <= last; empty if last < first
     bool empty() const { return last < first; }
 };
 // Tick values (multiples of `step`) whose y lies inside the tape for the given current value.
@@ -127,17 +132,20 @@ void formatHeadingBox(char* out, int n, float headingMagDeg);  // "000".."359", 
 // Speed bands and trend
 // ---------------------------------------------------------------------------------------------
 struct SpeedBands {
-    float redBelowKt = 0;                       // 0..this red (Vs1 clean, Vs0 with flaps)
-    float whiteLowKt = 0, whiteHighKt = 0;      // flap operating range (empty if equal)
-    float yellowLowKt = 0, yellowHighKt = 0;    // Vno..Vne caution (empty if equal)
-    float redAboveKt = 0;                       // Vne / Vmo and above red (0 = none)
+    float redBelowKt = 0;                     // 0..this red (Vs1 clean, Vs0 with flaps)
+    float whiteLowKt = 0, whiteHighKt = 0;    // flap operating range (empty if equal)
+    float yellowLowKt = 0, yellowHighKt = 0;  // Vno..Vne caution (empty if equal)
+    float redAboveKt = 0;                     // Vne / Vmo and above red (0 = none)
 };
 SpeedBands computeSpeedBands(const AircraftProfile& profile, int flapDetent);
 
 // Low-pass filtered IAS acceleration -> 10 s predicted change (kt).
 class SpeedTrend {
 public:
-    void reset() { have_ = false; accelKtPerS_ = 0; }
+    void reset() {
+        have_ = false;
+        accelKtPerS_ = 0;
+    }
     void update(float iasKt, double simTimeS);
     float trend10sKt() const { return accelKtPerS_ * 10.0f; }
     float accelKtPerS() const { return accelKtPerS_; }
@@ -152,7 +160,7 @@ private:
 // ---------------------------------------------------------------------------------------------
 // Readout formatting
 // ---------------------------------------------------------------------------------------------
-int roundToStep(float value, int step);  // nearest multiple (half away from zero)
+int roundToStep(float value, int step);             // nearest multiple (half away from zero)
 void formatThousands(char* out, int n, int value);  // 9840 -> "9 840"
 void formatMach(char* out, int n, float mach);      // 0.78 -> "M.78", 1.02 -> "M1.02"
 void formatVs(char* out, int n, float vsFpm);       // "VS +700" (rounded to 50)
@@ -212,8 +220,8 @@ constexpr int kMaxStatusFields = 8;
 // have present == false). `out` must hold kMaxStatusFields fields.
 int buildStatusRow1(const StatusInputs& in, StatusField* out);
 int buildStatusRow2(const StatusInputs& in, StatusField* out);
-int segCells10(const StatusSeg& s);        // width in tenths of a character cell
-int fieldCells10(const StatusField& f);    // sum of segments + 1 cell between segments
+int segCells10(const StatusSeg& s);      // width in tenths of a character cell
+int fieldCells10(const StatusField& f);  // sum of segments + 1 cell between segments
 
 // ---------------------------------------------------------------------------------------------
 // Warnings (HUD.md section 3 "Warnings", priority order = enum order)
