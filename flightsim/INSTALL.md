@@ -25,8 +25,10 @@ chains; the port ships this as one real file on purpose. Same check for
 
 Unzip the datapack artifact **into** `flightsim/data/`. The zip’s top level is
 `terrain/`, `nav/`, `ATTRIBUTION.txt`, `README.txt` — not a nested `data/` folder.
-Alternatively put the pack elsewhere and set `data_dir` in
-`flightsim/conf/settings.ini` (created on first launch).
+If the pack was split into multiple part zips (e.g. `*-part1` / `*-part2` / `*-part3`
+for upload size limits), unzip all of them into the same `flightsim/data/` folder in
+any order; together they form the full pack. Alternatively put the pack elsewhere and
+set `data_dir` in `flightsim/conf/settings.ini` (created on first launch).
 
 ## 4. Probe first, then fly
 
