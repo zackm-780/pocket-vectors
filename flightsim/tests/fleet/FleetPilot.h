@@ -149,9 +149,9 @@ inline TakeoffLog flyTakeoffClimb(Flight& f, const FleetSpec& sp, double targetA
                 log.liftoffAlphaDeg = s.alphaDeg;
             }
             f.ctl.steeringNorm = 0;
-            f.ctl.rudderNorm = sp.airRudderKp > 0 ? headingHoldRudder(s, rwy.headingTrueDeg,
-                                                                     sp.airRudderKp, 0.02)
-                                                  : 0.f;
+            f.ctl.rudderNorm = sp.airRudderKp > 0
+                                   ? headingHoldRudder(s, rwy.headingTrueDeg, sp.airRudderKp, 0.02)
+                                   : 0.f;
             f.ctl.aileronNorm = headingBank(s, rwy.headingTrueDeg, rwy.crossFt(s));
             // Speed-for-pitch law: hold the climb speed, never below the minimum pitch.
             const bool clean = flapDet == 0;
@@ -183,10 +183,11 @@ inline TakeoffLog flyTakeoffClimb(Flight& f, const FleetSpec& sp, double targetA
         }
         (void)nDet;
         if (std::getenv("FLEET_TRACE") && i % kSimHz == 0)
-            std::printf("  t %.0f wow %d agl %.0f ias %.1f hdgerr %.1f pitch %.1f roll %.1f vs %.0f "
-                        "flap %.2f gear %.2f\n",
-                        s.simTimeS, s.wowAny, aglFt, s.iasKt, hdgErr, radToDeg(s.pitchRad),
-                        radToDeg(s.rollRad), s.vsFpm, s.flapPosNorm, s.gearPosNorm);
+            std::printf(
+                "  t %.0f wow %d agl %.0f ias %.1f hdgerr %.1f pitch %.1f roll %.1f vs %.0f "
+                "flap %.2f gear %.2f\n",
+                s.simTimeS, s.wowAny, aglFt, s.iasKt, hdgErr, radToDeg(s.pitchRad),
+                radToDeg(s.rollRad), s.vsFpm, s.flapPosNorm, s.gearPosNorm);
         f.step();
         distFt += f.s().gsKt * 1.68781 * kDt;
         if (f.s().crashed) {
@@ -352,12 +353,13 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
             }
         }
         if (std::getenv("FLEET_TRACE") && i % kSimHz == 0)
-            std::printf("  t %.0f wow %d h %.1f along %.0f ias %.1f gs %.1f vs %.0f pitch %.1f thr "
-                        "%.2f brk %.2f cross %.1f hdg %.1f flap %.2f spd %.2f rev %d/%d thrust %.0f\n",
-                        s.simTimeS, s.wowAny, hFt, alongFt, s.iasKt, s.gsKt, s.vsFpm,
-                        radToDeg(s.pitchRad), f.ctl.throttleNorm[0], f.ctl.brakeLeftNorm, crossFt,
-                        radToDeg(s.headingTrueRad), s.flapPosNorm, s.speedbrakePosNorm,
-                        s.engines[0].reverserDeployed, f.ctl.reverseThrust, s.engines[0].thrustLbf);
+            std::printf(
+                "  t %.0f wow %d h %.1f along %.0f ias %.1f gs %.1f vs %.0f pitch %.1f thr "
+                "%.2f brk %.2f cross %.1f hdg %.1f flap %.2f spd %.2f rev %d/%d thrust %.0f\n",
+                s.simTimeS, s.wowAny, hFt, alongFt, s.iasKt, s.gsKt, s.vsFpm, radToDeg(s.pitchRad),
+                f.ctl.throttleNorm[0], f.ctl.brakeLeftNorm, crossFt, radToDeg(s.headingTrueRad),
+                s.flapPosNorm, s.speedbrakePosNorm, s.engines[0].reverserDeployed,
+                f.ctl.reverseThrust, s.engines[0].thrustLbf);
         const float vsBefore = s.vsFpm;
         wasAir = !s.wowAny;
         f.step();

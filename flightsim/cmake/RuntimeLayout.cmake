@@ -5,7 +5,7 @@
 
 set(FSIM_CORE_FLEET c172p c310 global5000 737 B747)
 # WP F4: extended fleet (additive; same copy rule as the core fleet).
-set(FSIM_EXTENDED_FLEET pa28 c182 J3Cub DHC6 A320 787-8 MD11)
+set(FSIM_EXTENDED_FLEET pa28 c182 A320 787-8 MD11)
 
 function(fsim_add_runtime_layout main_target)
   set(src_assets ${CMAKE_CURRENT_SOURCE_DIR}/assets)

@@ -40,6 +40,14 @@ TEST_CASE("sim: fleet extended fleet loads without errors") {
     CHECK(text.str().find("ERROR") == std::string::npos);
     CHECK(text.str().find("WARN") == std::string::npos);
     std::remove(logPath.c_str());
+    // The overlay propellers replaced the stock files in the runtime layout.
+    for (const char* path : {"jsbsim/engine/prop_81in2v.xml", "jsbsim/engine/propC8v.xml"}) {
+        std::ifstream xml(path);
+        REQUIRE_MESSAGE(xml.good(), path);
+        std::stringstream s;
+        s << xml.rdbuf();
+        CHECK_MESSAGE(s.str().find("OVERLAY (flightsim WP F4)") != std::string::npos, path);
+    }
 }
 
 namespace {
