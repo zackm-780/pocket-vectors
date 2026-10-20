@@ -56,6 +56,32 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.approachId = ini.getString("scenario", "approach");  // N5
     s.windFromTrueDeg = ini.getFloat("wind", "from_true_deg", 0.f);
     s.windSpeedKt = ini.getFloat("wind", "speed_kt", 0.f);
+    {  // X1: weather. [wind] keeps working; [weather] keys override it.
+        world::WeatherSetup& w = s.weather;
+        if (ini.has("wind", "from_true_deg")) w.windFromTrueDeg = s.windFromTrueDeg;
+        if (ini.has("wind", "speed_kt")) w.windKt = s.windSpeedKt;
+        auto opt = [&](const char* key, std::optional<float>& dst, float scale = 1.0f) {
+            if (ini.has("weather", key)) dst = ini.getFloat("weather", key, 0.f) * scale;
+        };
+        opt("wind_from_true_deg", w.windFromTrueDeg);
+        opt("wind_kt", w.windKt);
+        opt("gust_kt", w.gustKt);
+        opt("aloft_from_true_deg", w.aloftFromTrueDeg);
+        opt("aloft_kt", w.aloftKt);
+        opt("visibility_m", w.visibilityM);
+        opt("visibility_km", w.visibilityM, 1000.0f);
+        opt("qnh_hpa", w.qnhHpa);
+        opt("qnh_inhg", w.qnhHpa, static_cast<float>(kHpaPerInHg));
+        opt("altimeter_hpa", w.altimeterHpa);
+        opt("temp_c", w.tempC);
+        opt("turbulence", w.turbulence);
+        if (ini.has("weather", "metar")) w.metar = ini.getBool("weather", "metar", true);
+        w.seed = static_cast<std::uint32_t>(ini.getInt("weather", "seed", 1));
+        w.uniformWind = (w.windKt || w.windFromTrueDeg) && !ini.has("weather", "wind_kt") &&
+                        !ini.has("weather", "wind_from_true_deg") && !ini.has("weather", "gust_kt");
+        if (w.windFromTrueDeg) s.windFromTrueDeg = *w.windFromTrueDeg;
+        if (w.windKt) s.windSpeedKt = *w.windKt;
+    }
 
     if (s.startKind != "runway" && s.startKind != "final" && s.startKind != "cruise") {
         error = "[scenario] start must be runway, final or cruise (got '" + s.startKind + "')";

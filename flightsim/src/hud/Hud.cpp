@@ -354,13 +354,13 @@ void drawAltTape(const Ctx& k) {
     Renderer2D& r = k.r;
     const TapeGeom& g = kAltTapeGeom;
     const float x1 = r.rightX() - kTapeMarginPx, x0 = x1 - kTapeWidthPx;
-    const float alt = static_cast<float>(k.s.altMslFt);
+    const float alt = static_cast<float>(k.s.altMslFt + k.s.altBaroOffsetFt);  // X1: indicated
     r.fillRect(x0, g.topY, kTapeWidthPx, g.bottomY - g.topY, colors::kBlack.withAlpha(0.35f),
                FillMode::Back);
     r.pushClip(x0 - 2, g.topY, kTapeWidthPx + 4, g.bottomY - g.topY);
     // Ground band: terrain elevation shading when it is on the tape.
     {
-        const float yg = g.yOf(k.s.terrainElevFt, alt);
+        const float yg = g.yOf(k.s.terrainElevFt + k.s.altBaroOffsetFt, alt);
         if (yg < g.bottomY) {
             const float top = std::max(g.topY, yg);
             r.fillRect(x0, top, kTapeWidthPx, g.bottomY - top, k.base.withAlpha(0.22f),

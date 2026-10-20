@@ -51,6 +51,27 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
     start_.fieldElevFt = mToFt(terrain_.elevationM(start_.latDeg, start_.lonDeg));
     model_.setTerrain(&terrain_);
 
+    {   // X1: weather. The start wind is the profile wind at the start height (F1 trims in calm
+        // air and then switches it on), later steps add gusts and turbulence.
+        world::Metar metar;
+        const bool haveMetar =
+            weatherOptions_.useMetar &&
+            world::loadMetarFor(paths_.data("weather"), scenario_.airportIdent, metar);
+        weather_.setConditions(world::resolveWeather(scenario_.weather, weatherOptions_,
+                                                     haveMetar ? &metar : nullptr,
+                                                     static_cast<float>(start_.headingTrueDeg)));
+        const double startAglFt = start_.kind == StartCondition::Kind::Runway
+                                      ? 0.0
+                                      : std::max(0.0, start_.altMslFt - start_.fieldElevFt);
+        weather_.reset(startAglFt);
+        weather_.meanWindAt(startAglFt, start_.windFromTrueDeg, start_.windSpeedKt);
+        const world::WeatherConditions& wc = weather_.conditions();
+        model_.setBaro(wc.qnhHpa, wc.altimeterSettingHpa);
+        LOG_INFO("weather (%s): wind %03.0f/%.0f kt gust %.0f, vis %.0f m, QNH %.1f hPa",
+                 wc.source.c_str(), start_.windFromTrueDeg, start_.windSpeedKt, wc.gustKt,
+                 wc.hasVisibility ? wc.visibilityM : -1.0f, wc.qnhHpa);
+    }
+
     if (!model_.start(profile_, start_)) {
         error = "flight model failed to start " + profile_.id + " (see log)";
         return false;
@@ -138,6 +159,10 @@ void Simulation::stepOnce() {
     script_.apply(simTimeS, profile_.engineCount, pilot_);
     final_ = autopilot_.update(pilot_, model_.state(), navState_, kSimDtS);
     autopilot_.syncPilot(pilot_);  // N6: levers follow the A/T, trim follows the AP
+    {                              // X1: wind (profile + gusts + turbulence) for this step
+        const world::WindNedFps w = weather_.step(kSimDtS, model_.state().altAglFt);
+        model_.setWindNedFps(w.northFps, w.eastFps, w.downFps);
+    }
     model_.step(final_, kSimDtS);
     const AircraftState& s = model_.state();
     navState_ = navigator_.update(s, kSimDtS);

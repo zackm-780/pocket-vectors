@@ -32,6 +32,9 @@ struct AircraftState {
     float velNorthMps = 0, velEastMps = 0, velDownMps = 0;
     // wind at aircraft
     float windFromTrueDeg = 0, windKt = 0;
+    // X1: altimeter. Indicated altitude = altMslFt + altBaroOffsetFt (0 while the altimeter is set
+    // to the real QNH, which is the default). altimeterSettingHpa is what the pilot has set.
+    float altBaroOffsetFt = 0, altimeterSettingHpa = 1013.25f;
     // eye point relative to CG, body axes (x fwd, y right, z down), meters
     float eyeBodyM[3] = {0, 0, 0};
     // configuration

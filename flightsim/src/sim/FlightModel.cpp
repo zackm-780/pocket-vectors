@@ -22,6 +22,7 @@
 #include <models/atmosphere/FGWinds.h>
 #include <models/propulsion/FGEngine.h>
 
+#include "core/Baro.h"  // X1
 #include "core/Geo.h"
 #include "core/Ini.h"
 #include "core/Log.h"
@@ -87,6 +88,7 @@ struct FlightModel::Impl {
                ControlInputs& startControls);
     void applyControls(const ControlInputs& in, const AircraftState& state);
     void refresh(AircraftState& state);
+    double qnhHpa = kStdQnhHpa, altimeterSettingHpa = kStdQnhHpa;  // X1
     Prop prop(const std::string& path) const {
         return Prop{fdm->GetPropertyManager()->GetNode(path, false)};
     }
@@ -628,6 +630,10 @@ void FlightModel::Impl::refresh(AircraftState& s) {
     s.windKt = static_cast<float>(fpsToKt(std::hypot(windN, windE)));
     s.windFromTrueDeg =
         s.windKt > 0.01f ? static_cast<float>(wrap360(radToDeg(std::atan2(-windE, -windN)))) : 0.f;
+    // X1: altimeter offset (indicated minus true altitude), 0 when set to the real QNH.
+    s.altimeterSettingHpa = static_cast<float>(altimeterSettingHpa);
+    s.altBaroOffsetFt = static_cast<float>(
+        indicatedAltFt(s.altMslFt, qnhHpa, altimeterSettingHpa) - s.altMslFt);
     for (int i = 0; i < 3; ++i) s.eyeBodyM[i] = eyeBodyM[i];
 
     s.flapPosNorm = static_cast<float>(pFlap.get());
@@ -772,6 +778,16 @@ const AircraftProfile& FlightModel::profile() const {
 
 double FlightModel::getProperty(const std::string& path) const {
     return impl_->fdm ? impl_->fdm->GetPropertyValue(path) : 0.0;
+}
+
+// X1: weather wiring.
+void FlightModel::setWindNedFps(double northFps, double eastFps, double downFps) {
+    if (impl_->ready && impl_->fdm) impl_->fdm->GetWinds()->SetWindNED(northFps, eastFps, downFps);
+}
+
+void FlightModel::setBaro(double qnhHpa, double altimeterSettingHpa) {
+    impl_->qnhHpa = qnhHpa;
+    impl_->altimeterSettingHpa = altimeterSettingHpa;
 }
 
 void FlightModel::setProperty(const std::string& path, double value) {

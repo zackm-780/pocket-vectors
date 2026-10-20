@@ -49,7 +49,8 @@ void NavHud::reset() {
 
 void NavHud::draw(const HudFrame& f) {
     fma_.update(ap_, f.nowS);
-    minimums_.update(nav_, static_cast<float>(f.state.altMslFt), f.nowS);
+    minimums_.update(nav_, static_cast<float>(f.state.altMslFt + f.state.altBaroOffsetFt),
+                     f.nowS);  // X1: indicated;
 
     if (f.visibility.fma) drawFma(f);
     if (f.visibility.headingTape) drawHeadingMarks(f);
@@ -266,7 +267,7 @@ void NavHud::drawBugs(const HudFrame& f) {
     }
     // Altitude bug and minimums bug on the left edge of the altitude tape.
     const float x0 = r.rightX() - kTapeMarginPx - kTapeWidthPx;
-    const float altFt = static_cast<float>(f.state.altMslFt);
+    const float altFt = static_cast<float>(f.state.altMslFt + f.state.altBaroOffsetFt);  // X1
     if (ap_.altBugFt != 0.0f && (apOn || ap_.latActive != LatMode::Off)) {
         const BugPos b = tapeBug(kAltTapeGeom, ap_.altBugFt, altFt);
         const Pt2 p[5] = {{x0 - 8, b.y - 6},

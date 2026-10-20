@@ -82,6 +82,11 @@ const SettingDef kSettingDefs[] = {
      [](Settings& s, int d) { s.rollExpo += 0.1f * static_cast<float>(d); }},
     {"RUDDER EXPO", true, [](const Settings& s) { return fmt("%.1f", s.rudderExpo); },
      [](Settings& s, int d) { s.rudderExpo += 0.1f * static_cast<float>(d); }},
+    {"WEATHER FROM METAR", false,  // X1
+     [](const Settings& s) -> std::string { return s.weatherMetar ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.weatherMetar = !s.weatherMetar; }},
+    {"TURBULENCE", true, [](const Settings& s) { return fmt("%.1f", s.weatherTurbulence); },
+     [](Settings& s, int d) { s.weatherTurbulence += 0.1f * static_cast<float>(d); }},
 };
 constexpr int kSettingCount = static_cast<int>(sizeof kSettingDefs / sizeof kSettingDefs[0]);
 

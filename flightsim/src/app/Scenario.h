@@ -9,6 +9,7 @@
 #include "core/ControlInputs.h"
 #include "core/NavDatabase.h"
 #include "sim/FlightModel.h"
+#include "world/Weather.h"  // X1
 
 namespace fsim {
 
@@ -42,6 +43,8 @@ struct Scenario {
     double altitudeFt = 0;             // cruise only (0 = profile cruise altitude)
     std::string timeUtc;               // ISO "YYYY-MM-DDTHH:MM:SS" UTC; drives the sun (W4)
     float windFromTrueDeg = 0, windSpeedKt = 0;
+    // X1: [weather] keys plus the [wind] keys when present (unset = METAR file, then default).
+    world::WeatherSetup weather;
     std::vector<ScriptEvent> inputs;  // sorted by time
 
     // N5: optional navigation setup. `plan` is an .fms file (resolved like --scenario paths),
