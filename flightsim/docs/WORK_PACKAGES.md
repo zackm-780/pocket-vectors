@@ -180,7 +180,7 @@ config, plan), and safe writes (write temp, then rename).
 **Acceptance:** round-trip tests. Corrupt or missing files fall back to defaults.
 
 ## P4: Downloadable data pack (CI)
-**Status:** in review (wp/P4-datapack; needs a first full CI run) · **Model / effort:** Sonnet / medium · **Depends:** W3, N1, N4 · **Specs:** DATA §2-3, §8, BUILD_AND_DEPLOY §7
+**Status:** done, merged (workflow must be on the default branch to run; first full run is the real test) · **Model / effort:** Sonnet / medium · **Depends:** W3, N1, N4 · **Specs:** DATA §2-3, §8, BUILD_AND_DEPLOY §7
 
 **Owns:** `.github/workflows/datapack.yml`, `tools/datapack/`, BUILD_AND_DEPLOY §7 data steps.
 

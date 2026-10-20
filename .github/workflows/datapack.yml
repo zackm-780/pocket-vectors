@@ -13,9 +13,9 @@ on:
         type: string
         default: pdx_oth
       include_world:
-        description: "Also build the world coarse layer, levels 0-6 (about 50 GB of downloads, long)"
+        description: "Also build the world coarse layer, levels 0-6 (about 50 GB of downloads, hours, ~3 GB pack)"
         type: boolean
-        default: true
+        default: false
 
 jobs:
   datapack:
@@ -67,7 +67,7 @@ jobs:
         working-directory: flightsim
         run: |
           args=(--out "$RUNNER_TEMP/pack" --preset "$PRESET" --jobs "$(nproc)")
-          if [ "$INCLUDE_WORLD" != "true" ]; then args+=(--skip-world); fi
+          if [ "$INCLUDE_WORLD" = "true" ]; then args+=(--world); fi
           # world cache on the big temp disk when the workspace disk is small
           sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
           args+=(--world-cache /mnt/world-cache)

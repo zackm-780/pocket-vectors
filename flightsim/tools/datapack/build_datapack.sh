@@ -14,7 +14,10 @@ BBOX=""
 MIN_LEVEL=7
 MAX_LEVEL=10
 WORLD_MAX_LEVEL=6
-SKIP_WORLD=0
+SKIP_WORLD=1
+COARSE_BBOX="-128,40,-114,50"
+COARSE_MIN_LEVEL=5
+COARSE_MAX_LEVEL=6
 KEEP_WORLD_CACHE=0
 VENV="$TOOLS/.datapack-venv"
 CIFP_AIRPORTS=""
@@ -26,7 +29,10 @@ usage() {
 Usage: build_datapack.sh [options]
   --out DIR            output folder (default ./datapack-out); its contents go into flightsim/data/
   --jobs N             terrain worker processes (default: CPU count)
-  --skip-world         skip the world coarse layer (levels 0-$WORLD_MAX_LEVEL, ~50 GB of downloads)
+  --world              also build the world coarse layer (levels 0-$WORLD_MAX_LEVEL, ~50 GB of downloads, ~3 GB pack)
+  --skip-world         do not build the world layer (the default)
+  --coarse-bbox BOX    regional coarse layer, levels $COARSE_MIN_LEVEL-$COARSE_MAX_LEVEL, around the region (default $COARSE_BBOX;
+                       'none' to skip). Fills the far view out to the horizon without the world layer.
   --preset NAME        region preset (default pdx_oth; see build_terrain.py --list-presets)
   --bbox W,S,E,N       custom region box instead of a preset (e.g. -123.4,43.1,-123.0,43.4)
   --min-level N        region min level (default 7)
@@ -43,7 +49,9 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --out) OUT="$2"; shift 2 ;;
     --jobs) JOBS="$2"; shift 2 ;;
+    --world) SKIP_WORLD=0; shift ;;
     --skip-world) SKIP_WORLD=1; shift ;;
+    --coarse-bbox) COARSE_BBOX="$2"; shift 2 ;;
     --preset) PRESET="$2"; shift 2 ;;
     --bbox) BBOX="$2"; shift 2 ;;
     --min-level) MIN_LEVEL="$2"; shift 2 ;;
@@ -84,6 +92,13 @@ fi
 step "terrain: $REGION_NAME levels $MIN_LEVEL-$MAX_LEVEL (heights + land class)"
 "$PY" "$TOOLS/terrain/build_terrain.py" "${REGION[@]}" --min-level "$MIN_LEVEL" --max-level "$MAX_LEVEL" \
   --jobs "$JOBS" --cache-dir "$TERRAIN_CACHE" --out "$OUT" 2>&1 | tail -n 15
+
+# --- terrain: regional coarse layer (the far view; same as the reference pack used in development) ---
+if [ "$COARSE_BBOX" != none ]; then
+  step "terrain: coarse box $COARSE_BBOX levels $COARSE_MIN_LEVEL-$COARSE_MAX_LEVEL"
+  "$PY" "$TOOLS/terrain/build_terrain.py" --bbox "$COARSE_BBOX" --min-level "$COARSE_MIN_LEVEL" \
+    --max-level "$COARSE_MAX_LEVEL" --jobs "$JOBS" --cache-dir "$TERRAIN_CACHE" --out "$OUT" 2>&1 | tail -n 15
+fi
 
 # --- terrain: world coarse layer ----------------------------------------------------------------
 if [ "$SKIP_WORLD" -eq 0 ]; then

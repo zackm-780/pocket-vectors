@@ -13,7 +13,7 @@ flightsim/tools/datapack/build_datapack.sh --out /tmp/pack --bbox -124.4,43.3,-1
     --min-level 9 --max-level 10 --skip-world --cifp-airports KOTH,KPDX
 ```
 
-Options: `--out DIR`, `--jobs N`, `--skip-world`, `--preset NAME`, `--bbox W,S,E,N`, `--min-level`,
+Options: `--out DIR`, `--jobs N`, `--world` (opt-in world layer), `--coarse-bbox BOX|none` (regional levels 5-6, default -128,40,-114,50), `--skip-world`, `--preset NAME`, `--bbox W,S,E,N`, `--min-level`,
 `--max-level`, `--cifp-airports`, `--venv DIR`, `--terrain-cache DIR`, `--world-cache DIR`,
 `--keep-world-cache`. It creates `tools/.datapack-venv` (git-ignored), caches downloads in `tools/terrain/cache` and `tools/nav/cache`, and is resumable (existing
 tiles are skipped). At the end it prints pack size, file counts and the largest directory.
