@@ -192,7 +192,7 @@ artifact (30 days). No generated data is committed.
 shellcheck; workflow YAML parses.
 
 ## I1: Integration follow-ups
-**Status:** done (needs device test: R1 + D-pad baro keys, altimeter line placement on the 640x480 HUD) · **Model / effort:** Sonnet / medium · **Depends:** N4, N5, N6, H2, H3, X1, P3 · **Owns:** small fixes across merged modules (assigned by the supervisor)
+**Status:** done, merged (needs device test: R1 baro keys, altimeter line placement) · **Model / effort:** Sonnet / medium · **Depends:** N4, N5, N6, H2, H3, X1, P3 · **Owns:** small fixes across merged modules (assigned by the supervisor)
 1. **Late-joining transitions:** `Navigator::loadApproach` builds real approaches with N4's `assembleApproachLegs()` (skips the final legs before the join, e.g. KOTH I05-Y via OTH3 is OTH, EMIRE, EMIRE, RW05); the FAF comes from `Approach::fafFinalLeg` (additive core field, set by N4) instead of the distance heuristic. Tests: `procedures_navigator_test.cpp`. The perfect-pilot flight test no longer flies I05-Y/OTH3 (the fixture has no procedure turn, the 200 degree turn at EMIRE overshoots).
 2. **Short ids:** `findApproach(aps, "I05")` skips helicopter procedures (`Approach::helicopterOnly`, from a COPTER title), then takes the last suffix letter (I05-Z). H5's list shows "ILS Y RWY 05 (COPTER)". The KOTH fixture title for I05-Y now says COPTER.
 3. **Baro:** altitude line under the tape (`STD`, `29.92` or `1013`, per pressure units); R1 + D-pad up/down steps 0.01 inHg or 1 hPa, R1 + Select sets STD (keys 8, 7, 6 on the keyboard; actions BaroInc/BaroDec/BaroStd, additive); N6 bug, capture, hold, ALT mode and the minimums disconnect use indicated altitude. Not changed: N5 VNAV and altitude constraints still compare true altitude.
