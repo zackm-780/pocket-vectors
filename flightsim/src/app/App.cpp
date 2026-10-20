@@ -275,7 +275,7 @@ int App::run() {
     if (startAirport) terrain.setElevationM(static_cast<float>(ftToM(startAirport->elevFt)));
 
     // W1: with a terrain pack at <data root>/terrain (pack.ini present) use TerrainService, else
-    // keep FlatTerrain. The flight model's ground stays flat at the scenario elevation until F3.
+    // keep FlatTerrain. F3: either way it is the flight model's ground (Simulation::init).
     std::unique_ptr<terrain::TerrainService> terrainSvc;
     const std::string terrainDir = paths.data("terrain");
     if (fileExists(Paths::join(terrainDir, "pack.ini"))) {
@@ -291,6 +291,11 @@ int App::run() {
     if (startAirport) world::registerAirportFlatten(*startAirport, terrainQuery);
 
     Simulation sim(paths, navDb, terrainQuery);
+    // F3: spawn gating needs finished tiles integrated while it waits for the start detail.
+    if (terrainSvc)
+        sim.setTerrainPump([svc = terrainSvc.get()](double latDeg, double lonDeg) {
+            svc->update(latDeg, lonDeg);
+        });
     if (!sim.init(scenario, aircraftId, error)) {
         LOG_ERROR("%s", error.c_str());
         return 2;

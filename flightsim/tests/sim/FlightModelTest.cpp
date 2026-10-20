@@ -15,10 +15,13 @@ using namespace fsim::test;
 
 namespace {
 
-// Terrain stub for the water-contact rule: everything is water.
+// Terrain stub for the water-contact rule: everything is water, at the field elevation (F3: the
+// JSBSim ground now follows the terrain, so the stub must put the ground where XTST is).
 class WaterTerrain : public TerrainQuery {
 public:
-    float elevationM(double, double) const override { return 0; }
+    float elevationM(double, double) const override {
+        return static_cast<float>(ftToM(SyntheticNavDb::kElevFt));
+    }
     LandClass landClass(double, double) const override { return LandClass::Water; }
     void addFlattenArea(const FlattenArea&) override {}
     void clearFlattenAreas() override {}
@@ -331,7 +334,7 @@ TEST_CASE("sim: touching down on water is a crash when a terrain source says so"
     REQUIRE(f.s().crashed);
     CHECK(std::string(f.s().crashReason) == "water impact");
     // Same flight over land is fine (see the hands-off touchdown test).
-    FlatTerrain land;
+    FlatTerrain land{static_cast<float>(ftToM(SyntheticNavDb::kElevFt))};
     REQUIRE(f.begin("c172p", "final", "distance_nm = 0.25\n"));
     f.model.setTerrain(&land);
     f.run(25.0);
