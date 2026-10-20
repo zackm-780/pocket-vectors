@@ -607,9 +607,11 @@ float Autopilot::verticalPitchCmd(const AircraftState& ac, const NavState& nav, 
         case VertMode::Flc:
             return pitchDegOf(ac);
     }
-    // Speed protection for climbs without an autothrottle: trade rate of climb for speed.
-    if (!st_.atEngaged && vsTarget > 0.f && cfg_.minClimbIasKt > 0.f && ac.iasKt < cfg_.minClimbIasKt)
-        vsTarget = std::max(0.f, vsTarget - (cfg_.minClimbIasKt - ac.iasKt) * 100.f);
+    // Underspeed protection without an autothrottle: below the minimum speed trade altitude for
+    // speed (100 fpm less climb, or more descent, per knot of deficit). GS is exempt (it descends).
+    if (!st_.atEngaged && st_.vertActive != VertMode::Gs && cfg_.minClimbIasKt > 0.f &&
+        ac.iasKt < cfg_.minClimbIasKt)
+        vsTarget -= (cfg_.minClimbIasKt - ac.iasKt) * 100.f;
     return vsLoopPitch(ac, vsTarget, dtS);
 }
 
