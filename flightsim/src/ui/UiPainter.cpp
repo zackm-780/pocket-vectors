@@ -29,7 +29,7 @@ void drawBackdrop(Renderer2D& r, float alpha) {
 
 void drawScreenFrame(Renderer2D& r, const UiTheme& t, const std::string& title,
                      const std::string& subtitle, const std::string& footer) {
-    drawBackdrop(r, 0.9f);
+    drawBackdrop(r, 0.94f);
     const float x = r.centered(kContentX);
     r.text(x, kTitleY, title.c_str(), TextSize::L, t.accent);
     if (!subtitle.empty()) r.text(x, kSubtitleY, subtitle.c_str(), TextSize::S, t.dim);
@@ -80,8 +80,7 @@ void drawList(Renderer2D& r, const UiTheme& t, float x, float y, float w, float 
     // Scroll hints at the right edge.
     const float hx = x + w + 8.0f;
     if (nav.canScrollUp())
-        r.fillTriangle({hx, y + 12}, {hx - 6, y + 22}, {hx + 6, y + 22}, t.dim,
-                       FillMode::Front);
+        r.fillTriangle({hx, y + 12}, {hx - 6, y + 22}, {hx + 6, y + 22}, t.dim, FillMode::Front);
     if (nav.canScrollDown()) {
         const float by = y + static_cast<float>(nav.visibleRows()) * rowH;
         r.fillTriangle({hx, by - 4}, {hx - 6, by - 14}, {hx + 6, by - 14}, t.dim, FillMode::Front);

@@ -30,7 +30,9 @@ bool endsWithFms(const std::string& name) {
     return upper(name.substr(name.size() - 4)) == ".FMS";
 }
 
-int runwayNumber(const std::string& ident) { return std::atoi(ident.c_str()); }
+int runwayNumber(const std::string& ident) {
+    return std::atoi(ident.c_str());
+}
 int runwaySide(const std::string& ident) {
     if (ident.empty()) return 0;
     switch (std::toupper(static_cast<unsigned char>(ident.back()))) {
@@ -41,7 +43,9 @@ int runwaySide(const std::string& ident) {
     }
 }
 
-bool hasRunways(const Airport* a) { return a && !a->runways.empty(); }
+bool hasRunways(const Airport* a) {
+    return a && !a->runways.empty();
+}
 
 double distFrom(const Airport& a, double latDeg, double lonDeg) {
     return mToNm(greatCircleDistM(latDeg, lonDeg, a.latDeg, a.lonDeg));
@@ -156,7 +160,7 @@ std::vector<AirportHit> searchAirportsOrdered(const NavDatabase& db, const std::
             if (h.airport == a) return;
         out.push_back({a, distFrom(*a, refLatDeg, refLonDeg)});
     };
-    add(db.findAirport(q));  // exact ICAO ident first
+    add(db.findAirport(q));                           // exact ICAO ident first
     if (q.size() == 3) add(db.findAirport("K" + q));  // US FAA code
     for (const Airport* a : db.searchAirports(q, maxCount * 2 + 4)) add(a);
     if (static_cast<int>(out.size()) > maxCount) out.resize(static_cast<size_t>(maxCount));
@@ -208,8 +212,9 @@ std::string runwayDescription(const Runway& r, float magVarDeg) {
     int hdg = static_cast<int>(std::lround(runwayHeadingMagDeg(r, magVarDeg)));
     if (hdg == 0) hdg = 360;
     std::snprintf(buf, sizeof buf, "%-3s %03dM %dX%d%s%s", r.ident.c_str(), hdg,
-                  static_cast<int>(std::lround(r.lengthFt)), static_cast<int>(std::lround(r.widthFt)),
-                  r.hard ? "" : " SOFT", r.ils ? " ILS" : "");
+                  static_cast<int>(std::lround(r.lengthFt)),
+                  static_cast<int>(std::lround(r.widthFt)), r.hard ? "" : " SOFT",
+                  r.ils ? " ILS" : "");
     return buf;
 }
 
@@ -283,7 +288,8 @@ bool FlightSetup::loadPlanFile(const NavDatabase& db, const std::string& path,
     if (const Airport* origin = db.findAirport(plan.originIdent)) {
         if (!origin->runways.empty()) {
             airportIdent = origin->ident;
-            const Runway* rwy = plan.depRunway.empty() ? nullptr : findRunway(*origin, plan.depRunway);
+            const Runway* rwy =
+                plan.depRunway.empty() ? nullptr : findRunway(*origin, plan.depRunway);
             if (!rwy) rwy = defaultRunway(*origin);
             runwayIdent = rwy ? rwy->ident : "";
         }
@@ -349,7 +355,8 @@ std::string FlightSetup::routeText() const {
     const int end = enrouteEndIndex(plan);
     for (int i = 0; i < end && i < static_cast<int>(plan.legs.size()); ++i) {
         if (!s.empty()) s += ' ';
-        s += plan.legs[static_cast<size_t>(i)].to.ident;
+        const bool origin = i == 0 && !plan.originIdent.empty();
+        s += origin ? plan.originIdent : plan.legs[static_cast<size_t>(i)].to.ident;
     }
     if (plan.approachStartLeg < 0 && end >= static_cast<int>(plan.legs.size())) return s;
     if (!plan.destIdent.empty()) {
@@ -359,7 +366,9 @@ std::string FlightSetup::routeText() const {
     return s;
 }
 
-double FlightSetup::planDistNm() const { return hasPlan() ? fsim::planDistNm(plan) : 0.0; }
+double FlightSetup::planDistNm() const {
+    return hasPlan() ? fsim::planDistNm(plan) : 0.0;
+}
 
 Scenario FlightSetup::buildScenario(const std::string& planFilePath) const {
     Scenario s;

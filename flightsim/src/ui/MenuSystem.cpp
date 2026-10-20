@@ -71,7 +71,14 @@ MenuSystem::MenuSystem(MenuEnv env) : env_(std::move(env)) {
             }
         }
     }
-    if (!seeded && !s.setAirport(*env_.nav, "KPDX")) s.setAirport(*env_.nav, SyntheticNavDb::kIdent);
+    if (!seeded && !s.setAirport(*env_.nav, "KPDX"))
+        s.setAirport(*env_.nav, SyntheticNavDb::kIdent);
+    if (!env_.hasRef)
+        if (const Airport* a = env_.nav->findAirport(s.airportIdent)) {
+            env_.refLatDeg = a->latDeg;
+            env_.refLonDeg = a->lonDeg;
+            env_.hasRef = true;
+        }
 }
 
 MenuSystem::~MenuSystem() = default;
@@ -87,7 +94,7 @@ bool MenuSystem::lastFlightAvailable() const {
 }
 
 void MenuSystem::referencePosition(double& latDeg, double& lonDeg) const {
-    if (hasFlight_ && flight_.aircraft && flight_.aircraft->valid) {
+    if (hasFlight_ && flight_.aircraft && flight_.aircraft->valid && !fullScreen()) {
         latDeg = flight_.aircraft->latDeg;
         lonDeg = flight_.aircraft->lonDeg;
     } else if (env_.hasRef) {
@@ -252,8 +259,8 @@ void MenuSystem::draw(Renderer2D& r) const {
     if (stack_.empty()) return;
     size_t first = stack_.size() - 1;
     while (first > 0 && stack_[first]->isOverlay()) --first;
-    const UiTheme theme = UiTheme::fromHudColor(env_.settings ? env_.settings->hudColor
-                                                               : HudColor::Green);
+    const UiTheme theme =
+        UiTheme::fromHudColor(env_.settings ? env_.settings->hudColor : HudColor::Green);
     for (size_t i = first; i < stack_.size(); ++i) stack_[i]->draw(r, theme, *this);
 }
 
@@ -271,7 +278,8 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
         const std::string want = wanted.empty() ? "KPDX-KOTH" : wanted;
         for (const PlanFileEntry& e : discoverPlanFiles(env_.planDirs)) {
             std::string stem = e.name.substr(0, e.name.size() - 4);
-            if (e.name == want || stem == want) return setup_.loadPlanFile(nav(), e.path, e.name, err);
+            if (e.name == want || stem == want)
+                return setup_.loadPlanFile(nav(), e.path, e.name, err);
         }
         err = "no plan file '" + want + "'";
         return false;

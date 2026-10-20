@@ -114,9 +114,7 @@ struct FlightSetup {
     const std::string& destAirportIdent() const {
         return hasPlan() && !plan.destIdent.empty() ? plan.destIdent : airportIdent;
     }
-    std::string destRunwayIdent() const {
-        return hasPlan() ? plan.arrRunway : runwayIdent;
-    }
+    std::string destRunwayIdent() const { return hasPlan() ? plan.arrRunway : runwayIdent; }
 
     // Start airport: picks its default runway; clears a quick plan and the approach.
     bool setAirport(const NavDatabase& db, const std::string& ident);

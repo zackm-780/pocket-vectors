@@ -63,7 +63,9 @@ const std::vector<std::vector<Key>>& digitsGrid() {
     return g;
 }
 
-int centerHalfUnits(const Key& k) { return 2 * k.col + k.span; }
+int centerHalfUnits(const Key& k) {
+    return 2 * k.col + k.span;
+}
 
 }  // namespace
 
@@ -118,7 +120,8 @@ OnScreenKeyboard::Event OnScreenKeyboard::type(char c) {
     else if (!std::isdigit(static_cast<unsigned char>(c)) && c != ' ')
         return Event::None;
     if (text_.size() >= maxLength_) return Event::None;
-    if (c == ' ' && (text_.empty() || text_.back() == ' ')) return Event::None;  // no leading/double
+    if (c == ' ' && (text_.empty() || text_.back() == ' '))
+        return Event::None;  // no leading/double
     text_.push_back(c);
     return Event::Changed;
 }

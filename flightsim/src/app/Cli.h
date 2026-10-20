@@ -20,6 +20,7 @@ struct CliOptions {
     bool showFps = false;
     bool glyphSheet = false;  // H1: draw the 2D renderer / stroke font glyph sheet over the 3D view
     bool resume = false;      // P3: --resume loads <conf>/last_flight.ini as the scenario
+    std::string menuSpec;     // H5: --menu <screen[:arg]> opens that menu screen (docs/UI.md)
     bool help = false;
 };
 

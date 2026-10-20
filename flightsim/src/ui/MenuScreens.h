@@ -18,9 +18,9 @@ std::unique_ptr<Screen> makeMainScreen(MenuSystem& menu);
 std::unique_ptr<Screen> makeSetupScreen();
 std::unique_ptr<Screen> makeAircraftScreen(const MenuSystem& menu);
 std::unique_ptr<Screen> makeSearchScreen(SearchMode mode, const MenuSystem& menu,
-                                       const std::string& initialText = "");
+                                         const std::string& initialText = "");
 std::unique_ptr<Screen> makeRunwayScreen(RunwayMode mode, const std::string& airportIdent,
-                                       const MenuSystem& menu);
+                                         const MenuSystem& menu);
 std::unique_ptr<Screen> makeStartTypeScreen(const MenuSystem& menu);
 std::unique_ptr<Screen> makePlanScreen();
 std::unique_ptr<Screen> makePlanFilesScreen(const MenuSystem& menu);

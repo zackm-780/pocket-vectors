@@ -29,15 +29,16 @@ std::string fmt(const char* f, double v) {
     return b;
 }
 
-template <class E>
-E cycleEnum(E v, int dir, int count) {
+template <class E> E cycleEnum(E v, int dir, int count) {
     return static_cast<E>(((static_cast<int>(v) + dir) % count + count) % count);
 }
 
 const SettingDef kSettingDefs[] = {
     {"HUD COLOR", false,
      [](const Settings& s) -> std::string {
-         return s.hudColor == HudColor::Green ? "GREEN" : s.hudColor == HudColor::White ? "WHITE" : "AMBER";
+         return s.hudColor == HudColor::Green   ? "GREEN"
+                : s.hudColor == HudColor::White ? "WHITE"
+                                                : "AMBER";
      },
      [](Settings& s, int d) { s.hudColor = cycleEnum(s.hudColor, d, 3); }},
     {"HUD DECLUTTER AT START", false,
@@ -48,17 +49,20 @@ const SettingDef kSettingDefs[] = {
      },
      [](Settings& s, int d) { s.hudDeclutterDefault = cycleEnum(s.hudDeclutterDefault, d, 3); }},
     {"PRESSURE UNITS", false,
-     [](const Settings& s) -> std::string { return s.pressureUnits == PressureUnits::Hpa ? "HPA" : "INHG"; },
+     [](const Settings& s) -> std::string {
+         return s.pressureUnits == PressureUnits::Hpa ? "HPA" : "INHG";
+     },
      [](Settings& s, int d) { s.pressureUnits = cycleEnum(s.pressureUnits, d, 2); }},
     {"SHOW FPS", false, [](const Settings& s) -> std::string { return s.showFps ? "ON" : "OFF"; },
      [](Settings& s, int) { s.showFps = !s.showFps; }},
-    {"FIELD OF VIEW", true,
-     [](const Settings& s) { return fmt("%.0f DEG", s.fovVerticalDeg); },
+    {"FIELD OF VIEW", true, [](const Settings& s) { return fmt("%.0f DEG", s.fovVerticalDeg); },
      [](Settings& s, int d) { s.fovVerticalDeg += 5.0f * static_cast<float>(d); }},
     {"VOLUME", true, [](const Settings& s) { return fmt("%.0f%%", s.volumePct); },
      [](Settings& s, int d) { s.volumePct += 10 * d; }},
     {"THROTTLE MODE", false,
-     [](const Settings& s) -> std::string { return s.throttleMode == ThrottleMode::Rate ? "RATE" : "ABSOLUTE"; },
+     [](const Settings& s) -> std::string {
+         return s.throttleMode == ThrottleMode::Rate ? "RATE" : "ABSOLUTE";
+     },
      [](Settings& s, int d) { s.throttleMode = cycleEnum(s.throttleMode, d, 2); }},
     {"AUTO RUDDER", false,
      [](const Settings& s) -> std::string { return s.assistAutoRudder ? "ON" : "OFF"; },
@@ -200,7 +204,8 @@ private:
 // ---- flight plan in flight --------------------------------------------------------------------------------------
 
 const char* legTypeName(LegType t) {
-    static const char* const names[] = {"IF", "TF", "CF", "DF", "CA", "VA", "FA", "HM", "HA", "HF", "RF"};
+    static const char* const names[] = {"IF", "TF", "CF", "DF", "CA", "VA",
+                                        "FA", "HM", "HA", "HF", "RF"};
     return names[static_cast<int>(t)];
 }
 
@@ -226,7 +231,8 @@ public:
             plan_ = f.navigator->plan();
             hasApproach_ = f.navigator->activeApproach() != nullptr;
             const NavDatabase& db = m.nav();
-            legs_ = planSummary(plan_, [&db](double lat, double lon) { return db.magVarDeg(lat, lon); });
+            legs_ = planSummary(plan_,
+                                [&db](double lat, double lon) { return db.magVarDeg(lat, lon); });
             distNm_ = planDistNm(plan_);
         }
         nav_.setCount(kActionRows + static_cast<int>(legs_.size()));
@@ -283,8 +289,8 @@ public:
         if (!legs_.empty()) {
             char b[96];
             std::snprintf(b, sizeof b, "%s > %s   %.0f NM%s%s", plan_.originIdent.c_str(),
-                          plan_.destIdent.c_str(), distNm_, plan_.approachId.empty() ? "" : "   APP ",
-                          plan_.approachId.c_str());
+                          plan_.destIdent.c_str(), distNm_,
+                          plan_.approachId.empty() ? "" : "   APP ", plan_.approachId.c_str());
             sub = b;
         }
         drawScreenFrame(r, t, "FLIGHT PLAN", sub, "A SELECT   B BACK   START RESUME");
@@ -312,8 +318,8 @@ public:
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, kRowH, nav_, rows);
         if (legs_.empty())
-            r.text(x + 10, kListTop + 3 * kRowH + 20, "DIRECT TO CREATES A ONE-LEG PLAN", TextSize::S,
-                   t.dim);
+            r.text(x + 10, kListTop + 3 * kRowH + 20, "DIRECT TO CREATES A ONE-LEG PLAN",
+                   TextSize::S, t.dim);
     }
 
 private:
@@ -327,8 +333,12 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Screen> makeSettingsScreen() { return std::make_unique<SettingsScreen>(); }
-std::unique_ptr<Screen> makePauseScreen() { return std::make_unique<PauseScreen>(); }
+std::unique_ptr<Screen> makeSettingsScreen() {
+    return std::make_unique<SettingsScreen>();
+}
+std::unique_ptr<Screen> makePauseScreen() {
+    return std::make_unique<PauseScreen>();
+}
 std::unique_ptr<Screen> makeFlightPlanScreen(const MenuSystem& menu) {
     return std::make_unique<FlightPlanScreen>(menu);
 }

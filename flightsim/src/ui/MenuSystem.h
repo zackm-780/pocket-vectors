@@ -60,7 +60,7 @@ enum class MenuAction {
 struct MenuResult {
     MenuAction action = MenuAction::None;
     Scenario scenario;
-    std::string message;          // short HUD message to show (e.g. "DIRECT TO KOTH")
+    std::string message;           // short HUD message to show (e.g. "DIRECT TO KOTH")
     bool settingsChanged = false;  // settings were edited and saved: re-apply them
 };
 
@@ -69,12 +69,12 @@ struct MenuResult {
 struct MenuEnv {
     const NavDatabase* nav = nullptr;
     Settings* settings = nullptr;
-    std::string settingsPath;    // saved on leaving the settings screen; empty = do not save
-    std::string aircraftDir;     // assets/aircraft
+    std::string settingsPath;           // saved on leaving the settings screen; empty = do not save
+    std::string aircraftDir;            // assets/aircraft
     std::vector<std::string> planDirs;  // data/plans, assets/plans (earlier wins)
-    std::string lastFlightPath;  // conf/last_flight.ini; empty or missing = no "resume"
-    std::string menuPlanPath;    // where a menu-built plan is written (conf/menu_plan.fms)
-    std::string navDir;          // <data>/nav, for real approach procedures
+    std::string lastFlightPath;         // conf/last_flight.ini; empty or missing = no "resume"
+    std::string menuPlanPath;           // where a menu-built plan is written (conf/menu_plan.fms)
+    std::string navDir;                 // <data>/nav, for real approach procedures
     double refLatDeg = 0, refLonDeg = 0;  // nearest-airport reference when no flight is active
     bool hasRef = false;
 };
@@ -118,10 +118,18 @@ public:
     bool active() const { return !stack_.empty(); }
     ScreenId top() const { return stack_.empty() ? ScreenId::None : stack_.back()->id(); }
     int depth() const { return static_cast<int>(stack_.size()); }
+    // True while the bottom screen is the main menu (no flight is shown behind it).
+    bool fullScreen() const { return !stack_.empty() && stack_.front()->id() == ScreenId::Main; }
 
     // The flight the pause menu operates on (pointers must stay valid while it is set).
-    void setFlight(const FlightContext& ctx) { flight_ = ctx; hasFlight_ = true; }
-    void clearFlight() { hasFlight_ = false; flight_ = FlightContext{}; }
+    void setFlight(const FlightContext& ctx) {
+        flight_ = ctx;
+        hasFlight_ = true;
+    }
+    void clearFlight() {
+        hasFlight_ = false;
+        flight_ = FlightContext{};
+    }
     bool hasFlight() const { return hasFlight_; }
     const FlightContext& flight() const { return flight_; }
 
@@ -142,8 +150,8 @@ public:
     const std::vector<AircraftEntry>& aircraft() const { return aircraft_; }
     const AircraftEntry* aircraftEntry(const std::string& id) const;
     const RealApproachProvider& approachProvider() const { return provider_; }
-    // Position nearest lists are measured from: the aircraft in flight, else the last known
-    // position (settings), else KPDX, else XTST.
+    // Position nearest lists are measured from: the aircraft in flight, else the position of the
+    // airport last selected (env refLat/LonDeg), else KPDX, else XTST.
     void referencePosition(double& latDeg, double& lonDeg) const;
     bool lastFlightAvailable() const;
 

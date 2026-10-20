@@ -20,15 +20,19 @@ class FakeNavDb : public NavDatabase {
 public:
     FakeNavDb() {
         add("KAAA", "Alpha International", "AAA", AirportType::Large, 45.5, -122.6, 30,
-            {runway("10L", "28R", 100, 11000, true, true), runway("28R", "10L", 280, 11000, true, true),
-             runway("10R", "28L", 100, 8000, true, false), runway("28L", "10R", 280, 8000, true, false),
+            {runway("10L", "28R", 100, 11000, true, true),
+             runway("28R", "10L", 280, 11000, true, true),
+             runway("10R", "28L", 100, 8000, true, false),
+             runway("28L", "10R", 280, 8000, true, false),
              runway("03", "21", 30, 6000, false, false)});
         add("KBBB", "Bravo Municipal", "BBB", AirportType::Medium, 45.3, -122.9, 60,
-            {runway("16", "34", 160, 5000, true, false), runway("34", "16", 340, 5000, true, false)});
+            {runway("16", "34", 160, 5000, true, false),
+             runway("34", "16", 340, 5000, true, false)});
         add("KOTX", "Otx Regional", "OTX", AirportType::Small, 43.4, -124.2, 17,
             {runway("05", "23", 50, 5300, true, true), runway("23", "05", 230, 5300, true, true)});
         add("OTHR", "Kotx Field", "", AirportType::Small, 43.5, -124.3, 20,
-            {runway("09", "27", 90, 3000, true, false), runway("27", "09", 270, 3000, true, false)});
+            {runway("09", "27", 90, 3000, true, false),
+             runway("27", "09", 270, 3000, true, false)});
         add("NORW", "No Runways", "", AirportType::Small, 45.0, -122.0, 10, {});
     }
 

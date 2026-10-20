@@ -4,8 +4,8 @@
 #include <fstream>
 
 #include "SimFixture.h"
-#include "ui/FlightSetup.h"
 #include "ui/FakeNavDb.h"
+#include "ui/FlightSetup.h"
 
 using namespace fsim;
 using fsim::test::FakeNavDb;
@@ -93,7 +93,8 @@ TEST_CASE("ui: in-air altitude stepping") {
 
 TEST_CASE("ui: aircraft and plan discovery read files at runtime") {
     const std::string dir = tempDir("discover");
-    writeText(dir + "/zeta.ini", "[aircraft]\nid = zeta\ndisplay_name = Zeta Jet\ncategory = jet\n");
+    writeText(dir + "/zeta.ini",
+              "[aircraft]\nid = zeta\ndisplay_name = Zeta Jet\ncategory = jet\n");
     writeText(dir + "/alpha.ini", "[aircraft]\nid = alpha\ndisplay_name = Alpha Piston\n");
     writeText(dir + "/broken.ini", "this is not an aircraft");
     writeText(dir + "/readme.txt", "ignored");

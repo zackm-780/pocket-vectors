@@ -42,6 +42,8 @@ std::string cliUsage() {
            "  --conf-dir <path>       settings/log directory (default ~/.config/flightsim)\n"
            "  --asset-dir <path>      asset root holding jsbsim/ and assets/ (default <exe dir>)\n"
            "  --resume                start from the last flight (<conf dir>/last_flight.ini)\n"
+           "  --menu <screen[:arg]>   open a menu screen (main, setup, aircraft, airport:TEXT, "
+           "runway:ICAO, start, plan:FILE, approach:FILE, settings, pause, flightplan)\n"
            "  --help                  this text\n";
 }
 
@@ -65,7 +67,9 @@ bool parseCli(const std::vector<std::string>& args, CliOptions& out, std::string
             out.showFps = true;
         else if (a == "--glyph-sheet")  // H1
             out.glyphSheet = true;
-        else if (a == "--resume")  // P3
+        else if (a == "--menu") {  // H5
+            if (!value(out.menuSpec)) return false;
+        } else if (a == "--resume")  // P3
             out.resume = true;
         else if (a == "--help" || a == "-h")
             out.help = true;

@@ -30,9 +30,9 @@ constexpr float kTitleY = 38.0f;     // baseline of the L title
 constexpr float kSubtitleY = 58.0f;  // baseline of the S subtitle
 constexpr float kListTop = 74.0f;
 constexpr float kRowH = 26.0f;
-constexpr int kListRows = 12;        // rows between the header and the footer
+constexpr int kListRows = 12;  // rows between the header and the footer
 constexpr float kFooterRuleY = 440.0f;
-constexpr float kFooterY = 462.0f;   // baseline of the hint line
+constexpr float kFooterY = 462.0f;  // baseline of the hint line
 }  // namespace uilayout
 
 struct ListRow {

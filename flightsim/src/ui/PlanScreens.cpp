@@ -232,8 +232,13 @@ public:
                         "A SELECT   B BACK   LEFT RIGHT RUNWAY");
         const float x = r.centered(kContentX);
         const Airport* a = m.nav().findAirport(airport_);
-        std::string head = "AIRPORT " + airport_ + (a ? "  " + upperStr(a->name) : std::string());
-        r.text(x, 86, fitText(head, 44).c_str(), TextSize::S, t.text);
+        std::string name = a ? upperStr(a->name) : std::string();
+        const std::string suffix = " AIRPORT";
+        if (name.size() > suffix.size() &&
+            name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
+            name.resize(name.size() - suffix.size());
+        r.text(x, 86, fitText("AIRPORT " + airport_ + "  " + name, 48).c_str(), TextSize::S,
+               t.text);
         std::string rw = "RUNWAY ";
         rw += runways_.empty() ? "-" : "< " + runways_[static_cast<size_t>(rwyIdx_)] + " >";
         r.text(x + kContentW, 86, rw.c_str(), TextSize::M, t.accent, HAlign::Right);
@@ -325,7 +330,9 @@ private:
 
 }  // namespace
 
-std::unique_ptr<Screen> makePlanScreen() { return std::make_unique<PlanScreen>(); }
+std::unique_ptr<Screen> makePlanScreen() {
+    return std::make_unique<PlanScreen>();
+}
 std::unique_ptr<Screen> makePlanFilesScreen(const MenuSystem& menu) {
     return std::make_unique<PlanFilesScreen>(menu);
 }

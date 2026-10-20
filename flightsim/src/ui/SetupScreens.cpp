@@ -147,8 +147,8 @@ public:
         }
         if (nav_.selected() == 3 && (in.left || in.right)) {  // quick start type change
             const int n = static_cast<int>(s.startType) + (in.right ? 1 : -1);
-            s.startType = static_cast<StartType>((n % kStartTypeCount + kStartTypeCount) %
-                                                 kStartTypeCount);
+            s.startType =
+                static_cast<StartType>((n % kStartTypeCount + kStartTypeCount) % kStartTypeCount);
         }
         if (!in.accept) return;
         switch (nav_.selected()) {
@@ -175,8 +175,7 @@ public:
         rows[2].value = s.runwayIdent.empty() ? "NONE" : s.runwayIdent;
         if (a)
             if (const Runway* rw = findRunway(*a, s.runwayIdent))
-                rows[2].value = runwayDescription(
-                    *rw, m.nav().magVarDeg(a->latDeg, a->lonDeg));
+                rows[2].value = runwayDescription(*rw, m.nav().magVarDeg(a->latDeg, a->lonDeg));
         rows[3] = {"START", startLabel(s)};
         rows[3].adjustable = true;
         rows[4] = {"FLIGHT PLAN", s.hasPlan() ? s.planName : "NONE"};
@@ -211,7 +210,8 @@ private:
 
 class AircraftScreen : public Screen {
 public:
-    explicit AircraftScreen(const MenuSystem& m) : nav_(static_cast<int>(m.aircraft().size()), kListRows) {
+    explicit AircraftScreen(const MenuSystem& m)
+        : nav_(static_cast<int>(m.aircraft().size()), kListRows) {
         for (int i = 0; i < nav_.count(); ++i)
             if (m.aircraft()[static_cast<size_t>(i)].id == m.setup().aircraftId) nav_.select(i);
     }
@@ -291,14 +291,17 @@ public:
                 row.value = b;
                 row.adjustable = true;
             }
-            if (static_cast<int>(m.setup().startType) == i && row.value.empty()) row.value = "CURRENT";
+            if (static_cast<int>(m.setup().startType) == i && row.value.empty())
+                row.value = "CURRENT";
             rows.push_back(std::move(row));
         }
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, 30, nav_, rows);
         const char* hint = "";
         switch (static_cast<StartType>(nav_.selected())) {
-        case StartType::Runway: hint = "ON THE THRESHOLD, ENGINES RUNNING, READY FOR TAKEOFF"; break;
+        case StartType::Runway:
+            hint = "ON THE THRESHOLD, ENGINES RUNNING, READY FOR TAKEOFF";
+            break;
         case StartType::Final2Nm:
         case StartType::Final6Nm:
         case StartType::Final10Nm: hint = "ON THE 3 DEGREE PATH, GEAR DOWN, APPROACH FLAPS"; break;
@@ -355,12 +358,11 @@ public:
     }
 
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem& m) const override {
-        const char* title = mode_ == SearchMode::StartAirport    ? "AIRPORT"
+        const char* title = mode_ == SearchMode::StartAirport      ? "AIRPORT"
                             : mode_ == SearchMode::PlanDestination ? "DESTINATION"
                                                                    : "DIRECT TO";
-        const char* sub = mode_ == SearchMode::DirectTo
-                              ? "TYPE A WAYPOINT, NAVAID OR AIRPORT IDENT"
-                              : "TYPE AN IDENT, IATA CODE OR NAME";
+        const char* sub = mode_ == SearchMode::DirectTo ? "TYPE A WAYPOINT, NAVAID OR AIRPORT IDENT"
+                                                        : "TYPE AN IDENT, IATA CODE OR NAME";
         drawScreenFrame(r, t, title, sub,
                         focus_ == Focus::Keyboard
                             ? "A TYPE  B DELETE  X SPACE  Y 123/ABC  START DONE"
@@ -413,9 +415,9 @@ private:
                 if (hits_.size() >= 12) break;
             }
         } else {
-            const std::vector<AirportHit> found =
-                q.empty() ? nearestAirportHits(db, lat, lon, 12, 400.0f)
-                          : searchAirportsOrdered(db, q, 12, lat, lon);
+            const std::vector<AirportHit> found = q.empty()
+                                                      ? nearestAirportHits(db, lat, lon, 12, 400.0f)
+                                                      : searchAirportsOrdered(db, q, 12, lat, lon);
             for (const AirportHit& ah : found) {
                 SearchHit h;
                 h.ident = ah.airport->ident;
@@ -520,8 +522,9 @@ public:
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem& m) const override {
         const Airport* a = m.nav().findAirport(airportIdent_);
         char sub[96] = "";
-        if (a) std::snprintf(sub, sizeof sub, "%s  %s  ELEV %.0f FT", a->ident.c_str(),
-                             upperStr(a->name).c_str(), a->elevFt);
+        if (a)
+            std::snprintf(sub, sizeof sub, "%s  %s  ELEV %.0f FT", a->ident.c_str(),
+                          upperStr(a->name).c_str(), a->elevFt);
         drawScreenFrame(r, t, mode_ == RunwayMode::Start ? "RUNWAY" : "DESTINATION RUNWAY", sub,
                         kFooterList);
         std::vector<ListRow> rows;
@@ -565,7 +568,9 @@ private:
 std::unique_ptr<Screen> makeMainScreen(MenuSystem& menu) {
     return std::make_unique<MainScreen>(menu);
 }
-std::unique_ptr<Screen> makeSetupScreen() { return std::make_unique<SetupScreen>(); }
+std::unique_ptr<Screen> makeSetupScreen() {
+    return std::make_unique<SetupScreen>();
+}
 std::unique_ptr<Screen> makeAircraftScreen(const MenuSystem& menu) {
     return std::make_unique<AircraftScreen>(menu);
 }
