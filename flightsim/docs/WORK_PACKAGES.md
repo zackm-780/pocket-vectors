@@ -219,7 +219,7 @@ gradient, AGL, plus runway flatten areas honoured. Spawn gating (`isDetailReady`
 synthetic terrain rolls flat. The c172p can't sink through terrain at 120 Hz.
 
 ## F4: Extended fleet
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** F2, N6 · **Owns:** `assets/aircraft/` (extended ids), `tests/fleet/`
+**Status:** in progress (wp/F4-extended-fleet) · **Model / effort:** Sonnet / medium · **Depends:** F2, N6 · **Owns:** `assets/aircraft/` (extended ids), `tests/fleet/`
 Profiles plus flyability tests and autopilot gains for `pa28`, `c182`, `J3Cub`, `DHC6`, `A320`, `787-8`, `MD11`.
 
 ## W1: Terrain runtime
@@ -421,12 +421,12 @@ nearest list), runway select, start type, flight plan screen (load `.fms`, quick
 approach select), settings screen, and confirmation dialogs.
 
 ## S1: Procedural audio
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** F1 · **Owns:** `src/audio/`
+**Status:** in progress (wp/S1-audio) · **Model / effort:** Sonnet / medium · **Depends:** F1 · **Owns:** `src/audio/`
 SDL audio. Engine sound by type and RPM/N1, wind by IAS, gear and flap motor sounds, touchdown,
 stall horn, AP disconnect tone, and altitude/minimums alert tones. Volume setting.
 
 ## X1: Weather
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** F1, W4 · **Owns:** `src/world/Weather*`
+**Status:** in progress (wp/X1-weather) · **Model / effort:** Sonnet / medium · **Depends:** F1, W4 · **Owns:** `src/world/Weather*`
 Manual wind, gusts, visibility and QNH. Optional METAR fetch over Wi-Fi for the departure and
 destination airports (aviationweather.gov), applied to JSBSim atmosphere and wind and to fog.
 
