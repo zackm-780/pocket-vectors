@@ -276,7 +276,9 @@ def parse_proc(text: str) -> tuple[dict, list[Approach]]:
             approaches.append(cur)
             seg = None
         elif cur is None:
-            raise ProcError(f"line {n}: '{key}' outside an approach")
+            if key in ("LOS", "TRANSITION", "FINAL", "MISSED", "LEG", "END"):
+                raise ProcError(f"line {n}: '{key}' outside an approach")
+            # unknown directive between approaches: ignored for forward compatibility
         elif key == "LOS":
             cur.los = line.split()[1:]
         elif key == "TRANSITION":
