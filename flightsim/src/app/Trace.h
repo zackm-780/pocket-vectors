@@ -6,6 +6,7 @@
 
 #include "core/AircraftState.h"
 #include "core/AutopilotState.h"
+#include "core/ControlInputs.h"
 #include "core/Csv.h"
 #include "core/NavState.h"
 
@@ -17,7 +18,8 @@ class TraceWriter {
 public:
     bool open(const std::string& path);
     bool isOpen() const { return csv_.isOpen(); }
-    void write(const AircraftState& ac, const NavState& nav, const AutopilotState& ap);
+    void write(const AircraftState& ac, const NavState& nav, const AutopilotState& ap,
+               const ControlInputs& finalCtl);
     void close() { csv_.close(); }
 
 private:

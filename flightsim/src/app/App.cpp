@@ -326,6 +326,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             if (interactive)
                 pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
+            // N6: AP / FD / A/T engage, mode and bug actions.
+            if (interactive)
+                sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
             sim.advance(dtS);
         }
         {  // X2: GPWS-lite; text callouts go to the message queue (S1 will add the tones)

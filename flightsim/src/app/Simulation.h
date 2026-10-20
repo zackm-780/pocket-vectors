@@ -9,8 +9,8 @@
 
 #include "app/Scenario.h"
 #include "app/SpawnGate.h"  // F3
-#include "app/StubSystems.h"
 #include "app/Trace.h"
+#include "autopilot/Autopilot.h"  // N6
 #include "core/AircraftProfile.h"
 #include "core/AircraftState.h"
 #include "core/ControlInputs.h"
@@ -61,6 +61,7 @@ public:
     TerrainQuery& terrain() { return terrain_; }
     FlightModel& flightModel() { return model_; }
     Navigator& navigator() { return navigator_; }  // N5: plan / approach / source control
+    Autopilot& autopilot() { return autopilot_; }  // N6: the app feeds ActionState to it
 
 private:
     bool initNavigation(std::string& error);  // N5
@@ -70,7 +71,7 @@ private:
     TerrainQuery& terrain_;
     FlightModel model_;
     Navigator navigator_;  // N5
-    StubAutopilot autopilot_;
+    Autopilot autopilot_;  // N6
     AircraftProfile profile_;
     Scenario scenario_;
     StartCondition start_;

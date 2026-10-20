@@ -53,6 +53,8 @@ struct Scenario {
     std::vector<std::string> apEngage;
     float hdgBugMagDeg = 0, altBugFt = 0;
     bool hasHdgBug = false, hasAltBug = false;
+    float vsBugFpm = 0, spdBugKt = 0;  // N6: optional vs_bug_fpm / spd_bug_kt
+    bool hasVsBug = false, hasSpdBug = false;
 };
 
 bool parseScenario(const std::string& iniText, Scenario& out, std::string& error);

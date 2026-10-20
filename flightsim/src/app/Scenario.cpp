@@ -105,6 +105,10 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.hdgBugMagDeg = ini.getFloat("autopilot", "hdg_bug_mag_deg");
     s.hasAltBug = ini.has("autopilot", "alt_bug_ft");
     s.altBugFt = ini.getFloat("autopilot", "alt_bug_ft");
+    s.hasVsBug = ini.has("autopilot", "vs_bug_fpm");  // N6
+    s.vsBugFpm = ini.getFloat("autopilot", "vs_bug_fpm");
+    s.hasSpdBug = ini.has("autopilot", "spd_bug_kt");
+    s.spdBugKt = ini.getFloat("autopilot", "spd_bug_kt");
 
     out = std::move(s);
     return true;
