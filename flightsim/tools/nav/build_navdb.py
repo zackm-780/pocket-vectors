@@ -209,7 +209,8 @@ class _MultiSource:
 # main build
 # --------------------------------------------------------------------------------------------
 def build(out: Path, faaNasr: str | None, offline: bool, createdUtc: str | None,
-          identHeading: bool = True, wmmYear: float | None = None, quiet: bool = False) -> dict:
+          identHeading: bool = True, wmmYear: float | None = None, quiet: bool = False,
+          cifpSource: str | None = None, cifpAirports: str | None = None) -> dict:
     t0 = time.time()
     log = (lambda *a: None) if quiet else (lambda *a: print(*a, flush=True))
     now = dt.datetime.now(dt.timezone.utc)
@@ -313,6 +314,13 @@ def build(out: Path, faaNasr: str | None, offline: bool, createdUtc: str | None,
         "wmm = NOAA NCEI World Magnetic Model 2025 (public domain)\n",
         encoding="utf-8")
 
+    # ---- FAA CIFP instrument procedures (WP N4): procedures/{ICAO}.proc, sets faa_cifp in nav.ini
+    if cifpSource:
+        import cifp  # N4: imported lazily, the rest of the pipeline never needs it
+        log(f"[+] FAA CIFP ({cifpSource})")
+        cifp.run(cifpSource, out, cifp.normalise_airports(cifpAirports), offline, todayIso,
+                 quiet=quiet)
+
     # ---- summary
     elapsed = time.time() - t0
     files = sorted(p for p in out.iterdir() if p.is_file())
@@ -357,13 +365,23 @@ def main(argv=None) -> int:
     ap.add_argument("--created-utc", default=None, metavar="ISO",
                     help="override the created timestamp (YYYY-MM-DDTHH:MM:SSZ), for reproducible builds")
     ap.add_argument("--no-validate", action="store_true", help="skip the post-build validation")
-    ap.add_argument("--cifp", default=None, help=argparse.SUPPRESS)  # owned by WP N4
+    ap.add_argument("--cifp", metavar="ZIP|FILE|DIR|auto", default=None,
+                    help="add FAA CIFP instrument procedures (procedures/{ICAO}.proc, DATA.md section 7; "
+                         "see cifp.py). 'auto' downloads the current cycle into cache/")
+    ap.add_argument("--cifp-airports", metavar="KOTH,KPDX", default=None,
+                    help="with --cifp: only these airports (quick runs)")
     a = ap.parse_args(argv)
     try:
-        build(a.out, a.faa_nasr, a.offline, a.created_utc, not a.no_ident_heading, a.magvar_epoch)
+        build(a.out, a.faa_nasr, a.offline, a.created_utc, not a.no_ident_heading, a.magvar_epoch,
+              cifpSource=a.cifp, cifpAirports=a.cifp_airports)
     except BuildError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    except Exception as e:  # noqa: BLE001 - the CIFP step raises its own error type
+        if type(e).__name__ == "CifpError":
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        raise
     if not a.no_validate:
         rep = validate_navdb.validate(a.out)
         for w in rep.warnings:
