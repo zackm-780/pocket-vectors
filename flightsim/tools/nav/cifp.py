@@ -547,3 +547,600 @@ def approach_title(ident: str) -> str:
     if rwy:
         return f"{TITLE_BY_TYPE.get(t, t)}{(' ' + mult) if mult else ''} RWY {rwy}"
     return ident.replace("-", " ").strip()
+
+
+# --------------------------------------------------------------------------------------------
+# leg conversion
+# --------------------------------------------------------------------------------------------
+NATIVE_TYPES = ("IF", "TF", "CF", "DF", "CA", "VA", "FA", "RF", "HM", "HA", "HF")
+APPROX_TYPES = ("AF", "PI", "VD", "VI", "VM", "CI", "CD", "CR", "VR", "FC", "FD", "FM")
+# What each approximated ARINC path terminator becomes (documented in NAVIGATION 3.5 / DATA 7).
+APPROX_NOTES = {
+    "AF": "-> RF (DME arc about the recommended navaid)",
+    "PI": "-> TF to the PT fix (course reversal NOT flown; dropped when the fix repeats)",
+    "VI": "-> dropped (the next CF/DF leg intercepts)",
+    "CI": "-> dropped (the next CF/DF leg intercepts)",
+    "VM": "-> dropped (vectors to the next leg)",
+    "FM": "-> dropped (vectors to the next leg)",
+    "VD": "-> CF to the computed DME-distance point",
+    "CD": "-> CF to the computed DME-distance point",
+    "FD": "-> TF fix + CF to the computed DME-distance point",
+    "VR": "-> CF to the computed radial-intercept point",
+    "CR": "-> CF to the computed radial-intercept point",
+    "FC": "-> TF fix + TF to the point `distance` along the track",
+}
+ALT_AT, ALT_ABOVE, ALT_BELOW, ALT_BETWEEN = "AT", "ATORABOVE", "ATORBELOW", "BETWEEN"
+_ALT_DESC = {" ": ALT_AT, "@": ALT_AT, "+": ALT_ABOVE, "-": ALT_BELOW, "B": ALT_BETWEEN,
+             "C": ALT_ABOVE, "G": ALT_AT, "I": ALT_AT, "H": ALT_ABOVE, "J": ALT_ABOVE,
+             "V": ALT_ABOVE, "X": ALT_AT, "Y": ALT_BELOW}
+
+
+class Stats:
+    """Coverage numbers over every approach of every processed airport."""
+
+    def __init__(self) -> None:
+        self.airports = 0
+        self.approaches = 0
+        self.byKind: Counter = Counter()
+        self.transitions = 0
+        self.legsOut = 0
+        self.records: Counter = Counter()  # ARINC terminator -> source records
+        self.native: Counter = Counter()
+        self.approx: Counter = Counter()
+        self.dropped: Counter = Counter()  # (terminator, reason)
+        self.unresolved: Counter = Counter()  # (section, subsection)
+        self.unresolvedExamples: list[str] = []
+        self.noMap = 0
+        self.noMapExamples: list[str] = []
+        self.approachesWithApprox = 0
+        self.altCodes: Counter = Counter()
+        self.skippedApproaches: Counter = Counter()
+        self.logLines: list[str] = []
+
+    def log(self, msg: str) -> None:
+        if len(self.logLines) < 5000:
+            self.logLines.append(msg)
+
+
+class Ctx:
+    """Per-approach conversion context."""
+
+    def __init__(self, db: CifpDb, apt: str, stats: Stats, approachId: str):
+        self.db, self.apt, self.stats, self.approachId = db, apt, stats, approachId
+        a = db.airports.get(apt)
+        self.aptMagVar = a["magvar"] if a and a["magvar"] is not None else 0.0
+        self.approxUsed = False
+
+    def where(self, rec: Record) -> str:
+        return f"{self.apt} {rec.ident} {rec.trans or 'FINAL'} {rec.seq} {rec.pt}"
+
+
+def local_magvar(ctx: Ctx, rec: Record) -> float:
+    """Variation that FAA used to publish this leg's magnetic course: the station declination of
+    the recommended navaid when it is a VHF navaid, otherwise the airport's. (Verified against the
+    theta/rho fields of ~17 000 legs: median error 0.1 deg; fix-record variations were 1.2 deg off.)"""
+    if rec.navId:
+        nv = ctx.db.navaid_position(ctx.apt, rec)
+        if nv is not None and nv[2] is not None and rec.navSec == "D":
+            return nv[2]
+    return ctx.aptMagVar
+
+
+def course_true(ctx: Ctx, rec: Record) -> float | None:
+    c = rec.courseDeg()
+    if c is None:
+        return None
+    deg, isTrue = c
+    return norm360(deg if isTrue else deg + local_magvar(ctx, rec))
+
+
+def alt_constraint(ctx: Ctx, rec: Record) -> tuple[str | None, float, float]:
+    if rec.alt1 is None:
+        return None, 0.0, 0.0
+    kind = _ALT_DESC.get(rec.altDesc)
+    if kind is None:
+        ctx.stats.altCodes[rec.altDesc] += 1
+        kind = ALT_AT
+    if kind == ALT_BETWEEN:
+        if rec.alt2 is None:
+            return ALT_AT, float(rec.alt1), 0.0
+        lo, hi = sorted((rec.alt1, rec.alt2))
+        return ALT_BETWEEN, float(lo), float(hi)
+    return kind, float(rec.alt1), 0.0
+
+
+def _base_leg(ctx: Ctx, rec: Record, ltype: str, fix: cp.Fix | None) -> cp.Leg:
+    leg = cp.Leg(ltype, fix)
+    leg.altKind, leg.alt, leg.alt2 = alt_constraint(ctx, rec)
+    leg.speedKt = rec.speedKt
+    leg.flyOver = rec.isFlyOver
+    if rec.vertAngleDeg is not None:
+        leg.vertAngleDeg = rec.vertAngleDeg
+    if rec.isIaf:
+        leg.flags.add("IAF")
+    if rec.isFaf:
+        leg.flags.add("FAF")
+    if rec.isMap:
+        leg.flags.add("MAP")
+    return leg
+
+
+def _move(lat: float, lon: float, brgTrueDeg: float, distNm: float) -> tuple[float, float]:
+    return navgeo.destination(lat, lon, brgTrueDeg, distNm * navgeo.M_PER_NM)
+
+
+def _dist_nm(a: tuple[float, float], b: tuple[float, float]) -> float:
+    return navgeo.distance_m(a[0], a[1], b[0], b[1]) * NM_PER_M
+
+
+def find_along_track(start: tuple[float, float], crsTrueDeg: float,
+                     f, maxNm: float = 80.0, stepNm: float = 0.1) -> tuple[float, float] | None:
+    """First point along the great-circle course from `start` where f(point) changes sign."""
+    prevPt = start
+    prevV = f(start)
+    d = stepNm
+    while d <= maxNm:
+        pt = _move(start[0], start[1], crsTrueDeg, d)
+        v = f(pt)
+        if prevV == 0.0:
+            return prevPt
+        if (prevV < 0.0) != (v < 0.0):
+            t = prevV / (prevV - v) if prevV != v else 0.5  # refine linearly between samples
+            return _move(start[0], start[1], crsTrueDeg, d - stepNm + t * stepNm)
+        prevPt, prevV = pt, v
+        d += stepNm
+    return None
+
+
+def _fmt_nm(v: float) -> str:
+    return f"{v:.1f}".rstrip("0").rstrip(".")
+
+
+def convert_record(ctx: Ctx, rec: Record, prevFix: cp.Fix | None) -> tuple[list[cp.Leg], str]:
+    """Convert one ARINC record. Returns (legs, outcome) where outcome is 'native', 'approx[:..]',
+    'dropped:<reason>' or 'unresolved'. The legs of a dropped record are empty."""
+    db, apt, st = ctx.db, ctx.apt, ctx.stats
+    pt = rec.pt
+    fixInfo = None
+    if rec.fix:
+        fixInfo = db.resolve(apt, rec.fix, rec.fixRegion, rec.fixSec, rec.fixSub.strip())
+        if fixInfo is None:
+            st.unresolved[(rec.fixSec, rec.fixSub.strip())] += 1
+            if len(st.unresolvedExamples) < 30:
+                st.unresolvedExamples.append(
+                    f"{ctx.where(rec)} fix {rec.fix} ({rec.fixSec}{rec.fixSub.strip()})")
+            return [], "unresolved"
+    fix = fixInfo[0] if fixInfo else None
+    crs = course_true(ctx, rec)
+
+    # ---- native types
+    if pt in ("IF", "TF", "DF"):
+        if fix is None:
+            return [], "dropped:no fix"
+        leg = _base_leg(ctx, rec, pt, fix)
+        if rec.turn in ("L", "R"):
+            leg.turn = rec.turn
+        return [leg], "native"
+    if pt == "CF":
+        if fix is None:
+            return [], "dropped:no fix"
+        leg = _base_leg(ctx, rec, "CF", fix)
+        leg.crsTrue = crs
+        if crs is None:
+            leg.type = "TF"
+            st.log(f"{ctx.where(rec)}: CF without course -> TF")
+        return [leg], "native"
+    if pt in ("CA", "VA"):
+        if crs is None:
+            return [], "dropped:no course"
+        leg = _base_leg(ctx, rec, pt, None)
+        leg.crsTrue = crs
+        if rec.turn in ("L", "R"):
+            leg.turn = rec.turn
+        return [leg], "native"
+    if pt == "FA":
+        if fix is None or crs is None:
+            return [], "dropped:no fix/course"
+        leg = _base_leg(ctx, rec, "FA", fix)
+        leg.crsTrue = crs
+        return [leg], "native"
+    if pt == "RF":
+        if fix is None:
+            return [], "dropped:no fix"
+        c = db.resolve(apt, rec.centerFix, rec.centerRegion, rec.centerSec, rec.centerSub)
+        if c is None or rec.turn not in ("L", "R"):
+            leg = _base_leg(ctx, rec, "TF", fix)
+            leg.orig = "RF"
+            st.log(f"{ctx.where(rec)}: RF without centre/turn -> TF")
+            return [leg], "approx:RF->TF"
+        leg = _base_leg(ctx, rec, "RF", fix)
+        radius = rec.arcRadiusNm or _dist_nm((c[0].lat, c[0].lon), (fix.lat, fix.lon))
+        leg.arc = (c[0].lat, c[0].lon, radius, rec.turn)
+        leg.turn = rec.turn
+        return [leg], "native"
+    if pt in ("HM", "HA", "HF"):
+        if fix is None or crs is None:
+            return [], "dropped:no fix/course"
+        leg = _base_leg(ctx, rec, pt, fix)
+        leg.crsTrue = crs
+        leg.turn = rec.turn if rec.turn in ("L", "R") else "R"
+        t, d = rec.timeMin(), rec.distNm()
+        if t is not None:
+            leg.holdTimeMin = t
+        elif d is not None:
+            leg.holdDistNm = d
+        return [leg], "native"
+
+    # ---- approximated types
+    ctx.approxUsed = True
+    if pt == "AF":
+        nv = db.navaid_position(apt, rec)
+        if fix is None:
+            return [], "dropped:no fix"
+        if nv is None or rec.turn not in ("L", "R"):
+            leg = _base_leg(ctx, rec, "TF", fix)
+            leg.orig = "AF"
+            st.log(f"{ctx.where(rec)}: AF without navaid/turn -> TF")
+            return [leg], "approx:AF->TF"
+        leg = _base_leg(ctx, rec, "RF", fix)
+        radius = _dist_nm((nv[0], nv[1]), (fix.lat, fix.lon))  # puts the fix exactly on the arc
+        if rec.rhoNm and abs(radius - rec.rhoNm) > 0.3:
+            st.log(f"{ctx.where(rec)}: AF rho {rec.rhoNm} vs geometry {radius:.2f} NM")
+        leg.arc = (nv[0], nv[1], radius, rec.turn)
+        leg.turn = rec.turn
+        leg.orig = "AF"
+        return [leg], "approx"
+    if pt == "PI":
+        if fix is None:
+            return [], "dropped:no fix"
+        if prevFix is not None and prevFix.ident == fix.ident:
+            return [], "dropped:PI at the previous fix (procedure turn not flown)"
+        leg = _base_leg(ctx, rec, "TF", fix)
+        leg.orig = "PI"
+        return [leg], "approx"
+    if pt in ("VI", "CI"):
+        return [], "dropped:" + pt + " (next leg intercepts)"
+    if pt in ("VM", "FM"):
+        return [], "dropped:" + pt + " (vectors)"
+    if pt in ("VD", "CD", "FD", "VR", "CR"):
+        nv = db.navaid_position(apt, rec)
+        start = None
+        legs: list[cp.Leg] = []
+        if pt == "FD":
+            if fix is None:
+                return [], "dropped:no fix"
+            start = (fix.lat, fix.lon)
+            if prevFix is None or prevFix.ident != fix.ident:
+                first = _base_leg(ctx, rec, "TF", fix)
+                first.altKind, first.alt, first.alt2 = None, 0.0, 0.0
+                first.flags.clear()
+                first.orig = pt
+                legs.append(first)
+        elif prevFix is not None:
+            start = (prevFix.lat, prevFix.lon)
+        if start is None or nv is None or crs is None:
+            return [], f"dropped:{pt} without start/navaid/course"
+        navPt = (nv[0], nv[1])
+        if pt in ("VD", "CD", "FD"):
+            dme = rec.distNm()
+            if dme is None:
+                return [], f"dropped:{pt} without distance"
+            end = find_along_track(start, crs, lambda p: _dist_nm(p, navPt) - dme)
+            name = f"{rec.navId}{_fmt_nm(dme)}"
+        else:
+            if rec.thetaDeg is None:
+                return [], f"dropped:{pt} without radial"
+            radialTrue = norm360(rec.thetaDeg + local_magvar(ctx, rec))
+
+            def f(p, navPt=navPt, radialTrue=radialTrue):
+                b = navgeo.initial_bearing_true_deg(navPt[0], navPt[1], p[0], p[1])
+                return (b - radialTrue + 540.0) % 360.0 - 180.0
+
+            end = find_along_track(start, crs, f)
+            name = f"{rec.navId}R{int(round(rec.thetaDeg)):03d}"
+        if end is None:
+            return [], f"dropped:{pt} termination not found"
+        leg = _base_leg(ctx, rec, "CF", cp.Fix(name, end[0], end[1], "SYN"))
+        leg.crsTrue = crs
+        leg.orig = pt
+        legs.append(leg)
+        return legs, "approx"
+    if pt == "FC":
+        dist = rec.distNm()
+        if fix is None or crs is None or dist is None:
+            return [], "dropped:FC without fix/course/distance"
+        legs = []
+        if prevFix is None or prevFix.ident != fix.ident:
+            first = _base_leg(ctx, rec, "TF", fix)
+            first.altKind, first.alt, first.alt2 = None, 0.0, 0.0
+            first.flags.clear()
+            first.orig = "FC"
+            legs.append(first)
+        lat, lon = _move(fix.lat, fix.lon, crs, dist)
+        leg = _base_leg(ctx, rec, "TF", cp.Fix(f"{fix.ident}{_fmt_nm(dist)}", lat, lon, "SYN"))
+        leg.orig = "FC"
+        legs.append(leg)
+        return legs, "approx"
+    return [], f"dropped:unknown terminator {pt}"
+
+
+# --------------------------------------------------------------------------------------------
+# approach assembly
+# --------------------------------------------------------------------------------------------
+def convert_segment(ctx: Ctx, recs: list[Record]) -> list[cp.Leg]:
+    """Convert the records of one transition or final segment into runtime legs."""
+    st = ctx.stats
+    legs: list[cp.Leg] = []
+    prevFix: cp.Fix | None = None
+    bridged = False  # a VI/CI/VM/FM record was dropped: the next TF becomes a DF
+    for rec in recs:
+        pt = rec.pt
+        st.records[pt] += 1
+        out, outcome = convert_record(ctx, rec, prevFix)
+        if outcome == "native":
+            st.native[pt] += 1
+        elif outcome.startswith("approx"):
+            st.approx[pt] += 1
+        else:
+            reason = "unresolved fix" if outcome == "unresolved" else outcome.split(":", 1)[1]
+            st.dropped[(pt, reason)] += 1
+            if outcome == "unresolved":
+                ctx.approxUsed = True
+            if pt in APPROX_TYPES:
+                st.approx[pt] += 0  # keeps the terminator listed in the report
+        if not out:
+            # a dropped record can still carry the FAF / MAP flag: hand it to the previous leg
+            if legs:
+                if rec.isMap:
+                    legs[-1].flags.add("MAP")
+                if rec.isFaf:
+                    legs[-1].flags.add("FAF")
+            if pt in ("VI", "CI", "VM", "FM"):
+                bridged = True
+            continue
+        if bridged and out[0].type == "TF":
+            out[0].type = "DF"
+            st.log(f"{ctx.where(rec)}: TF after a dropped {pt}-style leg became DF")
+        bridged = False
+        legs.extend(out)
+        prevFix = legs[-1].fix
+    return legs
+
+
+def split_missed(ctx: Ctx, legs: list[cp.Leg], label: str) -> tuple[list[cp.Leg], list[cp.Leg]]:
+    """Final segment -> (legs up to and including the MAP, missed approach legs)."""
+    idx = next((i for i, l in enumerate(legs) if "MAP" in l.flags), None)
+    if idx is None:  # no MAP flag: fall back to the runway fix
+        idx = next((i for i, l in enumerate(legs) if l.fix and l.fix.kind == "RWY"), None)
+        if idx is not None:
+            legs[idx].flags.add("MAP")
+    if idx is None:
+        ctx.stats.noMap += 1
+        if len(ctx.stats.noMapExamples) < 30:
+            ctx.stats.noMapExamples.append(label)
+        return legs, []
+    return legs[:idx + 1], legs[idx + 1:]
+
+
+def build_approach(db: CifpDb, apt: str, ident: str, recs: list[Record], stats: Stats) -> cp.Approach | None:
+    typ, rwy, _mult = parse_approach_ident(ident)
+    ctx = Ctx(db, apt, stats, ident)
+    trans: dict[str, list[Record]] = {}
+    finals: dict[str, list[Record]] = {}
+    for r in sorted(recs, key=lambda r: (r.seq, )):
+        if r.isTransition:
+            trans.setdefault(r.trans, []).append(r)
+        else:
+            finals.setdefault(r.rtype, []).append(r)
+    if not finals:
+        stats.skippedApproaches["no final segment"] += 1
+        return None
+    if len(finals) > 1:  # several final route types under one ident: keep the first in file order
+        keep = next(r.rtype for r in recs if not r.isTransition)
+        stats.log(f"{apt} {ident}: several final route types {sorted(finals)}; keeping {keep}")
+        finals = {keep: finals[keep]}
+    finalRecs = next(iter(finals.values()))
+    appr = cp.Approach(ident, KIND_BY_TYPE.get(typ, "NONE"), rwy, approach_title(ident), apt)
+    los: list[str] = []
+    for r in finalRecs:
+        for name in r.los:
+            if name not in los:
+                los.append(name)
+    appr.los = los
+    finalLegs = convert_segment(ctx, finalRecs)
+    if not finalLegs:
+        stats.skippedApproaches["final segment empty after conversion"] += 1
+        return None
+    appr.final, appr.missed = split_missed(ctx, finalLegs, f"{apt} {ident}")
+    for name, rs in trans.items():
+        legs = convert_segment(ctx, rs)
+        if legs:
+            appr.transitions.append(cp.Transition(name, legs))
+            stats.transitions += 1
+    appr.transitions.sort(key=lambda t: t.name)
+    stats.approaches += 1
+    stats.byKind[appr.kind] += 1
+    if ctx.approxUsed:
+        stats.approachesWithApprox += 1
+    stats.legsOut += (len(appr.final) + len(appr.missed)
+                      + sum(len(t.legs) for t in appr.transitions))
+    return appr
+
+
+def build_airport(db: CifpDb, apt: str, stats: Stats) -> list[cp.Approach]:
+    groups: dict[str, list[Record]] = {}
+    for r in db.records.get(apt, []):
+        groups.setdefault(r.ident, []).append(r)
+    out = []
+    for ident in sorted(groups):
+        a = build_approach(db, apt, ident, groups[ident], stats)
+        if a is not None:
+            out.append(a)
+    return out
+
+
+# --------------------------------------------------------------------------------------------
+# report
+# --------------------------------------------------------------------------------------------
+def format_report(db: CifpDb, stats: Stats, seconds: float, airportsWritten: int) -> str:
+    L: list[str] = []
+    A = L.append
+    A("CIFP coverage report (tools/nav/cifp.py)")
+    A(f"cycle {db.cycle} effective {db.effective or '?'}; airports with procedures: {airportsWritten}"
+      f" (of {len(db.records)} with approach records); {seconds:.1f} s")
+    A(f"approaches written: {stats.approaches}  by kind: "
+      + ", ".join(f"{k} {v}" for k, v in sorted(stats.byKind.items())))
+    A(f"transitions: {stats.transitions}; legs written: {stats.legsOut}")
+    A(f"approaches with at least one approximated or dropped leg: {stats.approachesWithApprox}"
+      f" ({100.0 * stats.approachesWithApprox / max(1, stats.approaches):.1f}%)")
+    A(f"approaches without a flagged MAP (no missed approach emitted): {stats.noMap}")
+    if stats.skippedApproaches:
+        A("approaches skipped: " + ", ".join(f"{k}: {v}" for k, v in stats.skippedApproaches.items()))
+    A("")
+    A("path terminators (source records)")
+    A(f"  {'type':<5}{'records':>9}{'native':>9}{'approx':>9}{'dropped':>9}  handling")
+    total = sum(stats.records.values())
+    for t in sorted(stats.records, key=lambda k: -stats.records[k]):
+        dropped = sum(v for (tt, _r), v in stats.dropped.items() if tt == t)
+        if t in NATIVE_TYPES:
+            note = "native"
+        elif t in APPROX_NOTES:
+            note = "approximated " + APPROX_NOTES[t]
+        else:
+            note = "unsupported (dropped)"
+        A(f"  {t:<5}{stats.records[t]:>9}{stats.native[t]:>9}{stats.approx[t]:>9}{dropped:>9}  {note}")
+    nat = sum(stats.native.values())
+    app = sum(stats.approx.values())
+    drp = sum(stats.dropped.values())
+    A(f"  total {total} records: {nat} native ({100.0 * nat / max(1, total):.2f}%), "
+      f"{app} approximated ({100.0 * app / max(1, total):.2f}%), {drp} dropped "
+      f"({100.0 * drp / max(1, total):.2f}%; includes legs whose fix could not be resolved)")
+    A("")
+    A("dropped records by reason")
+    for (t, reason), n in sorted(stats.dropped.items(), key=lambda kv: -kv[1]):
+        A(f"  {n:>6}  {t}: {reason}")
+    if stats.unresolved:
+        A("")
+        A("unresolved fix references (section+subsection: count)")
+        for k, v in stats.unresolved.items():
+            A(f"  {k[0]}{k[1]}: {v}")
+        for e in stats.unresolvedExamples[:10]:
+            A("    e.g. " + e)
+    if stats.altCodes:
+        A("")
+        A("unknown altitude description codes (treated as AT): "
+          + ", ".join(f"{k!r}: {v}" for k, v in stats.altCodes.items()))
+    if stats.noMapExamples:
+        A("")
+        A("approaches without a MAP flag (first 30): " + ", ".join(stats.noMapExamples))
+    return "\n".join(L) + "\n"
+
+
+# --------------------------------------------------------------------------------------------
+# driver
+# --------------------------------------------------------------------------------------------
+def normalise_airports(spec: str | None) -> set[str] | None:
+    if not spec:
+        return None
+    out: set[str] = set()
+    for a in spec.replace(";", ",").split(","):
+        a = a.strip().upper()
+        if a:
+            out.add(a)
+            if len(a) == 3:
+                out.add("K" + a)
+    return out
+
+
+def run(source: str, outDir: Path, airports: set[str] | None = None, offline: bool = False,
+        todayIso: str | None = None, reportPath: Path | None = None, quiet: bool = False,
+        updateNavIni: bool = True) -> dict:
+    """Parse CIFP and write ``outDir/procedures/*.proc``. Returns a summary dict."""
+    log = (lambda *a: None) if quiet else (lambda *a: print(*a, flush=True))
+    t0 = time.time()
+    today = todayIso or dt.datetime.now(dt.timezone.utc).date().isoformat()
+    path, dateIso = locate_cifp(source, offline, today)
+    log(f"CIFP source: {path}")
+    db = CifpDb(airports)
+    db.load(open_cifp_lines(path))
+    if not db.cycle:
+        raise CifpError(f"{path}: no HDR04 volume line found (is this FAACIFP18?)")
+    log(f"  cycle {db.cycle} (effective {db.effective}); {len(db.airports)} airports, "
+        f"{sum(len(v) for v in db.termWpts.values())} terminal and {len(db.enrWpts)} enroute waypoints, "
+        f"{len(db.vhf)} VHF navaids, {len(db.runways)} runways, {db.counts['records']} approach records")
+    stats = Stats()
+    procDir = outDir / "procedures"
+    procDir.mkdir(parents=True, exist_ok=True)
+    if airports is None:
+        for old in procDir.glob("*.proc"):
+            old.unlink()
+    written = 0
+    for apt in sorted(db.records):
+        if airports is not None and apt not in airports:
+            continue
+        approaches = build_airport(db, apt, stats)
+        stats.airports += 1
+        if not approaches:
+            continue
+        text = cp.write_proc(apt, approaches, db.cycle, db.effective)
+        (procDir / f"{apt}.proc").write_text(text, encoding="utf-8")
+        written += 1
+    seconds = time.time() - t0
+    report = format_report(db, stats, seconds, written)
+    rp = reportPath or (procDir / "coverage_report.txt")
+    rp.parent.mkdir(parents=True, exist_ok=True)
+    rp.write_text(report, encoding="utf-8")
+    if updateNavIni:
+        update_nav_ini(outDir / "nav.ini", db.cycle)
+    if airports is not None:
+        missing = sorted(a for a in airports if a not in db.records)
+        if missing:
+            log("  note: no approach records for " + ", ".join(missing))
+    log(f"  {stats.approaches} approaches at {written} airports written to {procDir} ({seconds:.1f} s)")
+    log(f"  report: {rp}")
+    return {"cycle": db.cycle, "effective": db.effective, "airports": written,
+            "approaches": stats.approaches, "stats": stats, "report": report, "db": db}
+
+
+def update_nav_ini(path: Path, cycle: str) -> None:
+    """Set `faa_cifp = <cycle>` in an existing nav.ini (written by build_navdb.py)."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    if re.search(r"^faa_cifp\s*=.*$", text, re.M):
+        text = re.sub(r"^faa_cifp\s*=.*$", f"faa_cifp = {cycle}", text, flags=re.M)
+    else:
+        text = re.sub(r"^(\[sources\]\s*)$", rf"\1\nfaa_cifp = {cycle}", text, count=1, flags=re.M)
+    path.write_text(text, encoding="utf-8")
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--cifp", required=True, metavar="ZIP|FILE|DIR|auto",
+                    help="FAA CIFP source: 'auto' downloads the current cycle (CIFP_YYMMDD.zip from "
+                         "aeronav.faa.gov) into cache/; or a zip / a bare FAACIFP18 file / a directory")
+    ap.add_argument("--out", required=True, type=Path,
+                    help="nav directory (as written by build_navdb.py); procedures/ is created inside")
+    ap.add_argument("--airports", default=None, metavar="KOTH,KPDX",
+                    help="only these airports (comma separated, 3-letter idents get a K prefix too)")
+    ap.add_argument("--report", type=Path, default=None,
+                    help="where to write the coverage report (default <out>/procedures/coverage_report.txt)")
+    ap.add_argument("--offline", action="store_true", help="never touch the network (cache only)")
+    ap.add_argument("--today", default=None, metavar="YYYY-MM-DD",
+                    help="date used to pick the current cycle (default: today, UTC)")
+    ap.add_argument("--print-report", action="store_true", help="also print the coverage report")
+    ap.add_argument("--quiet", action="store_true")
+    a = ap.parse_args(argv)
+    try:
+        res = run(a.cifp, a.out, normalise_airports(a.airports), a.offline, a.today, a.report, a.quiet)
+    except CifpError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if a.print_report:
+        print(res["report"])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
