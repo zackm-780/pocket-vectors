@@ -30,6 +30,12 @@ struct NavState {
     bool minimumsIsDa = true;  // DA (MSL) or MDA (MSL)
     float distToThresholdNm = 0;
     float magVarDeg = 0;  // at aircraft position, + = east
+    // Additive (N5). Advisory VNAV and bookkeeping; all zero / false when not applicable.
+    bool vnavValid = false;   // advisory 3 degree path to targetAltFt exists (aircraft above it)
+    float vnavDevFt = 0;      // path altitude - aircraft altitude: + = path ABOVE the aircraft
+    float todDistNm = 0;      // distance to the top of descent along the route; 0 = at/past it
+    int activeLegIndex = -1;  // FlightPlan::legs index of the active leg, -1 = none
+    bool onFinal = false;     // active leg lies on the final approach course (non-missed)
 };
 
 }  // namespace fsim
