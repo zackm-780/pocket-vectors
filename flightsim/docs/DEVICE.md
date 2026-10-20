@@ -35,6 +35,11 @@
 ## 3. Field notes
 Add observations from device tests here (date, build, what was seen).
 
+- **2026-10-19, first sideload (stock OS):** both the probe and the game opened and exited
+  immediately. Likely cause: the stock OS has no PortMaster, so the PortMaster-template launch
+  scripts failed before writing any log. The scripts now run without PortMaster (and under a
+  plain `sh`) and always write `<port>_launch_log.txt` next to the script. Awaiting a retest.
+
 ## 4. How to run the probe
 The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in
 `tools/probe/README.md`). Every row of the table in section 2 has a matching entry in the report's

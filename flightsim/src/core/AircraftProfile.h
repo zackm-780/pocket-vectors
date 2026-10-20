@@ -10,6 +10,8 @@ namespace fsim {
 struct FlapDetent {
     float cmdNorm = 0;    // value written to fcs/flap-cmd-norm
     char label[8] = {0};  // "UP", "10", "15"...
+    // --- additive (F1) ---
+    float vfeKt = 0;  // max flaps-extended speed with this detent selected; 0 = use profile vfeKt
 };
 
 enum class AircraftCategory { Piston, Turboprop, Jet };
