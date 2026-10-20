@@ -29,6 +29,7 @@
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
+#include "ui/MapPage.h"                    // H4
 #include "world/AirportGeometry.h"         // W5
 #include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
@@ -151,7 +152,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
-    NavHud navHud;          // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
+    MapPage mapPage;        // H4: moving map (MapToggle), replaces the HUD while shown
+    bool mapShown = opt.mapZoomNm > 0;
+    if (mapShown) mapPage.setZoomNm(static_cast<float>(opt.mapZoomNm));
+    if (opt.mapTrackUp) mapPage.setOrientation(MapOrientation::TrackUp);
+    NavHud navHud;  // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
     hud.setOverlay(&navHud);
     // H2: P3 settings give the starting HUD color and declutter level.
     switch (settings.hudColor) {
@@ -200,7 +205,26 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         while (SDL_PollEvent(&event)) input.handleEvent(event);
         const ActionState& actions = input.update(dtS);  // P2
         messages.tick(dtS);
-        Hud::applyActions(actions, hudOptions, &messages);  // H2: Action::HudDeclutter
+        // H4: the map takes MapToggle; while shown it consumes the D-pad / A / B / Y actions.
+        ActionState flightActions = actions;
+        if (actions.pressed[static_cast<int>(Action::MapToggle)] && !mapShown) {
+            mapShown = true;
+            mapPage.resetSelection();
+        } else if (mapShown) {
+            const MapPageResult mr = mapPage.update(
+                actions, sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr);
+            if (mr.directToLeg >= 1 && sim.navigator().directToLeg(mr.directToLeg))
+                messages.post("DIRECT TO");
+            if (mr.close) mapShown = false;
+            for (Action a : {Action::MenuUp, Action::MenuDown, Action::MenuLeft, Action::MenuRight,
+                             Action::MenuAccept, Action::MenuBack, Action::HudDeclutter,
+                             Action::TrimNoseUp, Action::TrimNoseDown, Action::FlapsUp,
+                             Action::FlapsDown, Action::GearToggle, Action::MapToggle}) {
+                flightActions.pressed[static_cast<int>(a)] = false;
+                flightActions.down[static_cast<int>(a)] = false;
+            }
+        }
+        Hud::applyActions(flightActions, hudOptions, &messages);  // H2: Action::HudDeclutter
         if (input.quitRequested()) break;
         if (actions.pressed[static_cast<int>(Action::Pause)]) {
             state = state == AppState::Flying ? AppState::Paused : AppState::Flying;
@@ -209,7 +233,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
 
         if (state == AppState::Flying) {
             if (interactive)
-                pilotControls.update(actions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
+                pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
             sim.advance(dtS);
         }
@@ -251,6 +275,10 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             hud2d.begin(w, h);
             if (opt.glyphSheet)
                 drawGlyphSheet(hud2d);  // H1
+            else if (mapShown)          // H4
+                mapPage.draw(hud2d, sim.aircraft(), sim.navState(),
+                             sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
+                             sim.navDb(), hudOptions.magVarDeg);
             else
                 hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
                          messages, hudOptions);

@@ -19,8 +19,10 @@ struct CliOptions {
     bool fullscreen = false;
     bool showFps = false;
     bool glyphSheet = false;  // H1: draw the 2D renderer / stroke font glyph sheet over the 3D view
-    std::string hudFake;  // H3: --hud-fake <name> canned nav / autopilot HUD states (screenshots)
-    bool resume = false;  // P3: --resume loads <conf>/last_flight.ini as the scenario
+    std::string hudFake;   // H3: --hud-fake <name> canned nav / autopilot HUD states (screenshots)
+    double mapZoomNm = 0;  // H4: --map <nm> opens the map page at that range (0 = closed)
+    bool mapTrackUp = false;  // H4: --map-track starts the map track-up
+    bool resume = false;      // P3: --resume loads <conf>/last_flight.ini as the scenario
     bool help = false;
 };
 
