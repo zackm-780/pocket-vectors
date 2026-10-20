@@ -1,0 +1,103 @@
+name: datapack
+
+# Builds the flightsim data pack (terrain + nav + FAA approaches, optional world coarse layer) from
+# public sources and uploads it as one zip artifact. Run it from the Actions tab ("Run workflow"),
+# download the artifact, unzip into flightsim/data/ on the SD card. The data is never committed.
+# See flightsim/tools/datapack/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: "Region preset for terrain levels 7-10 (see build_terrain.py --list-presets)"
+        type: string
+        default: pdx_oth
+      include_world:
+        description: "Also build the world coarse layer, levels 0-6 (about 50 GB of downloads, long)"
+        type: boolean
+        default: true
+
+jobs:
+  datapack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345   # GitHub's hard limit is 360
+    env:
+      PRESET: ${{ inputs.preset }}
+      INCLUDE_WORLD: ${{ inputs.include_world }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Free disk space (the world layer downloads about 50 GB)
+        if: ${{ inputs.include_world }}
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h / /mnt | tail -n 2
+
+      # Nav cycle id (changes every 28 days), used in the cache key.
+      - name: Cache keys
+        id: keys
+        run: |
+          echo "cycle=$(date -u +%Y-%m)-$(( $(date -u +%s) / 86400 / 28 ))" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      # Region sources (GLO-30 + WorldCover) are the same for a preset across cycles; the world
+      # layer cache (GLO-90, ~50 GB) is deliberately NOT cached (10 GB repository cache limit).
+      - name: Cache terrain downloads
+        uses: actions/cache@v4
+        with:
+          path: flightsim/tools/terrain/cache
+          key: terrain-${{ inputs.preset }}-v1
+      - name: Cache nav downloads
+        uses: actions/cache@v4
+        with:
+          path: flightsim/tools/nav/cache
+          key: nav-${{ inputs.preset }}-${{ steps.keys.outputs.cycle }}
+          restore-keys: nav-${{ inputs.preset }}-
+
+      - name: Shell syntax and lint
+        run: |
+          bash -n flightsim/tools/datapack/build_datapack.sh
+          shellcheck -S warning flightsim/tools/datapack/build_datapack.sh
+
+      - name: Build the data pack
+        working-directory: flightsim
+        run: |
+          args=(--out "$RUNNER_TEMP/pack" --preset "$PRESET" --jobs "$(nproc)")
+          if [ "$INCLUDE_WORLD" != "true" ]; then args+=(--skip-world); fi
+          # world cache on the big temp disk when the workspace disk is small
+          sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
+          args+=(--world-cache /mnt/world-cache)
+          tools/datapack/build_datapack.sh "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/build.log" | tail -n 400
+
+      - name: Zip the pack
+        id: zip
+        run: |
+          name="flightsim-data-${PRESET}-${{ steps.keys.outputs.date }}"
+          # Deflate: terrain tiles shrink to about 20-50 percent, CSVs to about 25 percent.
+          (cd "$RUNNER_TEMP/pack" && zip -q -r -6 "$GITHUB_WORKSPACE/$name.zip" .)
+          ls -l "$GITHUB_WORKSPACE/$name.zip"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.name }}
+          path: ${{ steps.zip.outputs.name }}.zip
+          retention-days: 30
+          compression-level: 0   # already zipped
+          if-no-files-found: error
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Data pack"
+            echo "Preset \`$PRESET\`, world layer: \`$INCLUDE_WORLD\`."
+            echo "Download the artifact, unzip straight into \`flightsim/data/\` on the SD card (the zip has terrain/, nav/ at its top level)."
+            echo '```'
+            tail -n 25 "$RUNNER_TEMP/build.log" 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

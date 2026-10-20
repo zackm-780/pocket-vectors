@@ -27,3 +27,6 @@ __pycache__/
 
 # Agent worktrees (local only)
 .claude/worktrees/
+
+# Data pack build venv
+flightsim/tools/.datapack-venv/

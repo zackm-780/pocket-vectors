@@ -81,6 +81,14 @@ without it: they then use the folder next to the script and the game handles Sel
    not quote paths would fail on `Flight Sim.sh` before the script even starts.
 2. Copy your data pack into `flightsim/data/`. Alternatively, put it anywhere on the card and set
    `data_dir` in `flightsim/conf/settings.ini`.
+   **Getting the data pack (no PC pipeline needed):** on GitHub open the Actions tab, pick the
+   **datapack** workflow, "Run workflow" (defaults: preset `pdx_oth`, world layer on). When it
+   finishes, download the artifact `flightsim-data-<preset>-<date>` (a zip), **unzip it into
+   `flightsim/data/`** (the zip's top level is `terrain/`, `nav/`, `ATTRIBUTION.txt`, `README.txt`)
+   and copy that folder to the card. Terrain is built from Copernicus DEM and ESA WorldCover, nav
+   from OurAirports, FAA NASR and CIFP (real approaches) and WMM. To build it on a PC instead:
+   `flightsim/tools/datapack/build_datapack.sh --out flightsim/data` (see its README). The pack is
+   about 3 GB with the world layer, 0.4 GB without (`include_world` off).
 3. Launch "Flight Sim". Exit with **Select + Start**.
 4. **Logs:** every launch writes `flightsim_launch_log.txt` **next to `FlightSim.sh`**, even when
    the game never starts. It records PortMaster detection, the folder used, the libraries found, and the
