@@ -393,8 +393,29 @@ bool parseProcedures(std::string_view text, ProcedureSet& out, std::string& erro
             if (info.finalExtras[k].map && info.mapFinalLeg < 0)
                 info.mapFinalLeg = static_cast<int>(k);
         }
-        if (sorted.approaches[i].finalLegs.empty())
-            sorted.warnings.push_back(sorted.approaches[i].id + ": no final legs");
+        Approach& ap = sorted.approaches[i];
+        if (ap.finalLegs.empty()) sorted.warnings.push_back(ap.id + ": no final legs");
+        // A transition that ends with a direct leg to the first fix of the final segment would
+        // repeat that fix there (TF OXVAK, then IF OXVAK): drop the transition's copy, the IF
+        // of the final segment carries the constraint. Holds and CF legs stay.
+        if (!ap.finalLegs.empty() && ap.finalLegs.front().type == LegType::IF) {
+            for (size_t t = 0; t < ap.transitions.size(); ++t) {
+                auto& legs = ap.transitions[t].legs;
+                if (legs.size() > 1 &&
+                    (legs.back().type == LegType::TF || legs.back().type == LegType::DF) &&
+                    legs.back().to.ident == ap.finalLegs.front().to.ident) {
+                    if (ap.finalLegs.front().alt.kind == AltConstraintKind::None)
+                        ap.finalLegs.front().alt = legs.back().alt;
+                    legs.pop_back();
+                    if (t < info.transitionExtras.size() && !info.transitionExtras[t].empty())
+                        info.transitionExtras[t].pop_back();
+                }
+            }
+        }
+        // Convention shared with N5's ApproachBuilder: transitions[0] is "vectors" (empty name, no
+        // legs, straight to the final segment); the IAF routes follow.
+        ap.transitions.insert(ap.transitions.begin(), ApproachTransition{});
+        info.transitionExtras.insert(info.transitionExtras.begin(), std::vector<ProcLegExtra>());
     }
     out = std::move(sorted);
     return true;
@@ -471,6 +492,17 @@ std::vector<Approach> loadApproaches(const std::string& dataDir, std::string_vie
     return set->approaches;
 }
 
+CifpApproachProvider makeCifpApproachProvider(const std::string& navDir) {
+    return [navDir](const Airport& airport, const Runway& runway) {
+        std::vector<Approach> out;
+        auto set = loadProcedureSet(navDir, airport.ident);
+        if (!set) return out;
+        for (const Approach* a : approachesForRunway(set->approaches, runway.ident))
+            out.push_back(*a);
+        return out;
+    };
+}
+
 // ---- queries --------------------------------------------------------------------------------
 
 const Approach* findApproach(const std::vector<Approach>& approaches, std::string_view id) {
@@ -503,28 +535,45 @@ std::vector<const Approach*> approachesForRunway(const std::vector<Approach>& ap
     return out;
 }
 
+int transitionJoinLeg(const Approach& approach, size_t transitionIndex) {
+    if (transitionIndex >= approach.transitions.size() ||
+        approach.transitions[transitionIndex].legs.empty() || approach.finalLegs.empty())
+        return 0;
+    const std::string& last = approach.transitions[transitionIndex].legs.back().to.ident;
+    if (last.empty()) return 0;
+    for (size_t k = 0; k < approach.finalLegs.size(); ++k)
+        if (approach.finalLegs[k].to.ident == last) return static_cast<int>(k);
+    return 0;
+}
+
 std::vector<Leg> assembleApproachLegs(const Approach& approach, std::string_view transitionName,
                                       bool* transitionFound) {
     std::vector<Leg> legs;
+    size_t trIndex = 0;
     const ApproachTransition* tr = nullptr;
     if (!transitionName.empty()) {
         const std::string want = upper(transitionName);
-        for (const auto& t : approach.transitions)
-            if (upper(t.name) == want) {
-                tr = &t;
+        for (size_t i = 0; i < approach.transitions.size(); ++i)
+            if (upper(approach.transitions[i].name) == want) {
+                tr = &approach.transitions[i];
+                trIndex = i;
                 break;
             }
     }
     if (transitionFound) *transitionFound = tr != nullptr || transitionName.empty();
     if (tr) legs = tr->legs;
+    // The transition may join the final segment at its first fix or later (a procedure turn at the
+    // FAF, a VOR approach whose IAF is the FAF): the final legs before the join are not flown.
     size_t firstFinal = 0;
     if (tr && !tr->legs.empty() && !approach.finalLegs.empty()) {
+        firstFinal = static_cast<size_t>(transitionJoinLeg(approach, trIndex));
         const Leg& last = tr->legs.back();
-        const Leg& first = approach.finalLegs.front();
-        if (first.type == LegType::IF && !first.to.ident.empty() &&
-            first.to.ident == last.to.ident) {
-            if (legs.back().alt.kind == AltConstraintKind::None) legs.back().alt = first.alt;
-            firstFinal = 1;
+        const Leg& join = approach.finalLegs[firstFinal];
+        const bool direct =
+            join.type == LegType::IF || join.type == LegType::TF || join.type == LegType::DF;
+        if (join.to.ident == last.to.ident && direct) {
+            if (legs.back().alt.kind == AltConstraintKind::None) legs.back().alt = join.alt;
+            ++firstFinal;  // the transition already ends at this fix
         }
     }
     legs.insert(legs.end(), approach.finalLegs.begin() + static_cast<long>(firstFinal),

@@ -6,12 +6,17 @@
 #include "core/SimTime.h"
 #include "nav/ApproachBuilder.h"  // N5
 #include "nav/FlightPlan.h"       // N5
+#include "nav/Procedures.h"       // N4
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
 
 Simulation::Simulation(const Paths& paths, const NavDatabase& nav, TerrainQuery& terrain)
-    : paths_(paths), nav_(nav), terrain_(terrain), model_(paths.asset("jsbsim")), navigator_(nav) {}
+    : paths_(paths), nav_(nav), terrain_(terrain), model_(paths.asset("jsbsim")), navigator_(nav) {
+    // N4: real FAA CIFP approaches (<data root>/nav/procedures/{ICAO}.proc) are listed before the
+    // synthesized ones; airports without a file keep the synthesized approaches.
+    navigator_.setRealApproachProvider(makeCifpApproachProvider(paths.data("nav")));
+}
 
 bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverride,
                       std::string& error) {
@@ -81,7 +86,8 @@ bool Simulation::initNavigation(std::string& error) {
     } else if (!scenario_.approachId.empty()) {
         std::string rwy = runwayFromApproachId(scenario_.approachId);
         if (rwy.empty()) rwy = scenario_.runwayIdent;
-        auto approach = findApproach(nav_, scenario_.airportIdent, rwy, scenario_.approachId);
+        auto approach = findApproach(nav_, scenario_.airportIdent, rwy, scenario_.approachId,
+                                     makeCifpApproachProvider(paths_.data("nav")));  // N4
         if (!approach) {
             error = "scenario approach '" + scenario_.approachId + "' is not available for " +
                     scenario_.airportIdent + " " + rwy;

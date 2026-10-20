@@ -107,7 +107,7 @@ TEST_CASE("nav: RF and DME-arc legs carry centre, radius and direction") {
     auto v = koth();
     const Approach& rnp = get(v, "H05-Z");
     int rfs = 0;
-    for (const Leg& l : rnp.transitions[0].legs) {
+    for (const Leg& l : rnp.transitions[1].legs) {  // [0] is the vectors entry
         if (l.type != LegType::RF) continue;
         ++rfs;
         CHECK(l.arcRadiusNm == doctest::Approx(3.0).epsilon(0.001));
@@ -127,8 +127,10 @@ TEST_CASE("nav: RF and DME-arc legs carry centre, radius and direction") {
 
     // The 16 DME arc of ILS Z (AF in ARINC) arrives as an RF about the OTH VORTAC.
     const Approach& z = get(v, "I05-Z");
-    const Leg& arc = z.transitions[0].legs[1];  // LUPCI transition: IF LUPCI, arc to MITUE
-    CHECK(z.transitions[0].name == "LUPCI");
+    const Leg& arc = z.transitions[1].legs[1];  // LUPCI transition: IF LUPCI, arc to MITUE
+    CHECK(z.transitions[1].name == "LUPCI");
+    CHECK(z.transitions[0].name.empty());  // N5 convention: transitions[0] = vectors
+    CHECK(z.transitions[0].legs.empty());
     CHECK(arc.type == LegType::RF);
     CHECK(arc.to.ident == "MITUE");
     CHECK(arc.arcRadiusNm == doctest::Approx(16.0).epsilon(0.01));
@@ -152,7 +154,7 @@ TEST_CASE("nav: holds, kinds and extras") {
     CHECK(info->missedExtras[2].holdLegTimeS == doctest::Approx(60.0));
     // hold in lieu of a procedure turn at MITUE (HF, one minute, right turns, inbound 060.7 true)
     const Approach& z = get(set->approaches, "I05-Z");
-    const auto& oth = z.transitions[1];
+    const auto& oth = z.transitions[2];
     CHECK(oth.name == "OTH");
     REQUIRE(oth.legs.size() == 3);
     CHECK(oth.legs[0].to.kind == WaypointKind::Vor);
@@ -165,7 +167,7 @@ TEST_CASE("nav: holds, kinds and extras") {
     CHECK(r->levelsOfService == std::vector<std::string>{"LPV", "LNAV/VNAV", "LNAV"});
     // the AF leg is flagged as approximated
     bool sawApprox = false;
-    for (const auto& ex : set->info[2].transitionExtras[0])
+    for (const auto& ex : set->info[2].transitionExtras[1])
         if (ex.approximatedFrom == "AF") sawApprox = true;
     CHECK(sawApprox);
 }
@@ -185,7 +187,7 @@ TEST_CASE("nav: KPDX ILS 10R and 28L") {
     CHECK(r.missedLegs.back().type == LegType::HM);
     CHECK_FALSE(r.missedLegs.back().arcRight);  // left-hand hold at MULES
     const Approach& l = get(v, "I28L");
-    CHECK(l.transitions.size() == 3);
+    CHECK(l.transitions.size() == 4);  // vectors + MAVER, REEDI, SHAFR
     CHECK(l.finalLegs.back().to.ident == "RW28L");
     CHECK(l.finalLegs.back().alt.altFt == doctest::Approx(78));
     CHECK(l.missedLegs[1].to.ident == "UBG");
@@ -239,17 +241,21 @@ TEST_CASE("nav: assembleApproachLegs joins transition, final and missed without 
     bool found = false;
     auto legs = assembleApproachLegs(rnp, "deroy", &found);
     CHECK(found);
-    const size_t trLegs = rnp.transitions[0].legs.size();
-    CHECK(rnp.transitions[0].name == "DEROY");
-    CHECK(legs.size() == trLegs + rnp.finalLegs.size() - 1 + rnp.missedLegs.size());
-    CHECK(legs[trLegs - 1].to.ident == "OXVAK");
-    CHECK(legs[trLegs].to.ident == "RW05");
-    CHECK_FALSE(legs[trLegs].missedApproach);
-    CHECK(legs[trLegs + 1].missedApproach);
+    const size_t trLegs = rnp.transitions[1].legs.size();
+    CHECK(rnp.transitions[1].name == "DEROY");
+    // the loader already dropped the transition's own "TF OXVAK": the final IF carries the fix
+    CHECK(rnp.transitions[1].legs.back().to.ident == "FOGIX");
+    CHECK(legs.size() == trLegs + rnp.finalLegs.size() + rnp.missedLegs.size());
+    CHECK(legs[trLegs - 1].to.ident == "FOGIX");
+    CHECK(legs[trLegs].to.ident == "OXVAK");
+    CHECK(legs[trLegs].alt.altFt == doctest::Approx(1300));
+    CHECK(legs[trLegs + 1].to.ident == "RW05");
+    CHECK_FALSE(legs[trLegs + 1].missedApproach);
+    CHECK(legs[trLegs + 2].missedApproach);
     CHECK(legs.back().missedApproach);
     int ifLegs = 0;
     for (const Leg& l : legs) ifLegs += l.type == LegType::IF;
-    CHECK(ifLegs == 1);  // only the transition's own IF remains
+    CHECK(ifLegs == 2);  // the IAF and the IF of the final segment
 
     // vectors (no transition): the final segment starts with its IF
     auto vec = assembleApproachLegs(rnp, "", &found);
@@ -259,6 +265,24 @@ TEST_CASE("nav: assembleApproachLegs joins transition, final and missed without 
     auto unknown = assembleApproachLegs(rnp, "NOPE", &found);
     CHECK_FALSE(found);
     CHECK(unknown.size() == vec.size());
+
+    // Copter ILS Y via OTH3: IF OTH, TF EMIRE (the PT fix, which is the FAF). The transition joins
+    // the final segment at EMIRE (its third leg), so MITUE and LEAST are not flown.
+    const Approach& y = get(v, "I05-Y");
+    REQUIRE(y.transitions.size() == 4);
+    CHECK(y.transitions[3].name == "OTH3");
+    CHECK(transitionJoinLeg(y, 3) == 2);
+    CHECK(y.finalLegs[2].to.ident == "EMIRE");
+    CHECK(transitionJoinLeg(y, 1) == 0);  // OTH1 ends with the arc into MITUE
+    CHECK(transitionJoinLeg(y, 0) == 0);  // vectors
+    auto pt = assembleApproachLegs(y, "OTH3");
+    REQUIRE(pt.size() == 2 + 2 + y.missedLegs.size());
+    CHECK(pt[0].to.ident == "OTH");
+    CHECK(pt[1].to.ident == "EMIRE");
+    CHECK(pt[2].to.ident == "EMIRE");  // CF EMIRE on the final course, constraint 900
+    CHECK(pt[2].type == LegType::CF);
+    CHECK(pt[2].alt.altFt == doctest::Approx(900));
+    CHECK(pt[3].to.ident == "RW05");
 
     // ILS Z via the OTH transition ends in a hold at MITUE, which is also the final IF
     auto ils = assembleApproachLegs(get(v, "I05-Z"), "OTH");

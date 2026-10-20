@@ -14,8 +14,11 @@
 //  - `runwayIdent` is DB style ("05", "28L"); empty for circling-only approaches ("VOR-B").
 //  - `finalLegs` run from the initial fix of the final segment up to and including the MAP leg
 //    (the runway threshold for runway-aligned approaches). `missedLegs` follow the MAP and all have
-//    `missedApproach = true`. `transitions` are the IAF routes; each ends at (or just before) the
-//    first fix of the final segment, see assembleApproachLegs().
+//    `missedApproach = true`.
+//  - `transitions` follow N5's ApproachBuilder convention: transitions[0] is "vectors" (empty
+//    name, no legs), the IAF routes come after it. Each ends at (or just before) the first fix of
+//    the final segment: a trailing direct leg to that fix is dropped (the final segment's IF
+//    carries it); holds and CF legs stay, so an IF may repeat the fix of the previous leg.
 //  - Hold legs (HM/HA/HF): `courseTrueDeg` is the INBOUND course and `arcRight` is the turn
 //    direction (true = right turns). RF legs: arcCenter*/arcRadiusNm/arcRight. `Between` altitude
 //    constraints store the lower limit in altFt and the upper limit in alt2Ft.
@@ -26,6 +29,7 @@
 // Data not representable in `Leg` (FAF/IAF/MAP roles, hold leg length, published vertical angle,
 // the ARINC type an approximated leg came from) is available in ApproachInfo.
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -77,6 +81,14 @@ void clearProcedureCache();
 // What N5/H5 pass as the realProvider. Empty when the airport has no real procedures.
 std::vector<Approach> loadApproaches(const std::string& dataDir, std::string_view icao);
 
+// The provider N5 expects (nav/ApproachBuilder.h `RealApproachProvider`, the same std::function
+// type): the real approaches that land on `runway` of `airport`, ordered by id, empty when the
+// airport has no procedure file. Circling-only approaches (no runway) are not offered.
+//   navigator.setRealApproachProvider(makeCifpApproachProvider(paths.data("nav")));
+using CifpApproachProvider =
+    std::function<std::vector<Approach>(const Airport& airport, const Runway& runway)>;
+CifpApproachProvider makeCifpApproachProvider(const std::string& navDir);
+
 // Exact (case-insensitive) match of `id` first; then the short form without the multiple-procedure
 // indicator ("I05" finds "I05-Y"/"I05-Z", the first by id wins; "I16R" finds "I16RZ", but "R28"
 // does not find "R28L"). nullptr if nothing matches.
@@ -90,9 +102,17 @@ std::vector<const Approach*> approachesForRunway(const std::vector<Approach>& ap
 // i.e. vectors to the final segment), then the final legs, then the missed legs. When the transition
 // already ends at the first fix of the final segment (the usual case) the duplicate IF leg of the
 // final segment is dropped and its altitude constraint is kept if the transition leg has none.
-// `transitionFound` (optional) reports whether the named transition exists.
+// `transitionFound` (optional) reports whether the named transition exists. A transition that
+// joins the final segment later than its first fix (a procedure turn at the FAF, 5% of the US
+// transitions) skips the final legs before the join, see transitionJoinLeg().
 std::vector<Leg> assembleApproachLegs(const Approach& approach, std::string_view transitionName,
                                       bool* transitionFound = nullptr);
+
+// Index into finalLegs of the fix where transition `transitionIndex` meets the final segment:
+// 0 for the usual case (and for vectors), k > 0 when the transition ends at a later final fix.
+// N5's approachPlanLegs() concatenates transition + ALL final legs; for those transitions
+// assembleApproachLegs() is the better source of plan legs.
+int transitionJoinLeg(const Approach& approach, size_t transitionIndex);
 
 // Like ApproachInfo lookup by id for a loaded set; nullptr if absent.
 const ApproachInfo* findApproachInfo(const ProcedureSet& set, std::string_view approachId);
