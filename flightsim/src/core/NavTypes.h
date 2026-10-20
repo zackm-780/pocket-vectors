@@ -105,6 +105,10 @@ struct Approach {
     float minimumsFt = 0;         // DA or MDA, ft MSL; 0 = unknown
     bool minimumsIsDa = true;
     bool synthesized = false;
+    // Real approaches only (N4): index into finalLegs of the FAF, -1 = none/unknown.
+    int fafFinalLeg = -1;
+    // Real approaches only (N4): the chart title says COPTER, so fixed-wing short ids skip it.
+    bool helicopterOnly = false;
 };
 
 struct FlightPlan {

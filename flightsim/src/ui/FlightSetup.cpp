@@ -221,7 +221,14 @@ std::string runwayDescription(const Runway& r, float magVarDeg) {
 // ---- approaches ----------------------------------------------------------------------------------
 
 std::string approachTitle(const Approach& a, const ApproachInfo* info) {
-    if (info && !info->title.empty()) return info->title;
+    if (info && !info->title.empty()) {
+        std::string t = info->title;
+        if (a.helicopterOnly) {  // "COPTER ILS Y RWY 05" -> "ILS Y RWY 05 (COPTER)"
+            if (t.compare(0, 7, "COPTER ") == 0) t.erase(0, 7);
+            t += " (COPTER)";
+        }
+        return t;
+    }
     return std::string(kindName(a.kind)) + " RWY " + a.runwayIdent;
 }
 

@@ -198,7 +198,8 @@ TEST_CASE("nav: findApproach and approachesForRunway") {
     auto v = koth();
     CHECK((findApproach(v, "I05-Z") == &v[2]));
     CHECK((findApproach(v, "i05-z") == &v[2]));
-    CHECK((findApproach(v, "I05") == &v[1]));  // first by id: I05-Y
+    CHECK(v[1].helicopterOnly);                // I05-Y is the COPTER ILS Y chart
+    CHECK((findApproach(v, "I05") == &v[2]));  // short id: the fixed-wing I05-Z
     CHECK(findApproach(v, "R05")->id == "R05-Y");
     CHECK(findApproach(v, "VOR-B")->id == "VOR-B");
     CHECK((findApproach(v, "I23") == nullptr));
@@ -217,6 +218,13 @@ TEST_CASE("nav: findApproach and approachesForRunway") {
     CHECK((findApproach(w, "I16R") == &w[0]));
     CHECK((findApproach(w, "R28") == nullptr));
     CHECK((findApproach(w, "R28L") == &w[1]));
+    // no title info: the last suffix letter wins; a helicopter procedure loses to any other
+    std::vector<Approach> z(2);
+    z[0].id = "I05-Y";
+    z[1].id = "I05-Z";
+    CHECK((findApproach(z, "I05") == &z[1]));
+    z[1].helicopterOnly = true;
+    CHECK((findApproach(z, "I05") == &z[0]));
 }
 
 TEST_CASE("nav: loadApproaches caches and tolerates missing files") {

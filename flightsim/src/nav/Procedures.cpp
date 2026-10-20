@@ -394,6 +394,8 @@ bool parseProcedures(std::string_view text, ProcedureSet& out, std::string& erro
                 info.mapFinalLeg = static_cast<int>(k);
         }
         Approach& ap = sorted.approaches[i];
+        ap.fafFinalLeg = info.fafFinalLeg;
+        ap.helicopterOnly = upper(info.title).find("COPTER") != std::string::npos;
         if (ap.finalLegs.empty()) sorted.warnings.push_back(ap.id + ": no final legs");
         // A transition that ends with a direct leg to the first fix of the final segment would
         // repeat that fix there (TF OXVAK, then IF OXVAK): drop the transition's copy, the IF
@@ -510,18 +512,24 @@ const Approach* findApproach(const std::vector<Approach>& approaches, std::strin
     if (want.empty()) return nullptr;
     for (const Approach& a : approaches)
         if (upper(a.id) == want) return &a;
-    // short form: "I05" finds "I05-Y"; "I16R" finds "I16RZ" but "R28" does not find "R28L"
+    // short form: "I05" finds "I05-Y"; "I16R" finds "I16RZ" but "R28" does not find "R28L".
+    // Several real ids can share the short form: prefer a fixed-wing procedure (not a COPTER
+    // chart), then the last suffix letter (FAA "Z" is usually the primary one).
+    const Approach* best = nullptr;
     for (const Approach& a : approaches) {
         const std::string have = upper(a.id);
         if (have.size() <= want.size() || have.compare(0, want.size(), want) != 0) continue;
         const std::string rest = have.substr(want.size());
-        if (rest.size() == 2 && rest[0] == '-' && std::isalpha(static_cast<unsigned char>(rest[1])))
-            return &a;
-        if (rest.size() == 1 && std::isalpha(static_cast<unsigned char>(rest[0])) &&
-            rest[0] != 'L' && rest[0] != 'R' && rest[0] != 'C')
-            return &a;
+        const bool dashed =
+            rest.size() == 2 && rest[0] == '-' && std::isalpha(static_cast<unsigned char>(rest[1]));
+        const bool plain = rest.size() == 1 && std::isalpha(static_cast<unsigned char>(rest[0])) &&
+                           rest[0] != 'L' && rest[0] != 'R' && rest[0] != 'C';
+        if (!dashed && !plain) continue;
+        if (!best || (best->helicopterOnly && !a.helicopterOnly) ||
+            (best->helicopterOnly == a.helicopterOnly && upper(a.id) > upper(best->id)))
+            best = &a;
     }
-    return nullptr;
+    return best;
 }
 
 std::vector<const Approach*> approachesForRunway(const std::vector<Approach>& approaches,
