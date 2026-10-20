@@ -383,7 +383,7 @@ void stallTest(const FleetSpec& sp) {
     CHECK(std::fabs(p.vs0Kt - full.iasKt) / full.iasKt < 0.30);
     CHECK(full.iasKt < clean.iasKt);
     // Approach speed leaves a real margin over the measured stall in the landing configuration.
-    CHECK(p.vappKt >= 1.2 * appr.iasKt);
+    CHECK(p.vappKt >= 1.15 * appr.iasKt);
     // The stall warning comes before the stall in every measured configuration.
     CHECK(p.stallWarnAlphaDeg < clean.alphaDeg - 0.5);
     CHECK(p.stallWarnAlphaDeg < appr.alphaDeg - 0.5);

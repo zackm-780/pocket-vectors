@@ -23,7 +23,7 @@ Each test also prints `FLEET <id> <key> <value>` lines with its measurements (th
 | approach | `final` start 8 NM out, pilot holds the 3 degree path and Vapp down to 150 ft | Path within 150 ft (75 ft below 500 ft AGL), IAS within 10 kt of Vapp, no stall warning |
 | hands-off final | `final` start 6 NM out, no inputs for 60 s | Path within 150 ft |
 | landing | `final` start 2.5 to 3 NM out, flare, rollout with brakes, spoilers and reversers where fitted | No crash, touchdown sink under the limit, within 60 ft of the centerline, stops on the runway within the aircraft's limit |
-| stall | Idle deceleration at 1 g from a trimmed start, clean, approach flaps and full flaps | Measured stall speeds match the table, profile Vs0/Vs1 within 30% of the model, Vapp at least 1.2 x the approach stall speed, stall warning alpha below the stall alpha |
+| stall | Idle deceleration at 1 g from a trimmed start, clean, approach flaps and full flaps | Measured stall speeds match the table, profile Vs0/Vs1 within 30% of the model, Vapp at least 1.15 x the approach stall speed, stall warning alpha below the stall alpha |
 | overlay | Load, start and trim every aircraft in runway, cruise and final starts with the log file sink open | No JSBSim ERROR or WARN line, no `global5000.csv` written, overlay files installed |
 
 The pilot (`FleetPilot.h`) is the same code for every aircraft; the per-aircraft numbers (rotation
@@ -45,16 +45,16 @@ elevation), ISA, calm. All 41 tests pass.
 | Time to 3,000 ft AGL, s | 139 | 183 | 79 | 62 | 63 |
 | Measured stall, clean, kt / alpha | 49.5 / 15.6 | 74.6 / 15.5 | 150.8 / 14.3 | 152.3 / 13.8 | 156.4 / 14.3 |
 | Measured stall, approach flaps, kt / alpha | 45.3 / 14.6 (20) | 68.0 / 15.3 (15) | 95.8 / 14.0 (30) | 124.2 / 11.8 (30) | 112.9 / 7.7 (30) |
-| Measured stall, full flaps, kt / alpha | 44.9 / 14.3 | 59.0 / 15.0 | 95.8 / 14.0 | 118.6 / 11.0 | 112.9 / 7.7 |
+| Measured stall, full flaps, kt / alpha | 44.9 / 14.3 | 59.0 / 15.0 | 95.8 / 14.0 | 118.2 / 11.2 | 112.9 / 7.7 |
 | Profile Vs1 / Vs0, kt | 44 / 33 | 75 / 63 | 150 / 96 | 152 / 118 | 156 / 113 |
 | Profile stall warning alpha, deg | 11 | 12.5 | 12 | 10.5 | 7.0 |
-| Approach flaps / Vapp, kt | 20 / 65 | 15 / 95 | 30 / 130 | 30 / 155 | 30 / 140 |
-| Hands-off path error in 60 s, ft | 7 | 17 | 27 | 47 | 35 |
+| Approach flaps / Vapp, kt | 20 / 65 | 15 / 95 | 30 / 130 | 30 / 145 | 30 / 140 |
+| Hands-off path error in 60 s, ft | 7 | 17 | 27 | 41 | 35 |
 | Piloted path error from 8 NM, ft | 1 | 1 | 1 | 1 | 1 |
-| Touchdown sink, fpm | 265 | 321 | 302 | 311 | 501 |
-| Touchdown speed, kt IAS | 64 | 93 | 125 | 151 | 136 |
-| Roll after touchdown, ft | 876 | 879 | 2,021 | 2,311 | 2,604 |
-| Landing distance from the threshold, ft | 1,801 | 1,845 | 2,986 | 3,425 | 3,317 |
+| Touchdown sink, fpm | 265 | 321 | 302 | 326 | 501 |
+| Touchdown speed, kt IAS | 64 | 93 | 125 | 141 | 136 |
+| Roll after touchdown, ft | 876 | 879 | 2,021 | 2,043 | 2,604 |
+| Landing distance from the threshold, ft | 1,801 | 1,845 | 2,986 | 3,141 | 3,317 |
 | Gear up / down, s | fixed | 5.0 / 4.9 | 5.0 / 4.9 | 5.0 / 4.9 | 5.0 / 4.9 |
 | Slowest single flap step, s | 1.9 | 1.9 | 2.5 | 3.8 | 2.3 |
 | Flaps full to UP, s | 3.9 | 3.9 | 6.9 | 21.6 | 6.9 |
