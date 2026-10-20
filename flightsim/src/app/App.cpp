@@ -31,6 +31,7 @@
 #include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
 #include "world/Sky.h"                     // W4
+#include "world/TerrainRenderer.h"         // W2
 #include "world/terrain/TerrainService.h"  // W1
 
 namespace fsim {
@@ -92,6 +93,39 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     world::Sky sky(window.gl(), window.flavor());
     if (!sky.init()) return 1;
     renderer.setAtmosphere(&atmosphere, &sky);
+    // W2: with a terrain pack the TerrainRenderer replaces the flat ground grid. The env hooks
+    // FSIM_W2_CAMERA / FSIM_W2_VISIBILITY_KM override the view pose and fog for screenshots.
+    const world::TerrainDebugOverrides dbg = world::readTerrainDebugEnv();
+    if (dbg.visibilityKm > 0) atmosphere.setVisibilityM(dbg.visibilityKm * 1000.0f);
+    std::unique_ptr<world::TerrainRenderer> terrainRenderer;
+    if (terrainSvc) {
+        terrainRenderer =
+            std::make_unique<world::TerrainRenderer>(window.gl(), window.flavor(), *terrainSvc);
+        if (terrainRenderer->init()) {
+            renderer.setTerrain(terrainRenderer.get());
+            if (dbg.pixelsPerCell > 0) {
+                world::TerrainRenderConfig tc = terrainRenderer->config();
+                tc.lod.pixelsPerCell = dbg.pixelsPerCell;
+                terrainRenderer->setConfig(tc);
+            }
+        } else
+            terrainRenderer.reset();
+    }
+    auto viewState = [&]() {  // W2: the aircraft state, or the debug camera pose
+        AircraftState s = sim.aircraft();
+        if (dbg.hasCamera) {
+            s.latDeg = dbg.latDeg, s.lonDeg = dbg.lonDeg, s.altMslFt = dbg.altMslFt;
+            s.headingTrueRad = static_cast<float>(degToRad(dbg.headingTrueDeg));
+            s.pitchRad = static_cast<float>(degToRad(dbg.pitchDeg));
+            s.rollRad = 0;
+            s.eyeBodyM[0] = s.eyeBodyM[1] = s.eyeBodyM[2] = 0;
+            const float groundFt =
+                terrainSvc ? static_cast<float>(mToFt(terrainSvc->elevationM(s.latDeg, s.lonDeg)))
+                           : 0;
+            s.altAglFt = std::max(0.0f, static_cast<float>(s.altMslFt) - groundFt);
+        }
+        return s;
+    };
     // W5: airports near the camera (runways, markings, lights, PAPI); registers flatten areas.
     world::AirportRenderer airports(window.gl(), window.flavor());
     if (!airports.init()) return 1;
@@ -139,6 +173,19 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     double fpsClockS = 0;
     const double perfFreq = static_cast<double>(SDL_GetPerformanceFrequency());
 
+    if (terrainRenderer) {  // W2: load and build the first view before the first frame
+        int pw = 0, ph = 0;
+        window.drawableSize(pw, ph);
+        camera.setViewport(pw, ph);
+        for (int pass = 0; pass < 4; ++pass) {
+            const AircraftState vs = viewState();
+            terrainSvc->update(vs.latDeg, vs.lonDeg);
+            terrainSvc->waitForIdle(10.0);
+            camera.setPoseFromAircraft(vs);
+            if (terrainRenderer->prewarm(camera, 800) == 0) break;
+        }
+    }
+
     while (true) {
         const std::uint64_t now = SDL_GetPerformanceCounter();
         const double wallDtS = static_cast<double>(now - lastCounter) / perfFreq;
@@ -163,7 +210,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             sim.advance(dtS);
         }
         // W1: once per frame (also while paused, so tiles keep arriving).
-        if (terrainSvc) terrainSvc->update(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+        const AircraftState view = viewState();  // W2
+        if (terrainSvc) terrainSvc->update(view.latDeg, view.lonDeg);
 
         // P2: log new feedback messages (until the HUD draws them)
         shownMessages = std::max(shownMessages, messages.totalPosted() - messages.size());
@@ -175,9 +223,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         int w = 0, h = 0;
         window.drawableSize(w, h);
         camera.setViewport(w, h);
-        camera.setPoseFromAircraft(sim.aircraft());
+        camera.setPoseFromAircraft(view);
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
-                               ftToM(sim.aircraft().altAglFt));
+                               ftToM(view.altAglFt));
         renderer.render(camera, w, h);
         airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
@@ -199,6 +247,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 !gfx::saveScreenshotPng(window.gl(), w, h, opt.screenshotPath))
                 return 1;
             printSummary(sim, sim.aircraft().simTimeS);
+            if (terrainRenderer) LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             break;
         }
         window.swap();
@@ -213,6 +262,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                               fpsFrames / fpsClockS, s.iasKt, s.altMslFt);
                 window.setTitle(title);
                 LOG_INFO("%.1f fps", fpsFrames / fpsClockS);
+                if (terrainRenderer)
+                    LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             }
             fpsFrames = 0;
             fpsClockS = 0;

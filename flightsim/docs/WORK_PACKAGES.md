@@ -235,7 +235,7 @@ prefetch, `isDetailReady`), and an API for W2 to enumerate resident tiles and LO
 flatten blend). No blocking on the main thread. Cache stays under its cap in a fly-through test.
 
 ## W2: Terrain renderer
-**Status:** in progress (wp/W2-terrain-renderer) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
+**Status:** done, awaiting review (wp/W2-terrain-renderer; needs device test: GPU cost on Mali-G31, depth precision, upload hitching) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
 
 **Owns:** `src/world/TerrainRenderer*`, `src/gfx/` additions it needs (new files only), `assets/shaders/terrain*` if shaders are external.
 
@@ -245,6 +245,17 @@ detail texture and slope shading, flat water, fog, a GPU upload budget per frame
 horizon culling budget.
 **Acceptance:** screenshots of synthetic and real regions. No cracks or popping at the default
 setting. Triangle counts are logged and stay within PLAN §3 budgets.
+
+**As built (W2):** CDLOD quadtree of 16x16-cell patches ("nodes", `src/world/TerrainRendererMesh.h`
+explains the scheme). Node level m reads tile level m-4 at step 1, the coarsest tile at a larger
+step above that, and the finest resident ancestor while its natural tile streams in. A node splits
+when its box is closer than `cellMeters * focalPx / pixelsPerCell` (default 10 px on a 480-line
+screen, shrunk by sqrt(sin grazing angle) for foreshortened views) and only once its four children
+have meshes, so nothing disappears while data loads. Skirts hide cracks; geomorphing removes
+popping. One shared 16-bit index buffer, 357 vertices (32 B) per node, one draw per node plus one
+for the camera-centred sea disc (ocean = no tile). Tuning knobs: `TerrainRenderConfig` / `LodConfig`.
+Dev hooks (environment, no CLI flags exist yet): `FSIM_W2_CAMERA=lat,lon,altFt,hdgTrueDeg[,pitchDeg]`,
+`FSIM_W2_VISIBILITY_KM`, `FSIM_W2_PX_PER_CELL`.
 
 ## W3: Terrain data pipeline (Python)
 **Status:** done (merged wp/W3-terrain-pipeline) · **Model / effort:** Sonnet / high · **Depends:** none · **Specs:** DATA (all)
