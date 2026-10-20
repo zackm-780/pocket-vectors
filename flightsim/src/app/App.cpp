@@ -207,6 +207,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             if (interactive)
                 pilotControls.update(actions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
+            // N6: AP / FD / A/T engage, mode and bug actions.
+            if (interactive)
+                sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
             sim.advance(dtS);
         }
         // W1: once per frame (also while paused, so tiles keep arriving).

@@ -64,13 +64,16 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
     navState_ = NavState{};
     if (!initNavigation(error)) return false;  // N5
 
-    // Scenario autopilot settings are recorded for the HUD; the real autopilot (N6) acts on them.
-    AutopilotState& ap = autopilot_.state();
-    ap = AutopilotState{};
-    ap.hdgBugMagDeg = scenario_.hdgBugMagDeg;
-    ap.altBugFt = scenario_.altBugFt;
-    if (!scenario_.apEngage.empty())
-        LOG_WARN("scenario requests autopilot engagement; autopilot arrives with WP N6 (ignored)");
+    // N6: autopilot gains from the profile, bugs from the scenario (defaults: present heading and
+    // altitude), then the scenario's engage list. The navigator runs once so NAV / APR can arm.
+    autopilot_.configure(profile_);
+    navState_ = navigator_.update(model_.state(), 0.0);
+    autopilot_.syncBugs(model_.state(), navState_);
+    if (scenario_.hasHdgBug) autopilot_.setHdgBugMagDeg(scenario_.hdgBugMagDeg);
+    if (scenario_.hasAltBug) autopilot_.setAltBugFt(scenario_.altBugFt);
+    if (scenario_.hasVsBug) autopilot_.setVsBugFpm(scenario_.vsBugFpm);
+    if (scenario_.hasSpdBug) autopilot_.setSpdBugKt(scenario_.spdBugKt);
+    autopilot_.applyScenario(scenario_.apEngage, model_.state(), navState_);
 
     LOG_INFO("start: %s at %s rwy %s (%s) lat %.5f lon %.5f alt %.0f ft hdg %.0f true",
              profile_.id.c_str(), scenario_.airportIdent.c_str(), scenario_.runwayIdent.c_str(),
@@ -134,11 +137,12 @@ void Simulation::stepOnce() {
     const double simTimeS = model_.state().simTimeS;
     script_.apply(simTimeS, profile_.engineCount, pilot_);
     final_ = autopilot_.update(pilot_, model_.state(), navState_, kSimDtS);
+    autopilot_.syncPilot(pilot_);  // N6: levers follow the A/T, trim follows the AP
     model_.step(final_, kSimDtS);
     const AircraftState& s = model_.state();
     navState_ = navigator_.update(s, kSimDtS);
     if (trace_.isOpen() && s.simTimeS + 1e-9 >= nextTraceS_) {
-        trace_.write(s, navState_, autopilot_.state());
+        trace_.write(s, navState_, autopilot_.state(), final_);
         nextTraceS_ += kTraceIntervalS;
     }
 }

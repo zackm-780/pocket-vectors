@@ -18,10 +18,15 @@ bool TraceWriter::open(const std::string& path) {
          "nav_wpt", "nav_leg", "nav_dtk_true_deg", "nav_brg_to_wpt_true_deg", "nav_dist_to_dest_nm",
          "nav_dist_to_thr_nm", "nav_cdi_scale_nm", "nav_to_flag", "nav_loc_valid", "nav_gs_valid",
          "nav_on_final", "nav_target_alt_ft", "nav_req_vs_fpm", "nav_vnav_dev_ft",
-         "nav_mag_var_deg"});
+         "nav_mag_var_deg",
+         // N6: autopilot detail (appended)
+         "ap_fd_on", "ap_at_on", "ap_lat_armed", "ap_vert_armed", "ap_hdg_bug_mag_deg",
+         "ap_alt_bug_ft", "ap_vs_bug_fpm", "ap_spd_bug_kt", "ap_fd_pitch_deg", "ap_fd_roll_deg",
+         "ap_disc_warn", "elev_cmd_norm", "ail_cmd_norm"});
 }
 
-void TraceWriter::write(const AircraftState& s, const NavState& nav, const AutopilotState& ap) {
+void TraceWriter::write(const AircraftState& s, const NavState& nav, const AutopilotState& ap,
+                        const ControlInputs& finalCtl) {
     if (!csv_.isOpen()) return;
     csv_.addDouble(s.simTimeS, 2);
     csv_.addDouble(s.latDeg, 7);
@@ -80,6 +85,19 @@ void TraceWriter::write(const AircraftState& s, const NavState& nav, const Autop
     csv_.addDouble(nav.requiredVsFpm, 0);
     csv_.addDouble(nav.vnavDevFt, 0);
     csv_.addDouble(nav.magVarDeg, 2);
+    csv_.addInt(ap.fdOn ? 1 : 0);  // N6
+    csv_.addInt(ap.atEngaged ? 1 : 0);
+    csv_.addInt(static_cast<int>(ap.latArmed));
+    csv_.addInt(static_cast<int>(ap.vertArmed));
+    csv_.addDouble(ap.hdgBugMagDeg, 0);
+    csv_.addDouble(ap.altBugFt, 0);
+    csv_.addDouble(ap.vsBugFpm, 0);
+    csv_.addDouble(ap.spdBugKt, 0);
+    csv_.addDouble(ap.fdPitchCmdDeg, 2);
+    csv_.addDouble(ap.fdRollCmdDeg, 2);
+    csv_.addInt(ap.disconnectWarning ? 1 : 0);
+    csv_.addDouble(finalCtl.elevatorNorm, 3);
+    csv_.addDouble(finalCtl.aileronNorm, 3);
     csv_.endRow();
 }
 
