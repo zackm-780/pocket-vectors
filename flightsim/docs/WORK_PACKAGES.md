@@ -399,14 +399,14 @@ warnings, transient messages, and declutter levels.
 HUD.md. Every status field is visible in FULL declutter.
 
 ## H3: Nav and autopilot HUD
-**Status:** in progress (wp/H3-nav-hud) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
+**Status:** done, merged (needs device test: S-size text legibility, FD cue and dot spacing; `--hud-fake <name>` shows canned modes) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
 
 **Owns:** `src/hud/NavHud*`, `tests/hud/navhud*`.
 FMA line, nav box, CDI, LOC/GS scales, bearing and DTK marks on the heading tape, bugs, FD guidance
 cue, and minimums. **Acceptance:** screenshot set with faked NavState/AutopilotState covering every mode.
 
 ## H4: Moving map page
-**Status:** queued (wp/H4-map started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
+**Status:** done, merged (needs device test: S text legibility, map frame cost; terrain shading and hold racetrack are follow-ups; `--map <nm>`) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
 
 **Owns:** `src/ui/MapPage*`, `tests/ui/map*`.
 North-up / track-up modes, zoom 2–160 NM, route legs and waypoints, airports and navaids, aircraft
@@ -431,7 +431,7 @@ Manual wind, gusts, visibility and QNH. Optional METAR fetch over Wi-Fi for the 
 destination airports (aviationweather.gov), applied to JSBSim atmosphere and wind and to fog.
 
 ## X2: Terrain and ground warnings
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** W1, H2 · **Owns:** `src/hud/Gpws*`
+**Status:** in progress (wp/X2-gpws) · **Model / effort:** Sonnet / medium · **Depends:** W1, H2 · **Owns:** `src/hud/Gpws*`
 GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain query, "too low gear/flaps"),
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
