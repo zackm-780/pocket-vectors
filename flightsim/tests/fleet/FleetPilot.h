@@ -54,11 +54,12 @@ struct PitchPilot {
     void sync(const AircraftState& s) { pitchCmdDeg = radToDeg(s.pitchRad); }
 
     // Hold a vertical speed: integrate the vs error into a pitch demand, then hold the pitch.
-    float vsHold(const AircraftState& s, const FleetSpec& sp, double vsTargetFpm, double pitchMinDeg,
-                 double pitchMaxDeg) {
+    float vsHold(const AircraftState& s, const FleetSpec& sp, double vsTargetFpm,
+                 double pitchMinDeg, double pitchMaxDeg) {
         const double err = vsTargetFpm - s.vsFpm;
         pitchCmdDeg = clampd(pitchCmdDeg + sp.vsIntegral * err * kDt, pitchMinDeg, pitchMaxDeg);
-        const double target = clampd(pitchCmdDeg + sp.vsProportional * err, pitchMinDeg, pitchMaxDeg);
+        const double target =
+            clampd(pitchCmdDeg + sp.vsProportional * err, pitchMinDeg, pitchMaxDeg);
         return pitchHoldElevator(s, target, sp.pitchKp, sp.pitchKd);
     }
     // Hold a pitch attitude directly.
@@ -135,9 +136,9 @@ inline TakeoffLog flyTakeoffClimb(Flight& f, const FleetSpec& sp, double targetA
             f.ctl.rudderNorm = rud;
             f.ctl.steeringNorm = rud;
             f.ctl.aileronNorm = bankHoldAileron(s);
-            f.ctl.elevatorNorm =
-                s.iasKt > sp.rotateKt ? pitchHoldElevator(s, sp.rotatePitchDeg, sp.rotateKp, sp.rotateKd)
-                                      : 0.f;
+            f.ctl.elevatorNorm = s.iasKt > sp.rotateKt ? pitchHoldElevator(s, sp.rotatePitchDeg,
+                                                                           sp.rotateKp, sp.rotateKd)
+                                                       : 0.f;
             pp.pitchCmdDeg = sp.rotatePitchDeg;
         } else {
             if (liftedS < 0) {
@@ -157,11 +158,10 @@ inline TakeoffLog flyTakeoffClimb(Flight& f, const FleetSpec& sp, double targetA
                                         sp.climbPitchMinDeg, sp.climbPitchMaxDeg);
             f.ctl.elevatorNorm = pitchHoldElevator(s, pitch, sp.pitchKp, sp.pitchKd);
             if (s.wowAny == false) {
-                if (s.simTimeS - liftedS > 12.0)
-                    log.stallWarnS += s.stallWarning ? kDt : 0.0;
+                if (s.simTimeS - liftedS > 12.0) log.stallWarnS += s.stallWarning ? kDt : 0.0;
                 if (aglFt < 400.0 && flapDet > 0)
-                    log.minClimbMarginKt =
-                        std::min(log.minClimbMarginKt, static_cast<double>(s.iasKt) - sp.stallCleanKt);
+                    log.minClimbMarginKt = std::min(log.minClimbMarginKt,
+                                                    static_cast<double>(s.iasKt) - sp.stallCleanKt);
             }
             // Gear up once safely climbing.
             if (f.profile.hasRetractableGear && f.ctl.gearDown && s.vsFpm > 200 && aglFt > 50.0) {
@@ -200,16 +200,16 @@ inline TakeoffLog flyTakeoffClimb(Flight& f, const FleetSpec& sp, double targetA
 // ---- approach, flare and rollout ---------------------------------------------------------------
 
 struct LandingLog {
-    double maxPathErrFt = 0;         // |altitude - 3 degree path| from the start to flareAglFt
+    double maxPathErrFt = 0;  // |altitude - 3 degree path| from the start to flareAglFt
     double maxPathErrBelow500Ft = 0;
-    double maxIasErrKt = 0;          // |IAS - Vapp| while on the approach
+    double maxIasErrKt = 0;  // |IAS - Vapp| while on the approach
     double minAglMarginFt = 1e9;
     double stallWarnS = 0;
     double touchdownVsFpm = 0, touchdownIasKt = 0, touchdownAlongFt = -1, touchdownPitchDeg = 0;
-    double touchdownBankDeg = 0;
-    double stopAlongFt = -1;         // distance from the threshold to the stop
-    double rollFt = 0;               // rollout distance from touchdown
-    double stopTimeS = -1;           // seconds from touchdown to stop
+    double touchdownBankDeg = 0, touchdownCgAglFt = 0;
+    double stopAlongFt = -1;  // distance from the threshold to the stop
+    double rollFt = 0;        // rollout distance from touchdown
+    double stopTimeS = -1;    // seconds from touchdown to stop
     double maxCrossFt = 0, maxRolloutHeadingErrDeg = 0, finalHeadingErrDeg = 0;
     bool touched = false, stopped = false, crashed = false, reachedFlare = false;
     char crashReason[48] = {0};
@@ -228,12 +228,13 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
     pp.sync(f.s());
     SpeedPilot sps;
     sps.sync(f.ctl);
-    bool wasAir = true;
+    bool wasAir = true, flareStarted = false;
+    double flarePitchStartDeg = 0, flareHStartFt = 1;
     double touchS = -1, lastWowAllS = -1;
     double reverseThr = 0;
     for (long i = 0; i < static_cast<long>(maxTimeS * kSimHz); ++i) {
         const AircraftState& s = f.s();
-        const double hFt = s.altAglFt - sp.cgOnGearFt;  // wheel height above the runway
+        const double hFt = s.altAglFt - sp.gearTouchAglFt;  // main wheel height above the runway
         const double alongFt = rwy.alongFt(s);
         const double crossFt = rwy.crossFt(s);
         const double hdgErr = wrap180(radToDeg(s.headingTrueRad) - rwy.headingTrueDeg);
@@ -246,11 +247,13 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
             if (!flare) {
                 log.maxPathErrFt = std::max(log.maxPathErrFt, std::fabs(altErrFt));
                 if (hFt < 500.0)
-                    log.maxPathErrBelow500Ft = std::max(log.maxPathErrBelow500Ft, std::fabs(altErrFt));
+                    log.maxPathErrBelow500Ft =
+                        std::max(log.maxPathErrBelow500Ft, std::fabs(altErrFt));
                 log.maxIasErrKt = std::max(log.maxIasErrKt, std::fabs(s.iasKt - vappKt));
                 const double gsFps = std::max(30.0, static_cast<double>(s.gsKt) * 1.68781);
                 const double vsPath = -gsFps * tanGlide * 60.0 + sp.pathGainFpmPerFt * altErrFt;
-                f.ctl.elevatorNorm = pp.vsHold(s, sp, vsPath, sp.apchPitchMinDeg, sp.apchPitchMaxDeg);
+                f.ctl.elevatorNorm =
+                    pp.vsHold(s, sp, vsPath, sp.apchPitchMinDeg, sp.apchPitchMaxDeg);
                 setAllThrottles(f, sps.throttle(s, sp, vappKt));
                 f.ctl.aileronNorm = headingBank(s, rwy.headingTrueDeg, crossFt);
                 f.ctl.rudderNorm = 0;
@@ -258,12 +261,27 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
                 log.reachedFlare = true;
                 // Exponential flare toward a small sink rate; power to idle.
                 const double vsFpm = -(hFt / sp.flareTauS + sp.touchdownSinkFps) * 60.0;
-                const double pitchMax = sp.flarePitchMaxDeg;
-                f.ctl.elevatorNorm = pp.vsHold(s, sp, vsFpm, sp.apchPitchMinDeg, pitchMax);
+                if (!flareStarted) {
+                    flareStarted = true;
+                    flarePitchStartDeg = radToDeg(s.pitchRad);
+                    flareHStartFt = hFt;
+                }
+                if (sp.flarePitchDeltaDeg > 0) {
+                    // Height-scheduled round-out: pitch up smoothly as the wheels near the runway.
+                    const double frac = clampd(1.0 - hFt / flareHStartFt, 0.0, 1.0);
+                    const double target = flarePitchStartDeg + sp.flarePitchDeltaDeg * frac +
+                                          sp.flareVsGain * (vsFpm - s.vsFpm);
+                    f.ctl.elevatorNorm = pitchHoldElevator(
+                        s, clampd(target, sp.apchPitchMinDeg, sp.flarePitchMaxDeg), sp.pitchKp,
+                        sp.pitchKd);
+                } else {
+                    f.ctl.elevatorNorm =
+                        pp.vsHold(s, sp, vsFpm, sp.apchPitchMinDeg, sp.flarePitchMaxDeg);
+                }
                 if (hFt < sp.idleAglFt) {
                     for (int e = 0; e < s.engineCount; ++e)
-                        f.ctl.throttleNorm[e] =
-                            std::max(0.f, f.ctl.throttleNorm[e] - static_cast<float>(sp.idleRatePerS * kDt));
+                        f.ctl.throttleNorm[e] = std::max(
+                            0.f, f.ctl.throttleNorm[e] - static_cast<float>(sp.idleRatePerS * kDt));
                 } else {
                     setAllThrottles(f, sps.throttle(s, sp, vappKt));
                 }
@@ -284,6 +302,7 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
                 log.touchdownIasKt = s.iasKt;
                 log.touchdownPitchDeg = radToDeg(s.pitchRad);
                 log.touchdownBankDeg = radToDeg(s.rollRad);
+                log.touchdownCgAglFt = s.altAglFt;
             }
             if (s.wowAll && lastWowAllS < 0) lastWowAllS = s.simTimeS;
             const double sinceS = s.simTimeS - touchS;
@@ -301,8 +320,9 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
             if (!f.profile.hasSpeedbrake && sinceS > 2.0) f.ctl.flapDetent = 0;
             // Pitch down to the runway, then hold the centerline.
             f.ctl.elevatorNorm = pitchHoldElevator(s, sp.rolloutPitchDeg, sp.pitchKp, sp.pitchKd);
-            const float rud = headingHoldRudder(s, rwy.headingTrueDeg - clampd(crossFt * 0.05, -5.0, 5.0),
-                                                sp.groundKp, sp.groundKd);
+            const float rud =
+                headingHoldRudder(s, rwy.headingTrueDeg - clampd(crossFt * 0.05, -5.0, 5.0),
+                                  sp.groundKp, sp.groundKd);
             f.ctl.rudderNorm = rud;
             f.ctl.steeringNorm = rud;
             f.ctl.aileronNorm = bankHoldAileron(s);
@@ -322,7 +342,12 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
             }
         }
         if (std::getenv("FLEET_TRACE") && i % kSimHz == 0)
-            std::printf("  t %.0f wow %d h %.1f along %.0f ias %.1f gs %.1f vs %.0f pitch %.1f thr %.2f brk %.2f cross %.1f hdg %.1f flap %.2f spd %.2f rev %d\n", s.simTimeS, s.wowAny, hFt, alongFt, s.iasKt, s.gsKt, s.vsFpm, radToDeg(s.pitchRad), f.ctl.throttleNorm[0], f.ctl.brakeLeftNorm, crossFt, radToDeg(s.headingTrueRad), s.flapPosNorm, s.speedbrakePosNorm, s.engines[0].reverserDeployed);
+            std::printf("  t %.0f wow %d h %.1f along %.0f ias %.1f gs %.1f vs %.0f pitch %.1f thr "
+                        "%.2f brk %.2f cross %.1f hdg %.1f flap %.2f spd %.2f rev %d\n",
+                        s.simTimeS, s.wowAny, hFt, alongFt, s.iasKt, s.gsKt, s.vsFpm,
+                        radToDeg(s.pitchRad), f.ctl.throttleNorm[0], f.ctl.brakeLeftNorm, crossFt,
+                        radToDeg(s.headingTrueRad), s.flapPosNorm, s.speedbrakePosNorm,
+                        s.engines[0].reverserDeployed);
         const float vsBefore = s.vsFpm;
         wasAir = !s.wowAny;
         f.step();
