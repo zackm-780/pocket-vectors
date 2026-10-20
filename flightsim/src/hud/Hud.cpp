@@ -17,7 +17,7 @@ constexpr float kRowPanelTopPx = 430.0f;
 constexpr float kRow1BaselinePx = 447.0f;
 constexpr float kRow2BaselinePx = 469.0f;
 constexpr float kWarningBaselinePx = 300.0f;
-constexpr float kMessageBaselinePx = 334.0f;
+constexpr float kMessageBaselinePx = 348.0f;
 constexpr float kMessageStepPx = 13.0f;
 constexpr double kBlinkHz = 2.0;
 constexpr float kPi_f = static_cast<float>(kPi);
@@ -215,7 +215,8 @@ void drawRadioAltLarge(const Ctx& k, const HudFpv& fpv) {
     if (k.s.wowAny || k.s.altAglFt >= 1000.0f) return;
     char buf[16];
     std::snprintf(buf, sizeof buf, "RA %d", roundRadioAltFt(k.s.altAglFt));
-    const float y = std::max(266.0f, std::min(282.0f, (fpv.valid ? fpv.yHud : kCenterY) + 40.0f));
+    // Under the FPV, below the warning line (y 300) and above the messages.
+    const float y = std::max(320.0f, std::min(326.0f, (fpv.valid ? fpv.yHud : kCenterY) + 36.0f));
     k.r.text(k.r.centerX(), y, buf, TextSize::L, k.base, HAlign::Center, VAlign::Baseline);
 }
 
@@ -237,7 +238,8 @@ void drawHeadingTape(const Ctx& k) {
         const int wrapped = ((v % 360) + 360) % 360;
         const bool major = wrapped % 10 == 0;
         r.line(x, baseY, x, baseY - (major ? 8.0f : 4.0f), k.base);
-        if (major && std::fabs(static_cast<float>(v) - hdg) > 6.0f) {
+        if (major && std::fabs(static_cast<float>(v) - hdg) > 6.0f && x > x0 + 9 &&
+            x < x0 + z.w - 9) {
             char label[16];
             std::snprintf(label, sizeof label, "%02d", headingTapeLabel(wrapped));
             r.text(x, baseY - 11, label, TextSize::S, k.base, HAlign::Center, VAlign::Baseline);
@@ -537,7 +539,7 @@ void drawWarnings(const Ctx& k, const WarningTracker& tracker, std::uint32_t mas
             k.r.text(k.r.centerX(), kWarningBaselinePx, text, TextSize::L, col, HAlign::Center,
                      VAlign::Baseline);
         else
-            k.r.text(k.r.centerX(), kWarningBaselinePx + 16, text, TextSize::M, col, HAlign::Center,
+            k.r.text(k.r.centerX(), kWarningBaselinePx - 20, text, TextSize::M, col, HAlign::Center,
                      VAlign::Baseline);
         ++shown;
     }
