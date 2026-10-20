@@ -373,7 +373,7 @@ std::string scenarioToIni(const Scenario& sc) {
     if (!sc.approachId.empty()) out += "approach = " + sc.approachId + "\n";  // N5
     out += "\n[wind]\nfrom_true_deg = " + num(sc.windFromTrueDeg) +
            "\nspeed_kt = " + num(sc.windSpeedKt) + "\n";
-    {   // X1: [weather]. A uniform wind (legacy [wind] only) stays in [wind]; gusts or aloft keys
+    {  // X1: [weather]. A uniform wind (legacy [wind] only) stays in [wind]; gusts or aloft keys
         // make it a profile wind and the wind keys move here.
         const world::WeatherSetup& w = sc.weather;
         std::string wx;
