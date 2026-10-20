@@ -45,6 +45,9 @@ TEST_CASE("sim: fleet extended fleet loads without errors") {
 #define FLEET_EXT_CASES(PHASE, FN)                                                                 \
     TEST_CASE("sim: fleet A320 " PHASE) {                                                          \
         FN(kFleetExt[0]);                                                                          \
+    }                                                                                              \
+    TEST_CASE("sim: fleet 787-8 " PHASE) {                                                         \
+        FN(kFleetExt[1]);                                                                          \
     }
 
 FLEET_EXT_CASES("profile", profileTest)
