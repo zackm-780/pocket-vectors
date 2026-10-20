@@ -364,7 +364,7 @@ runway (NAVIGATION §3.2), and missed-approach sequencing.
 headless "perfect pilot" (ideal follower) flies a full XTST plan and approach.
 
 ## N6: Autopilot, flight director, autothrottle
-**Status:** in progress (wp/N6-autopilot) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+**Status:** done on wp/N6-autopilot, awaiting supervisor review (needs device test: AP-layer button feel only) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
 
 **Owns:** `src/autopilot/`, `tests/autopilot/`, `[autopilot]` keys in aircraft profiles (coordinate with F2/F4).
 

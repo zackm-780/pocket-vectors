@@ -34,9 +34,11 @@ struct ApConfig {
     float altHoldGainFpmPerFt = 4;
     float altCaptureMinFt = 100, altHoldWithinFt = 25;
     float gsTauS = 12, gsMaxCorrFpm = 500;
-    float minClimbIasKt = 0;  // speed protection in VS climb (0 = 1.25 * vs1)
+    float minClimbIasKt = 0;  // underspeed protection without A/T (0 = 1.25 * vs1)
+    float alphaLimitDeg = 0;  // pitch demand is cut above this angle of attack (0 = off)
     // ---- autothrottle ----
     float atKp = 0.015f, atKi = 0.004f, atKAccel = 0.05f;  // per kt, per kt*s, per kt/s
+    float atAvailable = 0;  // 1 = offer the A/T even if the profile has no autothrottle
     float atSlewPerS = 0.3f;
     float retardAglFt = 30, retardSlewPerS = 0.4f;
     // ---- override ----

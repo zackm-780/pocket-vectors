@@ -60,9 +60,9 @@ public:
     bool toggleAp(const AircraftState& ac, const NavState& nav);
     void setFd(bool on, const AircraftState& ac);
     bool setAt(bool on, const AircraftState& ac, const AircraftProfile* profile = nullptr);
-    void selectHdg(const AircraftState& ac);   // second press with HDG active -> ROL
-    void selectNav(const NavState& nav);       // second press with NAV active/armed -> cancel
-    void selectApr(const NavState& nav);       // arms LOC + GS (or NAV on a non-ILS approach)
+    void selectHdg(const AircraftState& ac);      // second press with HDG active -> ROL
+    void selectNav(const NavState& nav);          // second press with NAV active/armed -> cancel
+    void selectApr(const NavState& nav);          // arms LOC + GS (or NAV on a non-ILS approach)
     void selectAltHold(const AircraftState& ac);  // hold the present altitude
     void selectVs(const AircraftState& ac);
     void selectRoll(const AircraftState& ac);
@@ -118,7 +118,7 @@ private:
     float holdAltFt_ = 0;     // ALT target
     float captureAltFt_ = 0;  // ALT* target
     float vsBugRawFpm_ = 0, spdBugRaw_ = 0;
-    float magVarDeg_ = 0;  // last NavState value, for bug conversion in handlers
+    float magVarDeg_ = 0;                     // last NavState value, for bug conversion in handlers
     float bankCmdDeg_ = 0, pitchCmdDeg_ = 0;  // slewed commands
 
     // vertical PI (pitch command) state

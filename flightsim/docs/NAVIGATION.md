@@ -193,3 +193,22 @@ in each profile's `[autopilot]` section, with sane category defaults (piston / t
   `disconnectWarning`.
 - **FD:** the same outer loops, outputting `fdPitchCmdDeg` / `fdRollCmdDeg` without driving the surfaces.
 - **Acceptance** is in WORK_PACKAGES N6.
+
+### 5.1 Implementation notes (N6: `src/autopilot/`, details in its README)
+- **Entry points:** `Autopilot::update` (120 Hz, via `Simulation`), `handleActions` (per frame, `App.cpp`),
+  `syncPilot` (levers and trim follow the A/T and the AP). Scenario `[autopilot]`: `engage`, `hdg_bug_mag_deg`,
+  `alt_bug_ft`, `vs_bug_fpm`, `spd_bug_kt`.
+- **Lateral law:** NAV and LOC steer the **ground track** to `DTK - atan(xtk / (gs * tau))` (look-ahead
+  guidance, intercept <= 45 deg NAV / 30 deg LOC), so crosswind needs no integrator. LOC uses the linear XTK,
+  which scales the angular beam by distance (no S-turns near the threshold). HDG and the track errors become a
+  turn rate (`err / tau`) and then the coordinated bank for that rate, clamped to 20 / 25 deg.
+- **Capture:** NAV / LOC capture when closing and `|xtk| <= R (1 - cos(rel)) + 0.1 NM` (R from the bank
+  limit); LOC also needs `|cdi| <= 1`. GS needs LOC active and `|gsDeflection| <= 0.5` (from below or within one
+  dot). ALT* starts at `max(100 ft, |VS| / 6)` toward the bug and ALT holds within 25 ft.
+- **A/T availability:** `hasAutothrottle` profiles, plus any profile with `[autopilot] at_available = 1`
+  (c172p and c310 use it for speed hold; deviation from "jets only").
+- **Disconnect warning:** cleared by the next AP toggle press (which does not re-engage) or after 5 s.
+- **FD cues:** `fdRollCmdDeg` = commanded bank, `fdPitchCmdDeg` = commanded pitch attitude (absolute, deg).
+- Not implemented in v1: FLC, VOR-source specifics (NAV flies whatever the navigator reports), go-around mode,
+  `DirectTo` / `NavSourceCycle` actions (navigator-owned, not wired).
+

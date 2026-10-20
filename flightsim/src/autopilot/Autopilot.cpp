@@ -12,12 +12,12 @@ namespace fsim {
 namespace {
 
 constexpr float kG = static_cast<float>(kStdGravityMps2);
-constexpr float kFpmPerKtPerRad = 101.2686f;       // fpm of VS per kt of speed per unit of sin(gamma)
-constexpr float kFpmPerKtPerDeg = 1.76748f;        // = kFpmPerKtPerRad * pi / 180
-constexpr float kGsFullScaleDeg = 0.7f;            // NAVIGATION 3.2
-constexpr float kPathDeg = 3.0f;                   // GS / VNAV path angle
-constexpr float kWarnDurationS = 5.0f;             // HUD.md 5: flashing AP OFF
-constexpr float kGsCaptureBand = 0.5f;             // 1 dot = half of full-scale deflection
+constexpr float kFpmPerKtPerRad = 101.2686f;  // fpm of VS per kt of speed per unit of sin(gamma)
+constexpr float kFpmPerKtPerDeg = 1.76748f;   // = kFpmPerKtPerRad * pi / 180
+constexpr float kGsFullScaleDeg = 0.7f;       // NAVIGATION 3.2
+constexpr float kPathDeg = 3.0f;              // GS / VNAV path angle
+constexpr float kWarnDurationS = 5.0f;        // HUD.md 5: flashing AP OFF
+constexpr float kGsCaptureBand = 0.5f;        // 1 dot = half of full-scale deflection
 
 float clampf(float v, float lo, float hi) {
     return std::max(lo, std::min(hi, v));
@@ -57,7 +57,7 @@ float acceleratedStep(int repeatCount, float baseStep, float maxStep) {
 
 void Autopilot::configure(const AircraftProfile& profile) {
     cfg_ = ApConfig::fromProfile(profile);
-    hasAt_ = profile.hasAutothrottle;
+    hasAt_ = profile.hasAutothrottle || cfg_.atAvailable > 0.5f;
     engineCount_ = std::max(1, profile.engineCount);
     approachFlapDetent_ = profile.approachFlapDetent;
     st_ = AutopilotState{};
@@ -151,9 +151,9 @@ void Autopilot::selectRoll(const AircraftState& ac) {
     if (!modesLive()) return;
     st_.latActive = LatMode::Roll;
     const float bank = rollDegOf(ac);
-    rollHoldDeg_ =
-        std::fabs(bank) <= cfg_.rollHoldWingsLevelDeg ? 0.f
-                                                      : clampf(bank, -cfg_.bankLimitDeg, cfg_.bankLimitDeg);
+    rollHoldDeg_ = std::fabs(bank) <= cfg_.rollHoldWingsLevelDeg
+                       ? 0.f
+                       : clampf(bank, -cfg_.bankLimitDeg, cfg_.bankLimitDeg);
 }
 
 void Autopilot::selectPitch(const AircraftState& ac) {
@@ -188,7 +188,8 @@ void Autopilot::selectNav(const NavState& nav) {
 
 void Autopilot::selectApr(const NavState& nav) {
     if (!modesLive()) return;
-    if (st_.latArmed == LatMode::Loc || st_.vertArmed == VertMode::Gs || st_.latActive == LatMode::Loc) {
+    if (st_.latArmed == LatMode::Loc || st_.vertArmed == VertMode::Gs ||
+        st_.latActive == LatMode::Loc) {
         if (st_.latArmed == LatMode::Loc) st_.latArmed = LatMode::Off;
         if (st_.vertArmed == VertMode::Gs) st_.vertArmed = VertMode::Off;
         if (st_.latActive == LatMode::Loc) selectRoll(lastAc_);
@@ -311,8 +312,8 @@ void Autopilot::applyScenario(const std::vector<std::string>& tokens, const Airc
     lastAc_ = ac;
     magVarDeg_ = nav.magVarDeg;
     for (const std::string& t : tokens) {
-        const bool modeToken = t == "hdg" || t == "nav" || t == "apr" || t == "alt" ||
-                               t == "vs" || t == "rol" || t == "pit" || t == "pitch";
+        const bool modeToken = t == "hdg" || t == "nav" || t == "apr" || t == "alt" || t == "vs" ||
+                               t == "rol" || t == "pit" || t == "pitch";
         if (t == "ap" || modeToken) engageAp(ac, nav);
         if (t == "fd") setFd(true, ac);
         if (t == "at" || t == "spd") setAt(true, ac);
@@ -377,8 +378,14 @@ ControlInputs Autopilot::update(const ControlInputs& pilot, const AircraftState&
         updateModes(ac, nav);
         const float bankTarget =
             clampf(lateralBankCmd(ac, nav), -cfg_.bankLimitDeg, cfg_.bankLimitDeg);
-        const float pitchTarget =
+        float pitchTarget =
             clampf(verticalPitchCmd(ac, nav, dtS), cfg_.pitchMinDeg, cfg_.pitchMaxDeg);
+        // Angle-of-attack protection: never ask for more pitch while close to the stall warning.
+        if (cfg_.alphaLimitDeg > 0.f && ac.alphaDeg > cfg_.alphaLimitDeg) {
+            pitchTarget =
+                std::min(pitchTarget, pitchDegOf(ac) - 1.5f * (ac.alphaDeg - cfg_.alphaLimitDeg));
+            vsIntegPitchDeg_ = std::min(vsIntegPitchDeg_, pitchTarget);  // no windup
+        }
         st_.fdRollCmdDeg = bankTarget;
         st_.fdPitchCmdDeg = pitchTarget;
         st_.fdValid = st_.latActive != LatMode::Off && st_.vertActive != VertMode::Off;
@@ -440,8 +447,8 @@ void Autopilot::checkDisconnects(const ControlInputs& pilot, const AircraftState
         return;
     }
     // No autoland in v1: disconnect below minimums - 50 ft while flying an approach.
-    const bool coupled = st_.latActive == LatMode::Loc || st_.vertActive == VertMode::Gs ||
-                         nav.onFinal;
+    const bool coupled =
+        st_.latActive == LatMode::Loc || st_.vertActive == VertMode::Gs || nav.onFinal;
     if (nav.phase == NavPhase::Approach && coupled && nav.minimumsFt > 0 &&
         ac.altMslFt < nav.minimumsFt - cfg_.minimumsDisconnectMarginFt)
         disengageAp(true);
@@ -550,27 +557,25 @@ float Autopilot::turnLawBankDeg(const AircraftState& ac, float errDeg, float tau
 
 float Autopilot::lateralBankCmd(const AircraftState& ac, const NavState& nav) {
     switch (st_.latActive) {
-        case LatMode::Off:
-            return 0.f;
-        case LatMode::Roll:
-            return rollHoldDeg_;
-        case LatMode::Hdg: {
-            const float err = wrap180f(hdgBugTrueDeg(nav) - headingDegOf(ac));
-            return turnLawBankDeg(ac, err, cfg_.headingTauS);
-        }
-        case LatMode::Nav:
-        case LatMode::Loc: {
-            // Intercept course = desired track steered by the cross-track error (look-ahead law).
-            const bool loc = st_.latActive == LatMode::Loc;
-            const float maxAngle = loc ? cfg_.locMaxInterceptDeg : cfg_.maxInterceptDeg;
-            const float lookNm = std::max(0.2f, std::max(ac.gsKt, 60.f) / 3600.f * cfg_.navTauS);
-            const float angle = clampf(
-                static_cast<float>(radToDeg(std::atan2(nav.crossTrackNm, lookNm))), -maxAngle,
-                maxAngle);
-            const float wantTrack = nav.desiredTrackTrueDeg - angle;
-            const float err = wrap180f(wantTrack - currentTrackDeg(ac));
-            return turnLawBankDeg(ac, err, cfg_.headingTauS);
-        }
+    case LatMode::Off: return 0.f;
+    case LatMode::Roll: return rollHoldDeg_;
+    case LatMode::Hdg: {
+        const float err = wrap180f(hdgBugTrueDeg(nav) - headingDegOf(ac));
+        return turnLawBankDeg(ac, err, cfg_.headingTauS);
+    }
+    case LatMode::Nav:
+    case LatMode::Loc: {
+        // Intercept course = desired track steered by the cross-track error (look-ahead law).
+        const bool loc = st_.latActive == LatMode::Loc;
+        const float maxAngle = loc ? cfg_.locMaxInterceptDeg : cfg_.maxInterceptDeg;
+        const float lookNm = std::max(0.2f, std::max(ac.gsKt, 60.f) / 3600.f * cfg_.navTauS);
+        const float angle =
+            clampf(static_cast<float>(radToDeg(std::atan2(nav.crossTrackNm, lookNm))), -maxAngle,
+                   maxAngle);
+        const float wantTrack = nav.desiredTrackTrueDeg - angle;
+        const float err = wrap180f(wantTrack - currentTrackDeg(ac));
+        return turnLawBankDeg(ac, err, cfg_.headingTauS);
+    }
     }
     return 0.f;
 }
@@ -578,34 +583,30 @@ float Autopilot::lateralBankCmd(const AircraftState& ac, const NavState& nav) {
 float Autopilot::verticalPitchCmd(const AircraftState& ac, const NavState& nav, double dtS) {
     float vsTarget = 0.f;
     switch (st_.vertActive) {
-        case VertMode::Off:
-            return pitchDegOf(ac);
-        case VertMode::Pitch:
-            return pitchHoldDeg_;
-        case VertMode::Vs:
-            vsTarget = st_.vsBugFpm;
-            break;
-        case VertMode::Alt:
-        case VertMode::AltCapture: {
-            const bool capture = st_.vertActive == VertMode::AltCapture;
-            const float target = capture ? captureAltFt_ : holdAltFt_;
-            const float gain = capture ? cfg_.altCaptureGainFpmPerFt : cfg_.altHoldGainFpmPerFt;
-            vsTarget = clampf(gain * (target - static_cast<float>(ac.altMslFt)),
-                              -cfg_.vsMaxDescentFpm, cfg_.vsMaxClimbFpm);
-            break;
-        }
-        case VertMode::Gs: {
-            const float vsPath = -ac.gsKt * kFpmPerKtPerRad * std::tan(static_cast<float>(degToRad(kPathDeg)));
-            const float distFt = static_cast<float>(nmToFt(std::max(0.5f, nav.distToThresholdNm)));
-            const float heightErrFt =
-                nav.gsDeflection * static_cast<float>(degToRad(kGsFullScaleDeg)) * distFt;
-            const float corr = clampf(heightErrFt / cfg_.gsTauS * 60.f, -cfg_.gsMaxCorrFpm,
-                                      cfg_.gsMaxCorrFpm);
-            vsTarget = vsPath + corr;
-            break;
-        }
-        case VertMode::Flc:
-            return pitchDegOf(ac);
+    case VertMode::Off: return pitchDegOf(ac);
+    case VertMode::Pitch: return pitchHoldDeg_;
+    case VertMode::Vs: vsTarget = st_.vsBugFpm; break;
+    case VertMode::Alt:
+    case VertMode::AltCapture: {
+        const bool capture = st_.vertActive == VertMode::AltCapture;
+        const float target = capture ? captureAltFt_ : holdAltFt_;
+        const float gain = capture ? cfg_.altCaptureGainFpmPerFt : cfg_.altHoldGainFpmPerFt;
+        vsTarget = clampf(gain * (target - static_cast<float>(ac.altMslFt)), -cfg_.vsMaxDescentFpm,
+                          cfg_.vsMaxClimbFpm);
+        break;
+    }
+    case VertMode::Gs: {
+        const float vsPath =
+            -ac.gsKt * kFpmPerKtPerRad * std::tan(static_cast<float>(degToRad(kPathDeg)));
+        const float distFt = static_cast<float>(nmToFt(std::max(0.5f, nav.distToThresholdNm)));
+        const float heightErrFt =
+            nav.gsDeflection * static_cast<float>(degToRad(kGsFullScaleDeg)) * distFt;
+        const float corr =
+            clampf(heightErrFt / cfg_.gsTauS * 60.f, -cfg_.gsMaxCorrFpm, cfg_.gsMaxCorrFpm);
+        vsTarget = vsPath + corr;
+        break;
+    }
+    case VertMode::Flc: return pitchDegOf(ac);
     }
     // Underspeed protection without an autothrottle: below the minimum speed trade altitude for
     // speed (100 fpm less climb, or more descent, per knot of deficit). GS is exempt (it descends).
@@ -625,8 +626,9 @@ float Autopilot::vsLoopPitch(const AircraftState& ac, float vsTargetFpm, double 
         vsFresh_ = false;
     }
     const float err = vsTargetFpm - ac.vsFpm;
-    vsIntegPitchDeg_ = clampf(vsIntegPitchDeg_ + cfg_.vsKiRel * degPerFpm * err * static_cast<float>(dtS),
-                              cfg_.pitchMinDeg, cfg_.pitchMaxDeg);
+    vsIntegPitchDeg_ =
+        clampf(vsIntegPitchDeg_ + cfg_.vsKiRel * degPerFpm * err * static_cast<float>(dtS),
+               cfg_.pitchMinDeg, cfg_.pitchMaxDeg);
     return vsIntegPitchDeg_ + cfg_.vsKpRel * degPerFpm * err;
 }
 
@@ -648,8 +650,7 @@ void Autopilot::innerLoops(const ControlInputs& pilot, const AircraftState& ac, 
     // roll: bank -> aileron
     const float bankErr = bankCmdDeg_ - rollDeg;
     ailInteg_ = clampf(ailInteg_ + cfg_.rollKi * bankErr * dt, -0.3f, 0.3f);
-    out.aileronNorm =
-        clampf(cfg_.rollKp * bankErr - cfg_.rollKd * pDeg + ailInteg_, -1.f, 1.f);
+    out.aileronNorm = clampf(cfg_.rollKp * bankErr - cfg_.rollKd * pDeg + ailInteg_, -1.f, 1.f);
 
     // pitch: attitude -> elevator, integrator offloaded into trim
     const float pitchErr = pitchCmdDeg_ - pitchDeg;
@@ -659,16 +660,18 @@ void Autopilot::innerLoops(const ControlInputs& pilot, const AircraftState& ac, 
     const float newTrim = clampf(apTrimNorm_ + trimStep, -1.f, 1.f);
     elevInteg_ -= newTrim - apTrimNorm_;
     apTrimNorm_ = newTrim;
-    out.elevatorNorm = clampf(cfg_.pitchKp * pitchErr - cfg_.pitchKd * qDeg + elevInteg_, -1.f, 1.f);
+    out.elevatorNorm =
+        clampf(cfg_.pitchKp * pitchErr - cfg_.pitchKd * qDeg + elevInteg_, -1.f, 1.f);
     out.elevTrimNorm = apTrimNorm_;
 
     // turn coordination: damp sideslip and the yaw rate that the bank does not explain
     if (ac.tasKt > 40.f) {
         const float vMps = static_cast<float>(ktToMps(ac.tasKt));
         const float rollRad = static_cast<float>(ac.rollRad);
-        const float rCoordDeg = static_cast<float>(
-            radToDeg(kG * std::tan(rollRad) / vMps * std::cos(rollRad)));
-        const float rud = cfg_.rudderBetaGain * ac.betaDeg - cfg_.rudderRateGain * (rDeg - rCoordDeg);
+        const float rCoordDeg =
+            static_cast<float>(radToDeg(kG * std::tan(rollRad) / vMps * std::cos(rollRad)));
+        const float rud =
+            cfg_.rudderBetaGain * ac.betaDeg - cfg_.rudderRateGain * (rDeg - rCoordDeg);
         out.rudderNorm = clampf(pilot.rudderNorm + rud, -1.f, 1.f);
     }
 }
@@ -676,8 +679,8 @@ void Autopilot::innerLoops(const ControlInputs& pilot, const AircraftState& ac, 
 // ---------------------------------------------------------------------------------------------
 // autothrottle
 
-void Autopilot::updateAutothrottle(const ControlInputs& pilot, const AircraftState& ac,
-                                   double dtS, ControlInputs& out) {
+void Autopilot::updateAutothrottle(const ControlInputs& pilot, const AircraftState& ac, double dtS,
+                                   ControlInputs& out) {
     if (!st_.atEngaged) {
         atInit_ = atSynced_ = false;
         return;
@@ -706,10 +709,9 @@ void Autopilot::updateAutothrottle(const ControlInputs& pilot, const AircraftSta
     }
 
     // RETARD in the flare on landing (descending, landing configuration, below ~30 ft RA).
-    const bool landingConfig = ac.flapDetent >= approachFlapDetent_ &&
-                               (!ac.gearRetractable || ac.gearPosNorm > 0.9f);
-    if (ac.altAglFt < cfg_.retardAglFt && ac.vsFpm < -50.f && landingConfig)
-        retardLatched_ = true;
+    const bool landingConfig =
+        ac.flapDetent >= approachFlapDetent_ && (!ac.gearRetractable || ac.gearPosNorm > 0.9f);
+    if (ac.altAglFt < cfg_.retardAglFt && ac.vsFpm < -50.f && landingConfig) retardLatched_ = true;
     if (ac.altAglFt > 2.f * cfg_.retardAglFt) retardLatched_ = false;
 
     float target;

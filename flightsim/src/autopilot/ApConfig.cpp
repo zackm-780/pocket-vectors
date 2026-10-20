@@ -44,9 +44,11 @@ void applyKey(ApConfig& c, const std::string& key, float v) {
         {"gs_tau_s", &ApConfig::gsTauS},
         {"gs_max_corr_fpm", &ApConfig::gsMaxCorrFpm},
         {"min_climb_ias_kt", &ApConfig::minClimbIasKt},
+        {"alpha_limit_deg", &ApConfig::alphaLimitDeg},
         {"at_kp", &ApConfig::atKp},
         {"at_ki", &ApConfig::atKi},
         {"at_k_accel", &ApConfig::atKAccel},
+        {"at_available", &ApConfig::atAvailable},
         {"at_slew_per_s", &ApConfig::atSlewPerS},
         {"retard_agl_ft", &ApConfig::retardAglFt},
         {"retard_slew_per_s", &ApConfig::retardSlewPerS},
@@ -69,35 +71,38 @@ void applyKey(ApConfig& c, const std::string& key, float v) {
 ApConfig ApConfig::fromProfile(const AircraftProfile& p) {
     ApConfig c;
     switch (p.category) {
-        case AircraftCategory::Jet:
-            c.bankLimitDeg = 25;
-            c.headingTauS = 4.5f;
-            c.navTauS = 25;
-            c.bankRateLimitDegps = 3.5f;
-            c.pitchRateLimitDegps = 2.0f;
-            c.pitchKp = 0.06f;
-            c.pitchKd = 0.05f;
-            c.vsMaxClimbFpm = 3000;
-            c.vsMaxDescentFpm = 3000;
-            c.vsDefaultFpm = 1500;
-            c.pitchMaxDeg = 15;
-            c.pitchMinDeg = -10;
-            c.atSlewPerS = 0.25f;
-            c.retardAglFt = 30;
-            break;
-        case AircraftCategory::Turboprop:
-            c.bankLimitDeg = 25;
-            c.vsMaxClimbFpm = 2000;
-            c.vsMaxDescentFpm = 2000;
-            c.vsDefaultFpm = 1000;
-            break;
-        case AircraftCategory::Piston:
-            c.vsDefaultFpm = p.engineCount > 1 ? 800.f : 500.f;
-            c.vsMaxClimbFpm = p.engineCount > 1 ? 1500.f : 1000.f;
-            c.vsMaxDescentFpm = 1200;
-            break;
+    case AircraftCategory::Jet:
+        c.bankLimitDeg = 25;
+        c.headingTauS = 4.5f;
+        c.navTauS = 25;
+        c.bankRateLimitDegps = 5.0f;
+        c.pitchRateLimitDegps = 2.0f;
+        c.pitchKp = 0.06f;
+        c.pitchKd = 0.05f;
+        c.vsMaxClimbFpm = 3000;
+        c.vsMaxDescentFpm = 3000;
+        c.vsDefaultFpm = 1500;
+        c.pitchMaxDeg = 15;
+        c.pitchMinDeg = -10;
+        c.atSlewPerS = 0.25f;
+        c.atKp = 0.025f;
+        c.atKi = 0.006f;
+        c.retardAglFt = 30;
+        break;
+    case AircraftCategory::Turboprop:
+        c.bankLimitDeg = 25;
+        c.vsMaxClimbFpm = 2000;
+        c.vsMaxDescentFpm = 2000;
+        c.vsDefaultFpm = 1000;
+        break;
+    case AircraftCategory::Piston:
+        c.vsDefaultFpm = p.engineCount > 1 ? 800.f : 500.f;
+        c.vsMaxClimbFpm = p.engineCount > 1 ? 1500.f : 1000.f;
+        c.vsMaxDescentFpm = 1200;
+        break;
     }
     if (p.vs1Kt > 0) c.minClimbIasKt = 1.25f * p.vs1Kt;
+    if (p.stallWarnAlphaDeg > 0) c.alphaLimitDeg = p.stallWarnAlphaDeg - 2.5f;
     for (const auto& [key, value] : p.autopilot) applyKey(c, key, value);
     return c;
 }

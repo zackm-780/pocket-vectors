@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <string>
 
 #include "SimFixture.h"
@@ -23,7 +22,8 @@ double headingDeg(const AircraftState& s) {
 // Scenario text for a cruise start at XTST (heading 270) with the given autopilot section.
 std::string cruiseScenario(const std::string& aircraft, double altFt, const std::string& extra,
                            const std::string& autopilot, const std::string& wind = "") {
-    return "[scenario]\naircraft = " + aircraft + "\nairport = XTST\nrunway = 27\nstart = cruise\n" +
+    return "[scenario]\naircraft = " + aircraft +
+           "\nairport = XTST\nrunway = 27\nstart = cruise\n" +
            "altitude_ft = " + std::to_string(altFt) + "\n" + extra + "\n[wind]\n" + wind +
            "\n[autopilot]\n" + autopilot;
 }
@@ -35,12 +35,12 @@ TEST_CASE("sim: autopilot 90 degree heading change, overshoot < 5 degrees (c172p
         SimFixture f;
         const bool jet = std::string(ac) == "737";
         const double altFt = jet ? 10000 : 4500;
-        REQUIRE_MESSAGE(f.initText(cruiseScenario(ac, altFt, "",
-                                                  std::string(jet ? "engage = ap at hdg alt\n"
-                                                                  : "engage = ap hdg alt\n") +
-                                                      "hdg_bug_mag_deg = 360\nalt_bug_ft = " +
-                                                      std::to_string(altFt) + "\n")),
-                        f.error);
+        REQUIRE_MESSAGE(
+            f.initText(cruiseScenario(
+                ac, altFt, "",
+                std::string(jet ? "engage = ap at hdg alt\n" : "engage = ap hdg alt\n") +
+                    "hdg_bug_mag_deg = 360\nalt_bug_ft = " + std::to_string(altFt) + "\n")),
+            f.error);
         double maxOvershootDeg = 0, minAltFt = 1e9, maxAltFt = 0;
         for (long i = 0; i < 120 * kSimHz; ++i) {
             f.sim.stepOnce();
@@ -63,7 +63,8 @@ TEST_CASE("sim: autopilot 90 degree heading change, overshoot < 5 degrees (c172p
     }
 }
 
-TEST_CASE("sim: autopilot altitude capture, overshoot < 100 ft (c172p climb, 737 climb and descent)") {
+TEST_CASE(
+    "sim: autopilot altitude capture, overshoot < 100 ft (c172p climb, 737 climb and descent)") {
     struct Case {
         const char* aircraft;
         double startFt, targetFt;
@@ -72,8 +73,10 @@ TEST_CASE("sim: autopilot altitude capture, overshoot < 100 ft (c172p climb, 737
     };
     const Case cases[] = {
         {"c172p", 4500, 6500, "engage = ap hdg alt\nhdg_bug_mag_deg = 270\n", 330},
-        {"737", 10000, 12000, "engage = ap at hdg vs\nhdg_bug_mag_deg = 270\nvs_bug_fpm = 2000\n", 150},
-        {"737", 12000, 10000, "engage = ap at hdg vs\nhdg_bug_mag_deg = 270\nvs_bug_fpm = -1500\n", 150},
+        {"737", 10000, 12000, "engage = ap at hdg vs\nhdg_bug_mag_deg = 270\nvs_bug_fpm = 2000\n",
+         150},
+        {"737", 12000, 10000, "engage = ap at hdg vs\nhdg_bug_mag_deg = 270\nvs_bug_fpm = -1500\n",
+         150},
     };
     for (const Case& c : cases) {
         SimFixture f;
@@ -115,10 +118,11 @@ TEST_CASE("sim: autopilot ILS from 10 NM, within 1 dot of LOC and GS to 200 ft A
         const std::string scenario =
             std::string("[scenario]\naircraft = ") + ac +
             "\nairport = XTST\nrunway = 27\nstart = final\ndistance_nm = 10\napproach = I27\n"
-            "[inputs]\n" + (jet ? "" : "0.0 = throttle 0.3\n25.0 = throttle 0.5\n45.0 = throttle 0.54\n") +
-            "[wind]\nfrom_true_deg = 360\nspeed_kt = 10\n[autopilot]\nengage = ap " +
-            (jet ? "at " : "") + "hdg vs\nhdg_bug_mag_deg = 290\nalt_bug_ft = " + (jet ? "4600" : "4800") + "\nvs_bug_fpm = " +
-            (jet ? "-1500" : "-1000") + "\n" + (jet ? "spd_bug_kt = 145\n" : "");
+            "[inputs]\n" +
+            "" + "[wind]\nfrom_true_deg = 360\nspeed_kt = 10\n[autopilot]\nengage = ap " +
+            "at hdg vs\nhdg_bug_mag_deg = 290\nalt_bug_ft = " + (jet ? "4600" : "4800") +
+            "\nvs_bug_fpm = " + (jet ? "-1500" : "-1000") + "\n" +
+            (jet ? "spd_bug_kt = 145\n" : "spd_bug_kt = 65\n");
         REQUIRE_MESSAGE(f.initText(scenario), f.error);
         Autopilot& ap = f.sim.autopilot();
         const double armAtS = jet ? 30.0 : 45.0;
@@ -151,23 +155,18 @@ TEST_CASE("sim: autopilot ILS from 10 NM, within 1 dot of LOC and GS to 200 ft A
             }
             if (st.latActive == LatMode::Loc && s.altAglFt >= 200)
                 maxCdi = std::max(maxCdi, static_cast<double>(std::fabs(n.cdiDeflection)));
-            if (std::getenv("N6_DEBUG") && i % (5 * kSimHz) == 0)
-                std::printf("  t %.0f agl %.0f ias %.0f vs %.0f cdi %.2f gs %.2f gsv %d lat %d vert %d/%d ap %d stall %d\n",
-                            s.simTimeS, s.altAglFt, s.iasKt, s.vsFpm, n.cdiDeflection, n.gsDeflection,
-                            n.gsValid, (int)st.latActive, (int)st.vertActive, (int)st.vertArmed,
-                            st.apEngaged, s.stallWarning);
             if (s.crashed) break;
         }
-        std::printf(
-            "[N6] %s ILS: LOC captured %.0f s (xtk %.2f NM), GS captured %.0f s, max |cdi| %.3f, max "
-            "|gs| %.3f (1 dot = 0.5), AP off at %.0f ft AGL, lowest coupled %.0f ft AGL\n",
-            ac, locCaptureS, maxXtkAtCaptureNm, gsCaptureS, maxCdi, maxGs, aglAtDisconnect,
-            lowestAglFt);
+        std::printf("[N6] %s ILS: LOC captured %.0f s (xtk %.2f NM), GS captured %.0f s, max |cdi| "
+                    "%.3f, max "
+                    "|gs| %.3f (1 dot = 0.5), AP off at %.0f ft AGL, lowest coupled %.0f ft AGL\n",
+                    ac, locCaptureS, maxXtkAtCaptureNm, gsCaptureS, maxCdi, maxGs, aglAtDisconnect,
+                    lowestAglFt);
         CHECK(locCaptureS > 0);
         CHECK(gsCaptureS >= locCaptureS);
         CHECK(maxCdi <= 0.5);  // within 1 dot after LOC capture, down to 200 ft AGL
         CHECK(maxGs <= 0.5);
-        CHECK(lowestAglFt < 215.0);  // still coupled at 200 ft AGL
+        CHECK(lowestAglFt < 215.0);      // still coupled at 200 ft AGL
         CHECK(aglAtDisconnect > 100.0);  // minimums - 50 ft disconnect (DA = threshold + 200 ft)
         CHECK(aglAtDisconnect < 160.0);
     }
@@ -199,8 +198,9 @@ TEST_CASE("sim: autopilot LNAV through a six-leg plan, XTK < 0.3 NM after each i
             }
             if (legsFlown >= 5 || s.crashed) break;
         }
-        std::printf("[N6] %s LNAV: %d leg changes, max XTK after intercept %.3f NM, alt dev %.0f ft\n",
-                    ac, legsFlown, maxXtkNm, maxAltDevFt);
+        std::printf(
+            "[N6] %s LNAV: %d leg changes, max XTK after intercept %.3f NM, alt dev %.0f ft\n", ac,
+            legsFlown, maxXtkNm, maxAltDevFt);
         CHECK(legsFlown >= 5);  // 5 legs flown (origin leg + 4 turns + the leg to the destination)
         CHECK(maxXtkNm < 0.3);
         CHECK(maxAltDevFt < 150.0);
@@ -213,21 +213,24 @@ TEST_CASE("sim: autopilot NAV arms off course and captures the leg on a closing 
         SimFixture f;
         const bool jet = std::string(ac) == "737";
         const std::string plan = "plan = assets/plans/XTST-lnav.fms\n";
-        REQUIRE_MESSAGE(f.initText(cruiseScenario(ac, jet ? 6000 : 4500, plan,
-                                                  std::string(jet ? "engage = ap at hdg alt\n"
-                                                                  : "engage = ap hdg alt\n") +
-                                                      "hdg_bug_mag_deg = 360\nalt_bug_ft = " +
-                                                      (jet ? "6000" : "4500") + "\nspd_bug_kt = 250\n")),
-                        f.error);
+        REQUIRE_MESSAGE(
+            f.initText(cruiseScenario(
+                ac, jet ? 6000 : 4500, plan,
+                std::string(jet ? "engage = ap at hdg alt\n" : "engage = ap hdg alt\n") +
+                    "hdg_bug_mag_deg = 360\nalt_bug_ft = " + (jet ? "6000" : "4500") +
+                    "\nspd_bug_kt = 250\n")),
+            f.error);
         Autopilot& ap = f.sim.autopilot();
         bool armed = false, captured = false;
         double captureXtkNm = 0, maxXtkAfterNm = 0, captureS = 0;
+        int captureLeg = -1;
+        long samples = 0;
         for (long i = 0; i < 600 * kSimHz; ++i) {
             f.sim.stepOnce();
             const AircraftState& s = f.sim.aircraft();
             const NavState& n = f.sim.navState();
             const AutopilotState& st = f.sim.autopilotState();
-            if (!armed && s.simTimeS >= (jet ? 10.0 : 40.0)) {
+            if (!armed && s.simTimeS >= (jet ? 14.0 : 40.0)) {
                 // well off the first leg, now heading back toward it (southwest)
                 ap.setHdgBugMagDeg(jet ? 250 : 240);
                 ap.selectNav(n);
@@ -238,14 +241,21 @@ TEST_CASE("sim: autopilot NAV arms off course and captures the leg on a closing 
                 captured = true;
                 captureS = s.simTimeS;
                 captureXtkNm = std::fabs(n.crossTrackNm);
+                captureLeg = n.activeLegIndex;
             }
-            if (captured && s.simTimeS > captureS + (jet ? 60.0 : 90.0) && n.activeLegIndex == 1)
-                maxXtkAfterNm = std::max(maxXtkAfterNm, static_cast<double>(std::fabs(n.crossTrackNm)));
+            if (captured && s.simTimeS > captureS + (jet ? 3.0 : 30.0) &&
+                n.activeLegIndex == captureLeg) {
+                maxXtkAfterNm =
+                    std::max(maxXtkAfterNm, static_cast<double>(std::fabs(n.crossTrackNm)));
+                ++samples;
+            }
         }
-        std::printf("[N6] %s NAV intercept: captured at %.0f s with XTK %.2f NM, later max XTK %.3f\n",
-                    ac, captureS, captureXtkNm, maxXtkAfterNm);
+        std::printf(
+            "[N6] %s NAV intercept: captured at %.0f s with XTK %.2f NM, later max XTK %.3f\n", ac,
+            captureS, captureXtkNm, maxXtkAfterNm);
         CHECK(captured);
-        CHECK(captureXtkNm > 0.1);  // a genuine intercept, not an on-course capture
+        CHECK(captureXtkNm > 0.1);    // a genuine intercept, not an on-course capture
+        CHECK(samples > 3 * kSimHz);  // the check below is not vacuous
         CHECK(maxXtkAfterNm < 0.3);
     }
 }
