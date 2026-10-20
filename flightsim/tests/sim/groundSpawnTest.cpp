@@ -8,6 +8,7 @@
 #include "app/Simulation.h"
 #include "core/FlatTerrain.h"
 #include "groundSupport.h"
+#include "world/AirportGeometry.h"
 
 using namespace fsim;
 using namespace fsim::test;
@@ -85,6 +86,7 @@ TEST_CASE("sim: ground Simulation::init gates the start on terrain detail and si
     SynthWorld world(hills(6.0), nullptr, 0.15, 25, /*load=*/false);
     terrain::TerrainService& svc = world.terrain();
     Simulation sim(env.paths, env.nav, svc);
+    world::registerAirportFlatten(env.nav.airport(), svc);  // as App does (W5)
     sim.setTerrainPump([&](double lat, double lon) { svc.update(lat, lon); });
     REQUIRE_FALSE(svc.isDetailReady(SyntheticNavDb::kLatDeg, SyntheticNavDb::kLonDeg));
     REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error),
@@ -127,6 +129,7 @@ TEST_CASE("sim: ground a final start gates on both the start point and the runwa
     SynthWorld world(hills(4.0), nullptr, 0.15, 10, /*load=*/false);
     terrain::TerrainService& svc = world.terrain();
     Simulation sim(env.paths, env.nav, svc);
+    world::registerAirportFlatten(env.nav.airport(), svc);  // as App does (W5)
     sim.setTerrainPump([&](double lat, double lon) { svc.update(lat, lon); });
     REQUIRE_MESSAGE(
         initSim(sim, "[scenario]\nstart = final\nrunway = 27\ndistance_nm = 3\n", env.error),
@@ -148,6 +151,7 @@ TEST_CASE("sim: ground a runway start takes off from the pad on rough terrain") 
     SynthWorld world(hills(3.0));
     terrain::TerrainService& svc = world.terrain();
     Simulation sim(env.paths, env.nav, svc);
+    world::registerAirportFlatten(env.nav.airport(), svc);  // as App does (W5)
     REQUIRE_MESSAGE(
         initSim(sim,
                 "[scenario]\nstart = runway\nrunway = 27\n[inputs]\n0.0 = parkingbrake 0\n"

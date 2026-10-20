@@ -49,7 +49,7 @@ if [ "${SKIP_PROBE:-0}" != 1 ]; then
   find "$BUILD/probe" -name 'libJSBSim.so*' \( -type f -o -type l \) -exec cp -a {} "$PROBE_LIBS/" \;
   [ -n "$(find "$PROBE_LIBS" -name "libJSBSim.so*" -print -quit)" ] || { echo "libJSBSim.so not found after the probe build" >&2; exit 1; }
 
-  PROBE_ARGS=(--port-dir tools/probe/port --script "tools/probe/port/Flight Sim Probe.sh" --name flightsimprobe --binary "$BUILD/probe/flightsim_probe"
+  PROBE_ARGS=(--port-dir tools/probe/port --script tools/probe/port/FlightSimProbe.sh --name flightsimprobe --binary "$BUILD/probe/flightsim_probe"
               --libs-dir "$PROBE_LIBS" --licenses-dir port/licenses --strip "$STRIP_CMD")
   if [ -d "$BUILD/probe/jsbsim" ]; then PROBE_ARGS+=(--runtime "$BUILD/probe/jsbsim:jsbsim"); fi
   port/package_port.sh "${PROBE_ARGS[@]}" --out "$DIST/flightsim-probe-portmaster.zip"
@@ -76,7 +76,7 @@ if [ -f CMakeLists.txt ] && [ -f src/main.cpp ]; then
   rm -rf "$MAIN_LIBS"; mkdir -p "$MAIN_LIBS"
   find "$BUILD/main" -name 'libJSBSim.so*' \( -type f -o -type l \) -exec cp -a {} "$MAIN_LIBS/" \;
   [ -n "$(find "$MAIN_LIBS" -name "libJSBSim.so*" -print -quit)" ] || { echo "libJSBSim.so not found after the main build" >&2; exit 1; }
-  MAIN_PKG=(--port-dir port --script "port/Flight Sim.sh" --name flightsim --binary "$MAIN_BIN" --libs-dir "$MAIN_LIBS"
+  MAIN_PKG=(--port-dir port --script port/FlightSim.sh --name flightsim --binary "$MAIN_BIN" --libs-dir "$MAIN_LIBS"
             --licenses-dir port/licenses --strip "$STRIP_CMD")
   MAIN_DIR="$(dirname "$MAIN_BIN")"
   [ -d "$MAIN_DIR/jsbsim" ] && MAIN_PKG+=(--runtime "$MAIN_DIR/jsbsim:jsbsim")

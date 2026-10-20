@@ -6,6 +6,8 @@
 #include "core/SimTime.h"
 #include "core/SyntheticNavDb.h"  // findRunway
 #include "core/Units.h"
+#include "nav/ApproachBuilder.h"  // N5
+#include "nav/FlightPlan.h"       // N5
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
@@ -14,7 +16,7 @@ constexpr float kSpawnPrefetchRadiusM = 5000.0f;  // F3
 }
 
 Simulation::Simulation(const Paths& paths, const NavDatabase& nav, TerrainQuery& terrain)
-    : paths_(paths), nav_(nav), terrain_(terrain), model_(paths.asset("jsbsim")) {}
+    : paths_(paths), nav_(nav), terrain_(terrain), model_(paths.asset("jsbsim")), navigator_(nav) {}
 
 bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverride,
                       std::string& error) {
@@ -26,17 +28,10 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
     if (!loadAircraftProfile(profilePath, profile_, error)) return false;
     if (!resolveStart(scenario_, nav_, profile_, start_, error)) return false;
 
-    // F3: the flight model's ground is the terrain. Make the start sit on it.
+    // F3: the flight model's ground is the terrain. Make the start sit on it. The runway pads
+    // (flatten areas) must already be registered (W5: App does it before init()).
     const Airport* airport = nav_.findAirport(scenario_.airportIdent);
     const Runway* runway = airport ? findRunway(*airport, scenario_.runwayIdent) : nullptr;
-    if (runway) {
-        // F3: temporary until W5 registers runway flatten areas: the start runway is a flat pad.
-        const std::string padKey = runway->airportIdent + "/" + runway->ident;
-        if (padKey != flattenedRunway_) {
-            terrain_.addFlattenArea(runwayFlattenArea(*runway));
-            flattenedRunway_ = padKey;
-        }
-    }
     std::vector<SpawnPoint> gatePoints{{start_.latDeg, start_.lonDeg}};
     if (runway && start_.kind != StartCondition::Kind::Runway)
         gatePoints.push_back({runway->thrLatDeg, runway->thrLonDeg});  // where it will land
@@ -62,6 +57,7 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
     accumulatorS_ = 0;
     nextTraceS_ = 0;
     navState_ = NavState{};
+    if (!initNavigation(error)) return false;  // N5
 
     // Scenario autopilot settings are recorded for the HUD; the real autopilot (N6) acts on them.
     AutopilotState& ap = autopilot_.state();
@@ -76,6 +72,55 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
              scenario_.startKind.c_str(), start_.latDeg, start_.lonDeg,
              start_.kind == StartCondition::Kind::Runway ? start_.fieldElevFt : start_.altMslFt,
              start_.headingTrueDeg);
+    return true;
+}
+
+// N5: optional `plan` / `approach` scenario keys. A plan is loaded from an .fms file; an approach
+// id is loaded into it (or, without a plan, becomes a one-approach plan at the scenario airport).
+// Scenarios that start in the air activate the leg nearest the aircraft.
+bool Simulation::initNavigation(std::string& error) {
+    navigator_.clearPlan();
+    navigator_.setAircraftCategory(profile_.category);
+    const bool inAir = start_.kind != StartCondition::Kind::Runway;
+    if (!scenario_.planPath.empty()) {
+        const std::string path = paths_.resolveInputFile(scenario_.planPath);
+        PlanBuildResult r = loadPlanFromFmsFile(path, nav_);
+        if (!r.ok) {
+            error =
+                "scenario plan '" + path + "': " + (r.errors.empty() ? "unreadable" : r.errors[0]);
+            return false;
+        }
+        if (!scenario_.approachId.empty()) {
+            r.plan.approachId = scenario_.approachId;
+            r.plan.approachStartLeg = -1;
+            const std::string rwy = runwayFromApproachId(scenario_.approachId);
+            if (!rwy.empty()) r.plan.arrRunway = rwy;
+        }
+        navigator_.setPlan(std::move(r.plan));
+        if (!scenario_.approachId.empty() && navigator_.plan().approachStartLeg < 0) {
+            error = "scenario approach '" + scenario_.approachId + "' is not available for " +
+                    navigator_.plan().destIdent + " " + navigator_.plan().arrRunway;
+            return false;
+        }
+    } else if (!scenario_.approachId.empty()) {
+        std::string rwy = runwayFromApproachId(scenario_.approachId);
+        if (rwy.empty()) rwy = scenario_.runwayIdent;
+        auto approach = findApproach(nav_, scenario_.airportIdent, rwy, scenario_.approachId);
+        if (!approach) {
+            error = "scenario approach '" + scenario_.approachId + "' is not available for " +
+                    scenario_.airportIdent + " " + rwy;
+            return false;
+        }
+        if (!navigator_.startApproachOnly(*approach, LatLon{start_.latDeg, start_.lonDeg}, 0)) {
+            error = "cannot load approach " + scenario_.approachId;
+            return false;
+        }
+    } else {
+        return true;
+    }
+    if (inAir) navigator_.activateNearestLeg(model_.state());
+    LOG_INFO("navigation: plan %zu legs, active leg %d, approach %s", navigator_.plan().legs.size(),
+             navigator_.plan().activeLeg, navigator_.plan().approachId.c_str());
     return true;
 }
 

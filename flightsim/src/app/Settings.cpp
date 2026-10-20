@@ -362,6 +362,8 @@ std::string scenarioToIni(const Scenario& sc) {
     out += "distance_nm = " + num(sc.distanceNm) + "\n";
     out += "altitude_ft = " + num(sc.altitudeFt) + "\n";
     if (!sc.timeUtc.empty()) out += "time_utc = " + sc.timeUtc + "\n";
+    if (!sc.planPath.empty()) out += "plan = " + sc.planPath + "\n";          // N5
+    if (!sc.approachId.empty()) out += "approach = " + sc.approachId + "\n";  // N5
     out += "\n[wind]\nfrom_true_deg = " + num(sc.windFromTrueDeg) +
            "\nspeed_kt = " + num(sc.windSpeedKt) + "\n";
     if (!sc.apEngage.empty() || sc.hasHdgBug || sc.hasAltBug) {

@@ -38,14 +38,17 @@ Add observations from device tests here (date, build, what was seen).
 - **2026-10-19, first sideload (stock OS):** both the probe and the game opened and exited
   immediately. Likely cause: the stock OS has no PortMaster, so the PortMaster-template launch
   scripts failed before writing any log. The scripts now run without PortMaster (and under a
-  plain `sh`) and always write `<port>_launch_log.txt` next to the script. Awaiting a retest.
+  plain `sh`) and always write `<port>_launch_log.txt` next to the script. They were also renamed
+  to `FlightSim.sh` / `FlightSimProbe.sh` (no spaces, in case the launcher does not quote paths),
+  and the log now records whether the userspace is 64-bit (some stock OS releases are 32-bit,
+  which the aarch64 build cannot run on). Awaiting a retest.
 
 ## 4. How to run the probe
 The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in
 `tools/probe/README.md`). Every row of the table in section 2 has a matching entry in the report's
 KEY FACTS block.
 1. Get `flightsim-probe-portmaster.zip` from the `device` CI workflow artifact (or `tools/build_device.sh`).
-2. Unzip it into your PortMaster ports folder on the SD card (`Flight Sim Probe.sh` and `flightsimprobe/`
+2. Unzip it into your PortMaster ports folder on the SD card (`FlightSimProbe.sh` and `flightsimprobe/`
    side by side).
 3. Run "Flight Sim Probe" from the Ports menu. Hands off for the first 1.5 s, then press what each prompt
    asks (never Select and Start together: that exits). About 2 minutes in total.

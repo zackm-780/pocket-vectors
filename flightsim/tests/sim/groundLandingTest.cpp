@@ -7,6 +7,7 @@
 
 #include "core/FlatTerrain.h"
 #include "groundSupport.h"
+#include "world/AirportGeometry.h"
 
 using namespace fsim;
 using namespace fsim::test;
@@ -193,7 +194,7 @@ TEST_CASE("sim: ground a runway pad on rough terrain rolls flat") {
     SynthWorld rough(roughHills(3.0));
     // Control: the same hills without a pad make a visibly bumpy roll.
     const RollStats bumpy = takeoffRoll(rough.terrain());
-    rough.terrain().addFlattenArea(runwayFlattenArea(*rwy));
+    world::registerAirportFlatten(nav.airport(), rough.terrain());  // as App does (W5)
     const RollStats flat = takeoffRoll(rough.terrain());
     FunctionTerrain level([](double, double) { return kXtstElevM; });
     const RollStats ref = takeoffRoll(level);  // the same roll on perfectly level ground

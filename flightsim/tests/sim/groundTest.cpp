@@ -15,6 +15,7 @@
 #include "core/FlatTerrain.h"
 #include "groundSupport.h"
 #include "sim/GroundCallback.h"
+#include "world/AirportGeometry.h"
 
 using namespace fsim;
 using namespace fsim::test;
@@ -168,7 +169,7 @@ TEST_CASE("ground: surface follows a TerrainService pack and its runway flatten 
     CHECK(maxSlopeOff > 0.05);
 
     // On the runway pad the surface is dead flat at the runway elevation, normal straight up.
-    world.terrain().addFlattenArea(runwayFlattenArea(*rwy));
+    world::registerAirportFlatten(nav.airport(), world.terrain());  // as App does (W5)
     double maxSlopeOn = 0, maxDevM = 0;
     for (int i = 0; i <= 50; ++i) {
         double lat = 0, lon = 0;

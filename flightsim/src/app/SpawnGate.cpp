@@ -5,9 +5,6 @@
 #include <cmath>
 #include <thread>
 
-#include "core/Geo.h"
-#include "core/Units.h"
-
 namespace fsim {
 namespace {
 
@@ -47,33 +44,6 @@ SpawnGateResult waitForSpawnDetail(TerrainQuery& terrain, const std::vector<Spaw
             return r;
         }
     }
-}
-
-FlattenArea runwayFlattenArea(const Runway& rwy, float shoulderM, float endMarginM, float blendM) {
-    // Along-runway bearing from the pavement start to its far end (the stored heading is rounded;
-    // the end points are authoritative).
-    double bearingRad = degToRad(rwy.headingTrueDeg);
-    if (rwy.startLatDeg != rwy.endLatDeg || rwy.startLonDeg != rwy.endLonDeg)
-        bearingRad =
-            initialBearingTrueRad(rwy.startLatDeg, rwy.startLonDeg, rwy.endLatDeg, rwy.endLonDeg);
-    const double halfWidthM = 0.5 * ftToM(rwy.widthFt) + shoulderM;
-
-    double baseLat = 0, baseLon = 0, tipLat = 0, tipLon = 0;
-    destinationPoint(rwy.startLatDeg, rwy.startLonDeg, bearingRad + kPi, endMarginM, baseLat,
-                     baseLon);
-    destinationPoint(rwy.endLatDeg, rwy.endLonDeg, bearingRad, endMarginM, tipLat, tipLon);
-
-    FlattenArea a;
-    // Counter-clockwise seen from above: along the right side, back along the left side (the
-    // interior is on the left of every edge).
-    const double right = bearingRad + 0.5 * kPi, left = bearingRad - 0.5 * kPi;
-    destinationPoint(baseLat, baseLon, right, halfWidthM, a.latDeg[0], a.lonDeg[0]);
-    destinationPoint(tipLat, tipLon, right, halfWidthM, a.latDeg[1], a.lonDeg[1]);
-    destinationPoint(tipLat, tipLon, left, halfWidthM, a.latDeg[2], a.lonDeg[2]);
-    destinationPoint(baseLat, baseLon, left, halfWidthM, a.latDeg[3], a.lonDeg[3]);
-    a.elevM = static_cast<float>(ftToM(0.5 * (rwy.thrElevFt + rwy.endElevFt)));
-    a.blendM = blendM;
-    return a;
 }
 
 }  // namespace fsim

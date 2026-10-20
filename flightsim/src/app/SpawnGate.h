@@ -1,12 +1,10 @@
 #pragma once
-// Spawn gating and start-runway flattening (WP F3). Used by Simulation::init so an aircraft never
-// appears over terrain that is not loaded yet (it would fall to sea level, or be buried when the
-// detail tiles arrive), and so a runway start sits on the runway surface.
+// Spawn gating (WP F3). Used by Simulation::init so an aircraft never appears over terrain that is
+// not loaded yet (it would fall to sea level, or be buried when the detail tiles arrive).
 
 #include <functional>
 #include <vector>
 
-#include "core/NavTypes.h"
 #include "core/TerrainQuery.h"
 
 namespace fsim {
@@ -31,11 +29,5 @@ using TerrainPump = std::function<void(double latDeg, double lonDeg)>;
 // (FlatTerrain, no pack). Without a pump nothing can change, so it does not wait.
 SpawnGateResult waitForSpawnDetail(TerrainQuery& terrain, const std::vector<SpawnPoint>& points,
                                    float prefetchRadiusM, double timeoutS, const TerrainPump& pump);
-
-// Temporary until W5 (airports) registers runway flatten areas for every airport: the quad around
-// a runway's pavement (plus shoulders and end margins) forced to the runway elevation (mean of the
-// threshold and far-end elevations), blending back to natural terrain over blendM.
-FlattenArea runwayFlattenArea(const Runway& runway, float shoulderM = 30.0f,
-                              float endMarginM = 60.0f, float blendM = 100.0f);
 
 }  // namespace fsim

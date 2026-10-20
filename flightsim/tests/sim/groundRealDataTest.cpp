@@ -16,6 +16,7 @@
 #include "app/Simulation.h"
 #include "groundSupport.h"
 #include "nav/NavDb.h"
+#include "world/AirportGeometry.h"
 
 using namespace fsim;
 using namespace fsim::test;
@@ -116,6 +117,7 @@ TEST_CASE("sim: ground real data: KPDX 28L runway start sits on the runway and t
     RealWorld w;
     if (!w.open()) return;
     Simulation sim(w.paths, w.nav, *w.svc);
+    world::registerAirportFlatten(*w.nav.findAirport("KPDX"), *w.svc);  // as App does (W5)
     sim.setTerrainPump(w.pump());
     Scenario sc;
     std::string err;
@@ -174,6 +176,7 @@ TEST_CASE("sim: ground real data: KOTH 05 final lands on the runway without a cr
     RealWorld w;
     if (!w.open()) return;
     Simulation sim(w.paths, w.nav, *w.svc);
+    world::registerAirportFlatten(*w.nav.findAirport("KOTH"), *w.svc);  // as App does (W5)
     sim.setTerrainPump(w.pump());
     Scenario sc;
     std::string err;

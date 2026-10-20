@@ -220,8 +220,9 @@ must put it on the terrain (`Simulation::init` does; tests use `placeStartOnTerr
   coarser one and the ground can step by the difference. Starts avoid this with the spawn gate
   (`app/SpawnGate.*`): `Simulation::init` prefetches around the start (and the landing runway),
   pumps `TerrainService::update` through `setTerrainPump` and waits up to 10 s for
-  `isDetailReady`, then starts anyway with a warning. It also registers the start runway's pad
-  (`runwayFlattenArea`, `// F3: temporary until W5`) so a runway start sits on the runway surface.
+  `isDetailReady`, then starts anyway with a warning. Runway pads are W5's
+  (`world::registerAirportFlatten`, called by `App` before `Simulation::init`): the runway start
+  height comes from `elevationM` at the start point, so it sits on the flattened runway.
 - Water rule: any weight on any contact point while `landClass` is `Water` ("water impact");
   closure rule: touchdown vs or the speed against the slope 60 m ahead above the limit
   ("terrain impact"); contact by a non-wheel point is a structure strike as before.
