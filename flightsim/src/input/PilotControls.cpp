@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "input/InputCurves.h"
+
 namespace fsim {
 namespace {
 
@@ -25,15 +27,24 @@ void PilotControls::update(const ActionState& in, const AircraftProfile& profile
     };
 
     // ---- sticks and steering ----
-    c.elevatorNorm = std::clamp(in.axis[idx(Axis::Pitch)], -1.0f, 1.0f);
-    c.aileronNorm = std::clamp(in.axis[idx(Axis::Roll)], -1.0f, 1.0f);
-    c.rudderNorm = std::clamp(in.axis[idx(Axis::Rudder)], -1.0f, 1.0f);
+    // P3: per-axis user expo then sensitivity (defaults are the identity).
+    auto tune = [](float x, float sens, float expo) {
+        x = std::clamp(x, -1.0f, 1.0f);
+        return std::clamp(input::applyExpo(x, expo) * sens, -1.0f, 1.0f);
+    };
+    c.elevatorNorm = tune(in.axis[idx(Axis::Pitch)], stick_.pitchSens, stick_.pitchExpo);
+    c.aileronNorm = tune(in.axis[idx(Axis::Roll)], stick_.rollSens, stick_.rollExpo);
+    c.rudderNorm = tune(in.axis[idx(Axis::Rudder)], stick_.rudderSens, stick_.rudderExpo);
     c.steeringNorm = c.rudderNorm;  // nosewheel steering follows the rudder
 
     // ---- throttle rate ----
     const float throttleDelta =
         in.axis[idx(Axis::ThrottleRate)] * tuning_.throttleFullRatePerS * dt;
-    if (throttleDelta != 0.0f) {
+    if (stick_.throttleAbsolute) {  // P3: stick position = throttle
+        const float pos = 0.5f * (std::clamp(in.axis[idx(Axis::ThrottleRate)], -1.0f, 1.0f) + 1.0f);
+        const int engines = std::min(profile.engineCount, kMaxEngines);
+        for (int i = 0; i < engines; ++i) c.throttleNorm[i] = pos;
+    } else if (throttleDelta != 0.0f) {
         const int engines = std::min(profile.engineCount, kMaxEngines);
         for (int i = 0; i < engines; ++i)
             c.throttleNorm[i] = std::clamp(c.throttleNorm[i] + throttleDelta, 0.0f, 1.0f);
