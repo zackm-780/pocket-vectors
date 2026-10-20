@@ -399,7 +399,7 @@ warnings, transient messages, and declutter levels.
 HUD.md. Every status field is visible in FULL declutter.
 
 ## H3: Nav and autopilot HUD
-**Status:** in progress (wp/H3-nav-hud) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
+**Status:** done, merged (needs device test: S-size text legibility, FD cue and dot spacing; `--hud-fake <name>` shows canned modes) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
 
 **Owns:** `src/hud/NavHud*`, `tests/hud/navhud*`.
 FMA line, nav box, CDI, LOC/GS scales, bearing and DTK marks on the heading tape, bugs, FD guidance
