@@ -93,6 +93,12 @@ bool hudFake(const std::string& name, int frame, const AircraftState& s, float m
     } else if (name == "loc_gs") {
         ils(true);
         autopilot(LatMode::Loc, VertMode::Gs);
+        if (frame < 40) {  // captures at frame 40: shows the 5 s mode-change boxes
+            a.latActive = LatMode::Hdg;
+            a.vertActive = VertMode::Alt;
+            a.latArmed = LatMode::Loc;
+            a.vertArmed = VertMode::Gs;
+        }
     } else if (name == "loc_armed") {
         ils(true);
         n.cdiDeflection = 1.1f;

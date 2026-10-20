@@ -179,8 +179,9 @@ const char* navSourceName(NavSource s) {
 
 ScaleState buildScales(const NavState& nav, const AutopilotState& ap) {
     ScaleState s;
-    s.locVisible =
-        nav.locValid || (nav.source == NavSource::Gps && nav.phase == NavPhase::Approach);
+    // CDI for GPS with an active waypoint in any phase (ENR / TERM / APR), a VOR, or a valid LOC.
+    s.locVisible = nav.locValid || nav.source == NavSource::Vor ||
+                   (nav.source == NavSource::Gps && nav.activeWptIdent[0] != 0);
     if (s.locVisible) {
         s.loc = deviationDots(nav.cdiDeflection);
         s.locFilled = !(ap.latArmed == LatMode::Loc && ap.latActive != LatMode::Loc);
