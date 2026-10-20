@@ -330,7 +330,8 @@ struct StallResult {
 // minimum indicated airspeed reached before the stall breaks (load factor falls below 0.93, or
 // 12 s after the minimum) and the angle of attack there. At this slow rate the aircraft stays
 // near 1 g, so this is the 1 g stall speed.
-inline StallResult measureStall(const FleetSpec& sp, int detent, bool gearDown, double startKt) {
+inline StallResult measureStall(const FleetSpec& sp, int detent, bool gearDown, double startKt,
+                                double settleS = 5.0) {
     Flight f;
     REQUIRE(f.resolve(sp.id, "cruise"));
     f.start.iasKt = startKt;
@@ -348,7 +349,7 @@ inline StallResult measureStall(const FleetSpec& sp, int detent, bool gearDown, 
         f.ctl.aileronNorm = bankHoldAileron(s);
         f.ctl.rudderNorm = headingHoldRudder(s, 270.0, 0.02, 0.02);
         f.step();
-        if (f.s().nzG < 0.93f && f.s().alphaDeg > 5.0f && f.s().simTimeS > 5.0) break;
+        if (f.s().nzG < 0.93f && f.s().alphaDeg > 5.0f && f.s().simTimeS > settleS) break;
         if (f.s().iasKt < minIas) {
             minIas = f.s().iasKt;
             r.iasKt = minIas;
@@ -360,14 +361,16 @@ inline StallResult measureStall(const FleetSpec& sp, int detent, bool gearDown, 
     return r;
 }
 
-inline void stallTest(const FleetSpec& sp) {
+inline void stallTest(const FleetSpec& sp, double settleS = 5.0) {
     Flight f;
     REQUIRE(f.loadProfile(sp.id));
     const AircraftProfile& p = f.profile;
     const size_t last = p.flapDetents.size() - 1;
-    const StallResult clean = measureStall(sp, 0, !p.hasRetractableGear, sp.stallCleanKt * 1.5);
-    const StallResult full = measureStall(sp, static_cast<int>(last), true, p.vappKt * 1.1);
-    const StallResult appr = measureStall(sp, p.approachFlapDetent, true, p.vappKt * 1.1);
+    const StallResult clean =
+        measureStall(sp, 0, !p.hasRetractableGear, sp.stallCleanKt * 1.5, settleS);
+    const StallResult full =
+        measureStall(sp, static_cast<int>(last), true, p.vappKt * 1.1, settleS);
+    const StallResult appr = measureStall(sp, p.approachFlapDetent, true, p.vappKt * 1.1, settleS);
     INFO("clean " << clean.iasKt << " kt / " << clean.alphaDeg << " deg, full flaps " << full.iasKt
                   << " kt / " << full.alphaDeg << " deg, approach flaps " << appr.iasKt << " kt / "
                   << appr.alphaDeg << " deg");

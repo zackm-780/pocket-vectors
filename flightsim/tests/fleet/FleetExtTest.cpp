@@ -42,12 +42,23 @@ TEST_CASE("sim: fleet extended fleet loads without errors") {
     std::remove(logPath.c_str());
 }
 
+namespace {
+// The stall deceleration starts from a trim in a changed configuration; heavy aircraft need about
+// 30 s to settle before the load-factor drop means a stall.
+void stallTestExt(const FleetSpec& sp) {
+    stallTest(sp, 30.0);
+}
+}  // namespace
+
 #define FLEET_EXT_CASES(PHASE, FN)                                                                 \
     TEST_CASE("sim: fleet A320 " PHASE) {                                                          \
         FN(kFleetExt[0]);                                                                          \
     }                                                                                              \
     TEST_CASE("sim: fleet 787-8 " PHASE) {                                                         \
         FN(kFleetExt[1]);                                                                          \
+    }                                                                                              \
+    TEST_CASE("sim: fleet MD11 " PHASE) {                                                          \
+        FN(kFleetExt[2]);                                                                          \
     }
 
 FLEET_EXT_CASES("profile", profileTest)
@@ -57,4 +68,4 @@ FLEET_EXT_CASES("configuration changes", configTest)
 FLEET_EXT_CASES("approach", approachTest)
 FLEET_EXT_CASES("hands-off final", handsOffTest)
 FLEET_EXT_CASES("landing", landingTest)
-FLEET_EXT_CASES("stall", stallTest)
+FLEET_EXT_CASES("stall", stallTestExt)
