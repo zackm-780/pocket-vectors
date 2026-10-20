@@ -12,6 +12,8 @@
 
 #include "app/Settings.h"  // P3
 #include "app/Simulation.h"
+#include "audio/AudioControl.h"  // S1
+#include "audio/AudioEngine.h"   // S1
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
 #include "core/MessageQueue.h"  // P2
@@ -215,6 +217,17 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (!opt.screenshotPath.empty() && frames == 0) frames = kDefaultScreenshotFrames;
     const bool interactive = frames == 0;  // --frames runs are scripted and deterministic
 
+    // S1: procedural audio. No device is never an error (init just returns false); scripted
+    // --frames runs stay silent.
+    audio::AudioEngine audioEngine;
+    audio::AudioControl audioControl;
+    audio::AudioParams audioParams;
+    std::vector<audio::AudioEvent> audioEvents;
+    audioEvents.reserve(16);
+    std::vector<audio::AudioEvent> gpwsToneBuf;  // X2: GPWS tones for S1, reused per frame
+    gpwsToneBuf.reserve(8);
+    if (interactive) audioEngine.init();
+
     AppState state = AppState::Flying;
     bool quitRequested = false;
     // H5: applies edited settings to the running game (HUD color, sticks, FOV, FPS display).
@@ -331,13 +344,50 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
             sim.advance(dtS);
         }
-        {  // X2: GPWS-lite; text callouts go to the message queue (S1 will add the tones)
+        gpwsToneBuf.clear();
+        {  // X2: GPWS-lite; text callouts go to the message queue, tones to S1
             gpws.update(sim.aircraft(), sim.profile(), &sim.navState(), sim.terrain(),
                         &sim.navDb());
-            for (GpwsEvent ev; gpws.consumeEvent(ev);)
+            for (GpwsEvent ev; gpws.consumeEvent(ev);) {
                 if (ev.kind == GpwsEventKind::Callout || ev.kind == GpwsEventKind::TooLowGear ||
                     ev.kind == GpwsEventKind::TooLowFlaps)
                     messages.post(ev.text);
+                switch (ev.kind) {  // freq, duration, repeats, gap, gain, alternate freq
+                case GpwsEventKind::Callout:
+                    gpwsToneBuf.push_back(audio::makeTone(1000, 0.08f));
+                    break;
+                case GpwsEventKind::SinkRate:
+                case GpwsEventKind::Terrain:
+                    gpwsToneBuf.push_back(audio::makeTone(700, 0.2f, 2, 0.12f, 0.6f));
+                    break;
+                case GpwsEventKind::PullUp:
+                    gpwsToneBuf.push_back(audio::makeTone(800, 0.25f, 3, 0.05f, 0.7f, 1200));
+                    break;
+                case GpwsEventKind::TooLowGear:
+                case GpwsEventKind::TooLowFlaps:
+                    gpwsToneBuf.push_back(audio::makeTone(600, 0.15f, 2, 0.1f, 0.6f));
+                    break;
+                }
+            }
+        }
+        if (audioEngine.deviceOpen()) {  // S1: sim state -> audio params and one-shot events
+            const AircraftState& as = sim.aircraft();
+            audio::AudioFrameInput ain;
+            ain.state = &as;
+            ain.profile = &sim.profile();
+            const AutopilotState& apState = sim.autopilotState();
+            ain.ap = &apState;
+            ain.stallWarning = (activeWarnings(as, sim.finalControls(), sim.profile(), hudOptions) &
+                                warningBit(WarningId::Stall)) != 0;
+            ain.minimumsAlert = navHud.consumeMinimumsAlert();
+            ain.paused = state != AppState::Flying;
+            ain.volumePct = settings.volumePct;  // live: H5's settings menu edits it
+            ain.dtS = static_cast<float>(dtS);
+            audioEvents.clear();
+            audioControl.update(ain, audioParams, audioEvents);
+            if (!ain.paused)  // X2: GPWS tones
+                audioEvents.insert(audioEvents.end(), gpwsToneBuf.begin(), gpwsToneBuf.end());
+            audioEngine.update(audioParams, audioEvents);
         }
         // W1: once per frame (also while paused, so tiles keep arriving).
         const AircraftState view = viewState();  // W2

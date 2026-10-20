@@ -421,7 +421,7 @@ nearest list), runway select, start type, flight plan screen (load `.fms`, quick
 approach select), settings screen, and confirmation dialogs.
 
 ## S1: Procedural audio
-**Status:** in progress (wp/S1-audio) · **Model / effort:** Sonnet / medium · **Depends:** F1 · **Owns:** `src/audio/`
+**Status:** done, merged (needs device test: underruns at 512 samples, callback CPU, speaker balance; GPWS tones wired by the supervisor) · **Model / effort:** Sonnet / medium · **Depends:** F1 · **Owns:** `src/audio/`
 SDL audio. Engine sound by type and RPM/N1, wind by IAS, gear and flap motor sounds, touchdown,
 stall horn, AP disconnect tone, and altitude/minimums alert tones. Volume setting.
 
