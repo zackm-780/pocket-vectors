@@ -195,7 +195,7 @@ trim. (c) Reset 100 times with no growth in RSS. (d) Hard-impact scenario sets `
 cruise start holds altitude ±200 ft for 60 s.
 
 ## F2: Core fleet profiles and flyability tests
-**Status:** in progress (wp/F2-core-fleet) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
+**Status:** done, awaiting supervisor review (wp/F2-core-fleet; 41 fleet tests pass, results in tests/fleet/README.md) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
 
 **Owns:** `assets/aircraft/{c172p,c310,global5000,737,B747}.ini`, `assets/jsbsim-overlay/` (only if
 a stock file needs a fix), `tests/fleet/`.
