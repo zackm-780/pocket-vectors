@@ -371,6 +371,33 @@ TEST_CASE("autopilot: PIT with the bug above and climbing arms and captures ALT*
     CHECK(r.ap.state().vertActive == VertMode::AltCapture);
 }
 
+TEST_CASE("autopilot: bug, capture and hold use the indicated altitude (altimeter 1 inHg low)") {
+    Rig r;
+    r.ac.altBaroOffsetFt = -910;  // setting 1 inHg too low reads about 910 ft low
+    r.ac.altMslFt = 5000 + 910;   // true 5910, indicated 5000
+    r.ac.vsFpm = 1000;
+    r.engage();
+    r.ap.setAltBugFt(6000);
+    r.ap.setVsBugFpm(1000);
+    r.ap.selectVs(r.ac);
+    r.run(0.2);
+    CHECK(r.ap.state().vertArmed == VertMode::Alt);  // 1000 ft to go on the tape
+
+    r.ac.altMslFt = 5900 + 910;  // indicated 5900: capture
+    r.run(0.2);
+    CHECK(r.ap.state().vertActive == VertMode::AltCapture);
+
+    r.ac.altMslFt = 5990 + 910;
+    r.ac.vsFpm = 200;
+    r.run(0.2);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
+    // At the bug on the tape the hold asks for level flight, not the 910 ft the true altitude is off.
+    r.ac.altMslFt = 6000 + 910;
+    r.ac.vsFpm = 0;
+    r.run(2.0);
+    CHECK(std::fabs(r.ap.state().fdPitchCmdDeg) < 1.0f);
+}
+
 TEST_CASE("autopilot: ALT mode holds the present altitude; GS stays armed behind it") {
     Rig r;
     setIls(r, 0.9f, 0.9f);

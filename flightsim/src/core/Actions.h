@@ -49,6 +49,10 @@ enum class Action {
     MenuBack,
     Screenshot,
     Quit,  // additive (P2): Select+Start chord or Ctrl+Q
+    // Additive (I1): altimeter setting up / down one step (0.01 inHg or 1 hPa) and to standard.
+    BaroInc,
+    BaroDec,
+    BaroStd,
     Count
 };
 

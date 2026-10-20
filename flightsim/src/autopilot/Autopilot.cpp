@@ -11,6 +11,12 @@ namespace fsim {
 
 namespace {
 
+// X1: altitude bug, capture, hold and minimums are all on the indicated (baro) altitude, the
+// one the HUD tape shows. With the altimeter on QNH it equals the true altitude.
+inline float altIndFt(const AircraftState& ac) {
+    return static_cast<float>(ac.altMslFt + ac.altBaroOffsetFt);
+}
+
 constexpr float kG = static_cast<float>(kStdGravityMps2);
 constexpr float kFpmPerKtPerRad = 101.2686f;  // fpm of VS per kt of speed per unit of sin(gamma)
 constexpr float kFpmPerKtPerDeg = 1.76748f;   // = kFpmPerKtPerRad * pi / 180
@@ -211,7 +217,7 @@ void Autopilot::selectApr(const NavState& nav) {
 void Autopilot::selectAltHold(const AircraftState& ac) {
     if (!modesLive()) return;
     st_.vertActive = VertMode::Alt;
-    holdAltFt_ = static_cast<float>(ac.altMslFt);
+    holdAltFt_ = altIndFt(ac);
     if (st_.vertArmed == VertMode::Alt) st_.vertArmed = VertMode::Off;
 }
 
@@ -219,7 +225,7 @@ void Autopilot::selectVs(const AircraftState& ac) {
     if (!modesLive()) return;
     float vs = roundTo(ac.vsFpm, 100.f);
     if (std::fabs(vs) < 200.f) {
-        const float toBug = st_.altBugFt - static_cast<float>(ac.altMslFt);
+        const float toBug = st_.altBugFt - altIndFt(ac);
         vs = (toBug < -100.f ? -1.f : 1.f) * cfg_.vsDefaultFpm;
     }
     setVsBugFpm(vs);
@@ -245,7 +251,7 @@ void Autopilot::setSpdBugKt(float kt) {
 void Autopilot::syncBugs(const AircraftState& ac, const NavState& nav) {
     const float magDeg = static_cast<float>(wrap360(radToDeg(ac.headingTrueRad) - nav.magVarDeg));
     setHdgBugMagDeg(std::round(magDeg));
-    setAltBugFt(roundTo(static_cast<float>(ac.altMslFt), 100.f));
+    setAltBugFt(roundTo(altIndFt(ac), 100.f));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -325,7 +331,7 @@ void Autopilot::applyScenario(const std::vector<std::string>& tokens, const Airc
             selectApr(nav);
         } else if (t == "alt") {
             // ALT: fly to the altitude bug (VS toward it, capture), or hold when already there.
-            const float err = st_.altBugFt - static_cast<float>(ac.altMslFt);
+            const float err = st_.altBugFt - altIndFt(ac);
             if (std::fabs(err) > cfg_.altCaptureMinFt) {
                 setVsBugFpm((err > 0 ? 1.f : -1.f) * cfg_.vsDefaultFpm);
                 st_.vertActive = VertMode::Vs;
@@ -450,7 +456,7 @@ void Autopilot::checkDisconnects(const ControlInputs& pilot, const AircraftState
     const bool coupled =
         st_.latActive == LatMode::Loc || st_.vertActive == VertMode::Gs || nav.onFinal;
     if (nav.phase == NavPhase::Approach && coupled && nav.minimumsFt > 0 &&
-        ac.altMslFt < nav.minimumsFt - cfg_.minimumsDisconnectMarginFt)
+        altIndFt(ac) < nav.minimumsFt - cfg_.minimumsDisconnectMarginFt)
         disengageAp(true);
 }
 
@@ -512,7 +518,7 @@ void Autopilot::updateModes(const AircraftState& ac, const NavState& nav) {
     if (st_.vertActive == VertMode::Gs && (!nav.gsValid || st_.latActive != LatMode::Loc))
         selectPitch(ac);
 
-    const float altErr = st_.altBugFt - static_cast<float>(ac.altMslFt);
+    const float altErr = st_.altBugFt - altIndFt(ac);
     if (st_.vertActive == VertMode::Pitch || st_.vertActive == VertMode::Vs) {
         const float vs = ac.vsFpm;
         const bool toward = vs * altErr > 0.f && std::fabs(vs) >= 100.f;
@@ -530,7 +536,7 @@ void Autopilot::updateModes(const AircraftState& ac, const NavState& nav) {
         if (st_.vertArmed == VertMode::Alt) st_.vertArmed = VertMode::Off;
     }
     if (st_.vertActive == VertMode::AltCapture &&
-        std::fabs(captureAltFt_ - static_cast<float>(ac.altMslFt)) <= cfg_.altHoldWithinFt &&
+        std::fabs(captureAltFt_ - altIndFt(ac)) <= cfg_.altHoldWithinFt &&
         std::fabs(ac.vsFpm) < 400.f) {
         st_.vertActive = VertMode::Alt;
         holdAltFt_ = captureAltFt_;
@@ -591,8 +597,8 @@ float Autopilot::verticalPitchCmd(const AircraftState& ac, const NavState& nav, 
         const bool capture = st_.vertActive == VertMode::AltCapture;
         const float target = capture ? captureAltFt_ : holdAltFt_;
         const float gain = capture ? cfg_.altCaptureGainFpmPerFt : cfg_.altHoldGainFpmPerFt;
-        vsTarget = clampf(gain * (target - static_cast<float>(ac.altMslFt)), -cfg_.vsMaxDescentFpm,
-                          cfg_.vsMaxClimbFpm);
+        vsTarget =
+            clampf(gain * (target - altIndFt(ac)), -cfg_.vsMaxDescentFpm, cfg_.vsMaxClimbFpm);
         break;
     }
     case VertMode::Gs: {

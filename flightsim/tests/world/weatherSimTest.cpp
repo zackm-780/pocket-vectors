@@ -5,6 +5,8 @@
 #include <cmath>
 
 #include "SimFixture.h"
+#include "core/Baro.h"
+#include "hud/HudLogic.h"
 
 using namespace fsim;
 using namespace fsim::test;
@@ -73,4 +75,29 @@ TEST_CASE("sim: altimeter offset follows the setting, not the weather") {
     MESSAGE("offset ", off);
     CHECK(off > 150.0f);
     CHECK(off < 300.0f);
+}
+
+TEST_CASE("sim: the altimeter knob steps 1 hPa or 0.01 inHg and moves the indicated altitude") {
+    SimFixture f;
+    REQUIRE_MESSAGE(f.initFile("weather_lowvis_final_xtst.ini"), f.error);  // QNH 1005
+    f.run(0.1);
+    CHECK(f.sim.altimeterSettingHpa() == doctest::Approx(1005.0f));
+    f.sim.stepAltimeter(+1, false);
+    f.run(0.1);
+    CHECK(f.sim.altimeterSettingHpa() == doctest::Approx(1006.0f));
+    CHECK(f.sim.aircraft().altBaroOffsetFt == doctest::Approx(27.0f).epsilon(0.15));
+    const double before = std::round(hpaToInHg(f.sim.altimeterSettingHpa()) * 100.0) / 100.0;
+    f.sim.stepAltimeter(-3, true);
+    CHECK(f.sim.altimeterSettingHpa() ==
+          doctest::Approx(static_cast<float>(inHgToHpa(before - 0.03))).epsilon(0.0005));
+    f.sim.setAltimeterSettingHpa(static_cast<float>(kStdQnhHpa));
+    f.run(0.1);
+    CHECK(f.sim.aircraft().altBaroOffsetFt > 150.0f);  // STD on a low day reads high
+    char t[16];
+    formatAltimeterSetting(t, sizeof t, f.sim.aircraft().altimeterSettingHpa, false);
+    CHECK(std::string(t) == "STD");
+    formatAltimeterSetting(t, sizeof t, 1005.0f, false);
+    CHECK(std::string(t) == "1005");
+    formatAltimeterSetting(t, sizeof t, 1013.0f, true);
+    CHECK(std::string(t) == "29.91");
 }
