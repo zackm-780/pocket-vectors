@@ -176,7 +176,7 @@ void reportMemory(Report& report) {
 
 void reportEnvironment(Report& report) {
     report.section("PORTMASTER AND ENVIRONMENT");
-    // The launch script exports these (see port "Flight Sim Probe.sh").
+    // The launch script exports these (see tools/probe/port/FlightSimProbe.sh).
     const char* pmDirs[] = {"/opt/system/Tools/PortMaster", "/opt/tools/PortMaster", "/roms/ports/PortMaster"};
     for (const char* dir : pmDirs) {
         report.line(strf("PortMaster candidate %-34s %s", dir, pathExists(dir) ? "EXISTS" : "absent"));

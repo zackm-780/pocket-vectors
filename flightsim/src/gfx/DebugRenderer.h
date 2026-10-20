@@ -35,6 +35,9 @@ public:
     }
     // W2: with a terrain renderer the flat ground grid is replaced by real terrain.
     void setTerrain(world::TerrainRenderer* terrain) { terrain_ = terrain; }
+    // W5: AirportRenderer draws the runways now; call with false before setWorld to keep only the
+    // ground grid.
+    void setDrawRunways(bool on) { drawRunways_ = on; }
     // The airport's runways are drawn on flat ground at groundElevM; the ground grid is anchored
     // to the airport reference point.
     void setWorld(const Airport& airport, float groundElevM);
@@ -70,6 +73,8 @@ private:
 
     Airport airport_;
     bool haveWorld_ = false;
+    bool drawRunways_ = true;     // W5
+    float shade_[3] = {1, 1, 1};  // W5: ground brightness from the sun (1 by day)
     float groundElevM_ = 0;
     Mesh ground_;
     int groundCellN_ = 0x7fffffff, groundCellE_ = 0x7fffffff;

@@ -49,7 +49,7 @@ numbers from it mean nothing. Device performance comes from the P1 probe and X3.
 ## 6. PortMaster package layout (sideload)
 
 ```
-Flight Sim.sh                      # launch script (PortMaster template, see below)
+FlightSim.sh                       # launch script (PortMaster template; no spaces in the name)
 flightsim/
   flightsim.aarch64                # main binary
   libs.aarch64/libJSBSim.so*       # shipped shared libs
@@ -75,15 +75,17 @@ Launch script requirements (P1). Follow the official template at
 ## 7. Installing on the RG40XXH (human steps)
 PortMaster is **optional**. The Anbernic stock OS does not ship it, and the launch scripts work
 without it: they then use the folder next to the script and the game handles Select+Start itself.
-1. Copy `Flight Sim.sh` **and** the `flightsim/` folder side by side into the folder your launcher
+1. Copy `FlightSim.sh` **and** the `flightsim/` folder side by side into the folder your launcher
    runs ports or scripts from (the same folder as each other). The exact path on the stock OS goes
-   into DEVICE.md once confirmed.
+   into DEVICE.md once confirmed. The script names have no spaces on purpose: a launcher that does
+   not quote paths would fail on `Flight Sim.sh` before the script even starts.
 2. Copy your data pack into `flightsim/data/`. Alternatively, put it anywhere on the card and set
    `data_dir` in `flightsim/conf/settings.ini`.
 3. Launch "Flight Sim". Exit with **Select + Start**.
-4. **Logs:** every launch writes `flightsim_launch_log.txt` **next to `Flight Sim.sh`**, even when
+4. **Logs:** every launch writes `flightsim_launch_log.txt` **next to `FlightSim.sh`**, even when
    the game never starts. It records PortMaster detection, the folder used, the libraries found, and the
-   game's own output and exit status. The game also keeps `flightsim/conf/log.txt`.
+   game's own output and exit status, and whether the OS userspace is 64-bit (the build needs it;
+   some Anbernic stock OS releases are 32-bit). The game also keeps `flightsim/conf/log.txt`.
 5. Run the probe port ("Flight Sim Probe") once and send back `flightsimprobe/probe_report.txt` and
    `flightsimprobe_launch_log.txt`.
 

@@ -15,6 +15,7 @@
 #include "core/NavDatabase.h"
 #include "core/Paths.h"
 #include "core/TerrainQuery.h"
+#include "nav/Navigator.h"  // N5
 #include "sim/FlightModel.h"
 
 namespace fsim {
@@ -50,13 +51,16 @@ public:
     const NavDatabase& navDb() const { return nav_; }
     TerrainQuery& terrain() { return terrain_; }
     FlightModel& flightModel() { return model_; }
+    Navigator& navigator() { return navigator_; }  // N5: plan / approach / source control
 
 private:
+    bool initNavigation(std::string& error);  // N5
+
     const Paths& paths_;
     const NavDatabase& nav_;
     TerrainQuery& terrain_;
     FlightModel model_;
-    StubNavigator navigator_;
+    Navigator navigator_;  // N5
     StubAutopilot autopilot_;
     AircraftProfile profile_;
     Scenario scenario_;

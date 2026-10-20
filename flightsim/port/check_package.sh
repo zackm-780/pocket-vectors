@@ -75,6 +75,8 @@ check_tree() {
   [ -n "$port_dir" ] || { fail "no port folder at the zip root"; return; }
   portname="$(basename "$port_dir")"
   ok "launch script '$(basename "$script")', port folder '$portname'"
+  # Stock launchers may not quote paths: a space in the script name breaks the launch silently.
+  case "$(basename "$script")" in *" "*) fail "launch script name contains a space" ;; esac
   [[ "$portname" =~ ^[a-z0-9][a-z0-9._]*$ ]] || fail "port folder name '$portname' violates PortMaster naming"
   bash -n "$script" && ok "launch script passes bash -n" || fail "launch script has a syntax error"
   # Some launchers (e.g. the Anbernic stock OS) run scripts with a plain POSIX sh.
