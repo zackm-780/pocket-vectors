@@ -26,6 +26,7 @@ file sizes and timing. Output is deterministic (only `nav.ini` `created_utc` cha
 | `nasr.py` | FAA NASR CSV -> ils, fixes, airways; cycle/URL helpers |
 | `wmm.py` | WMM2025 in pure Python, `magvar.bin` writer/reader, NOAA test-value self-test |
 | `navgeo.py`, `schema.py` | geodesy helpers; column lists (single source of truth) |
+| `cifp.py`, `cifp_proc.py` | FAA CIFP (ARINC 424-18) -> `procedures/{ICAO}.proc` (WP N4, see "CIFP" below); `.proc` model, writer, reference reader |
 | `validate_navdb.py` | schema/consistency validation + spot checks |
 | `wmm/` | vendored NOAA files: `WMM2025.COF`, `WMM2025_TEST_VALUES.txt`, README (public domain) |
 | `tests/` | `unittest` suite with tiny fixtures in `tests/fixtures/` |
@@ -45,6 +46,47 @@ cycle if the newest is not downloadable), downloads the three zips into `cache/`
 `--faa-nasr <path>` accepts a zip or directory, searched recursively including nested zips, for
 `ILS_BASE.csv ILS_GS.csv ILS_DME.csv FIX_BASE.csv AWY_SEG_ALT.csv`. The other cycle bundles
 (`DD_Mon_YYYY_CSV.zip`) also work. The FAA unzips of the `.txt` flavour are NOT supported.
+
+## CIFP: instrument procedures (WP N4)
+
+```bash
+cd flightsim/tools/nav
+python3 cifp.py --cifp auto --out ../../data/nav                       # all US airports, ~3 s + download
+python3 cifp.py --cifp auto --out ../../data/nav --airports KOTH,KPDX  # quick run
+python3 cifp.py --cifp CIFP_261001.zip --out /tmp/nav --report /tmp/cov.txt --print-report
+python3 build_navdb.py --out ../../data/nav --faa-nasr auto --cifp auto   # same, as part of the build
+```
+Writes `<out>/procedures/{ICAO}.proc` (format: DATA.md section 7), `procedures/coverage_report.txt`
+(path terminator coverage over every airport, dropped legs, unresolved fixes, and, when
+`<out>/runways.csv` exists, a cross-check of final courses and runway fixes against N1's runways) and
+sets `faa_cifp` in `nav.ini`. A full run reads the 53 MB `FAACIFP18` in about 3 s and writes 15 MB.
+`python3 -m unittest tests.test_cifp` runs the offline tests (a 67 KiB cut of the real file in
+`tests/fixtures/cifp_mini.txt`, made by `tests/fixtures/make_cifp_fixture.py`).
+
+Verified source (2026-10-19):
+
+| Data | URL | Notes |
+|---|---|---|
+| FAA CIFP landing page | `https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/cifp/` | Links the readme PDF (`https://aeronav.faa.gov/Upload_313-d/cifp/CIFP%20Readme.pdf`) and `.../cifp/download/` |
+| FAA CIFP download page | `https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/cifp/download/` | Lists the current and the next cycle zip |
+| FAA CIFP cycle zip | `https://aeronav.faa.gov/Upload_313-d/cifp/CIFP_YYMMDD.zip` | `YYMMDD` = effective date of the 28-day cycle: `CIFP_261001.zip` (9.1 MB, AIRAC 2610, effective 2026-10-01, matches NASR 2026-10-01) and `CIFP_261029.zip` (next). Contains `FAACIFP18` (53 MB, ARINC 424-18, 132 columns, latin-1), `IN_CIFP.txt`, `Not_In_CIFP.xlsx`, readme and disclaimer PDFs |
+| d-TPP charts (for cross-checks) | `https://aeronav.faa.gov/d-tpp/2610/xml_data/d-TPP_Metafile.xml`, charts `https://aeronav.faa.gov/d-tpp/2610/<pdf_name>` | e.g. `00929IZLZ5.PDF` = KOTH ILS Z or LOC Z RWY 5 |
+
+`--cifp auto` reads the download page, picks the newest cycle effective on or before today (28-day
+arithmetic from 2026-10-01 if the page is unavailable, the other listed cycle if a download fails)
+and caches `CIFP_YYMMDD.zip` in `cache/`. `--cifp <path>` takes that zip, a bare `FAACIFP18` file, or
+a directory containing either.
+
+What the converter does with ARINC 424 (details and counts: DATA.md section 7.3): groups the
+approach records (section P, subsection F) by approach ident, route type and transition; resolves
+every fix against the terminal (PC) and enroute (EA) waypoints, VHF navaids (D), NDBs (DB, PN),
+runways (PG) and airports (PA) of the file (all customer areas: Alaska is `CAN`, Hawaii `PAC`);
+converts magnetic courses with the declination FAA used (recommended VHF navaid, else airport);
+maps altitude description codes to AT / AT_OR_ABOVE / AT_OR_BELOW / BETWEEN; splits the missed
+approach after the MAP leg; keeps RF arcs natively and rewrites AF as RF; approximates PI, VI, CI,
+VM, FC, VD, CD, VR (counted and listed in the coverage report). CIFP has no minimums, so none are
+written. Known characteristics: helicopter-only procedures (e.g. KOTH `I05-Y`) are not marked in
+CIFP; circling-only approaches (`VOR-B`) have no runway.
 
 ## Semantics worth knowing
 

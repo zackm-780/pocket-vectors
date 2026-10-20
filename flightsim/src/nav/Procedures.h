@@ -77,9 +77,9 @@ void clearProcedureCache();
 // What N5/H5 pass as the realProvider. Empty when the airport has no real procedures.
 std::vector<Approach> loadApproaches(const std::string& dataDir, std::string_view icao);
 
-// Exact (case-insensitive) match of `id` first; then the short form without the multiple
-// indicator ("I05" finds "I05-Y"/"I05-Z"; the first by id wins); a leading "RW" in the runway part
-// is ignored ("IRW05" never matches, "I05" does). nullptr if nothing matches.
+// Exact (case-insensitive) match of `id` first; then the short form without the multiple-procedure
+// indicator ("I05" finds "I05-Y"/"I05-Z", the first by id wins; "I16R" finds "I16RZ", but "R28"
+// does not find "R28L"). nullptr if nothing matches.
 const Approach* findApproach(const std::vector<Approach>& approaches, std::string_view id);
 
 // All approaches that land on `runwayIdent` (DB style, "05", "28L"), ordered by id.
