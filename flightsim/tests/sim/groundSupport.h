@@ -26,6 +26,36 @@ inline double xtstNorthM(double latDeg) {
 }
 constexpr double kXtstElevM = SyntheticNavDb::kElevFt * kMPerFt;  // 609.6 m
 
+// Plane rising toward the west at slopeWest and toward the north at slopeNorth (rise over run).
+inline terrain::testing::HeightFn slopedPlane(double slopeWest, double slopeNorth) {
+    return [=](double lat, double lon) {
+        return kXtstElevM - slopeWest * xtstEastM(lat, lon) + slopeNorth * xtstNorthM(lat);
+    };
+}
+
+// Plane that is exactly representable in a level-`level` pack: it rises by `mPerColumnWest`
+// meters per height-sample column toward the west and `mPerRowNorth` per sample row toward the
+// north (integers, so the 1 m quantised int16 tiles hold the plane without staircase error).
+// Returns the slope as rise over run in `slopeWest` / `slopeNorth`.
+struct GridPlane {
+    terrain::testing::HeightFn fn;
+    double slopeWest = 0, slopeNorth = 0;
+};
+inline GridPlane gridPlane(int level, int mPerColumnWest, int mPerRowNorth) {
+    const double stepDeg = 90.0 / static_cast<double>(1u << level) / 256.0;
+    const double colM = stepDeg * kRadPerDeg * kEarthRadiusM *
+                        std::cos(degToRad(SyntheticNavDb::kLatDeg));
+    const double rowM = stepDeg * kRadPerDeg * kEarthRadiusM;
+    GridPlane g;
+    g.slopeWest = mPerColumnWest / colM;
+    g.slopeNorth = mPerRowNorth / rowM;
+    g.fn = [=](double lat, double lon) {
+        return 610.0 - mPerColumnWest * (lon - SyntheticNavDb::kLonDeg) / stepDeg +
+               mPerRowNorth * (lat - SyntheticNavDb::kLatDeg) / stepDeg;
+    };
+    return g;
+}
+
 // Pure function terrain (no packs): elevation from a callable, land class fixed. Flatten areas are
 // not supported (use a pack for those).
 class FunctionTerrain : public TerrainQuery {
@@ -69,8 +99,8 @@ struct SynthWorld {
     // tests). load = false leaves the tiles unloaded.
     SynthWorld(const terrain::testing::HeightFn& height,
                const terrain::testing::LandFn& land = nullptr, double halfSpanDeg = 0.15,
-               int loadDelayMs = 0, bool load = true) {
-        constexpr int kLevel = 10;
+               int loadDelayMs = 0, bool load = true, int level = 10) {
+        const int kLevel = level;
         terrain::testing::PackWriter w(dir.path, kLevel, kLevel);
         w.writeBox(kLevel, SyntheticNavDb::kLatDeg - halfSpanDeg,
                    SyntheticNavDb::kLonDeg - halfSpanDeg, SyntheticNavDb::kLatDeg + halfSpanDeg,

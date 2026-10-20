@@ -153,7 +153,8 @@ TEST_CASE("ground: surface follows a TerrainService pack and its runway flatten 
                                 std::cos(xtstNorthM(lat) / 24.0);
     };
     SynthWorld world(rough);
-    const Runway* rwy = findRunway(SyntheticNavDb().airport(), "27");
+    const SyntheticNavDb nav;
+    const Runway* rwy = findRunway(nav.airport(), "27");
     REQUIRE(rwy != nullptr);
     TerrainGroundCallback cb(&world.terrain(), kWgs84SemiMajorFt, kWgs84SemiMinorFt);
 
