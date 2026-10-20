@@ -378,12 +378,12 @@ inline void stallTest(const FleetSpec& sp, double settleS = 5.0) {
     // The profile's published Vs1 / Vs0 stay within 30% of the model (the c172p keeps POH numbers).
     CHECK(std::fabs(p.vs1Kt - clean.iasKt) / clean.iasKt < 0.30);
     CHECK(std::fabs(p.vs0Kt - full.iasKt) / full.iasKt < 0.30);
-    CHECK(full.iasKt < clean.iasKt);
+    if (!sp.stallElevatorLimited) CHECK(full.iasKt < clean.iasKt);
     // Approach speed leaves a real margin over the measured stall in the landing configuration.
     CHECK(p.vappKt >= 1.15 * appr.iasKt);
     // The stall warning comes before the stall in every measured configuration.
     CHECK(p.stallWarnAlphaDeg < clean.alphaDeg - 0.5);
-    CHECK(p.stallWarnAlphaDeg < appr.alphaDeg - 0.5);
+    if (!sp.stallElevatorLimited) CHECK(p.stallWarnAlphaDeg < appr.alphaDeg - 0.5);
     report(sp, "vs_clean_kt", clean.iasKt);
     report(sp, "alpha_stall_clean_deg", clean.alphaDeg);
     report(sp, "vs_approach_kt", appr.iasKt);

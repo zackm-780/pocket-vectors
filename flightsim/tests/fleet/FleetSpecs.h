@@ -47,6 +47,7 @@ struct FleetSpec {
     // ---- optional (WP F4; the core fleet keeps the defaults) ----
     double airRudderKp = 0;         // rudder gain on the heading error after liftoff (0 = none)
     double maxTakeoffHdgErrDeg = 6;  // heading band for the takeoff roll and climb
+    bool stallElevatorLimited = false;  // idle full-flap 1 g speed is set by elevator authority
 };
 
 // clang-format off
