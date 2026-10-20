@@ -46,7 +46,23 @@ bool TraceWriter::open(const std::string& path) {
                             "ap_engaged",
                             "ap_lat_mode",
                             "ap_vert_mode",
-                            "ap_spd_mode"});
+                            "ap_spd_mode",
+                            // N5: more NavState fields (appended; earlier columns keep their place)
+                            "nav_wpt",
+                            "nav_leg",
+                            "nav_dtk_true_deg",
+                            "nav_brg_to_wpt_true_deg",
+                            "nav_dist_to_dest_nm",
+                            "nav_dist_to_thr_nm",
+                            "nav_cdi_scale_nm",
+                            "nav_to_flag",
+                            "nav_loc_valid",
+                            "nav_gs_valid",
+                            "nav_on_final",
+                            "nav_target_alt_ft",
+                            "nav_req_vs_fpm",
+                            "nav_vnav_dev_ft",
+                            "nav_mag_var_deg"});
 }
 
 void TraceWriter::write(const AircraftState& s, const NavState& nav, const AutopilotState& ap) {
@@ -93,6 +109,21 @@ void TraceWriter::write(const AircraftState& s, const NavState& nav, const Autop
     csv_.addInt(static_cast<int>(ap.latActive));
     csv_.addInt(static_cast<int>(ap.vertActive));
     csv_.addInt(static_cast<int>(ap.spdActive));
+    csv_.addString(nav.activeWptIdent);
+    csv_.addInt(nav.activeLegIndex);
+    csv_.addDouble(nav.desiredTrackTrueDeg, 2);
+    csv_.addDouble(nav.bearingToWptTrueDeg, 2);
+    csv_.addDouble(nav.distToDestNm, 2);
+    csv_.addDouble(nav.distToThresholdNm, 3);
+    csv_.addDouble(nav.cdiFullScaleNm, 2);
+    csv_.addInt(nav.toFlag ? 1 : 0);
+    csv_.addInt(nav.locValid ? 1 : 0);
+    csv_.addInt(nav.gsValid ? 1 : 0);
+    csv_.addInt(nav.onFinal ? 1 : 0);
+    csv_.addDouble(nav.targetAltFt, 0);
+    csv_.addDouble(nav.requiredVsFpm, 0);
+    csv_.addDouble(nav.vnavDevFt, 0);
+    csv_.addDouble(nav.magVarDeg, 2);
     csv_.endRow();
 }
 

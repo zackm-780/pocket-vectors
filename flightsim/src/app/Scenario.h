@@ -44,6 +44,11 @@ struct Scenario {
     float windFromTrueDeg = 0, windSpeedKt = 0;
     std::vector<ScriptEvent> inputs;  // sorted by time
 
+    // N5: optional navigation setup. `plan` is an .fms file (resolved like --scenario paths),
+    // `approach` an approach id ("I27", "R28L", "VIS09") loaded into that plan, or, without a
+    // plan, a one-approach plan at the scenario's airport.
+    std::string planPath, approachId;
+
     // [autopilot] section; applied by the autopilot once N6 lands. Kept so scenarios are final.
     std::vector<std::string> apEngage;
     float hdgBugMagDeg = 0, altBugFt = 0;
