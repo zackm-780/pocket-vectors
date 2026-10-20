@@ -110,12 +110,17 @@ void GpwsMonitor::lookahead(const AircraftState& s, const TerrainQuery& terrain,
     const float warnFloor = lookaheadWarningFloorFt(s.gsKt) * floorScale;
     const float climbFtPerS = vsSmoothFpm_ / 60.0f;
     constexpr double kMPerDeg = kEarthRadiusM * kRadPerDeg;
+    // A floor penetration only counts where the ground ahead is meaningfully higher than the
+    // ground under the aircraft; descending toward level ground is Mode 1's business (sink rate)
+    // and the landing logic's, not terrain closure.
+    const float terrNowFt = static_cast<float>(mToFt(terrain.elevationM(s.latDeg, s.lonDeg)));
     for (int i = 1; i <= kLookaheadMaxSamples; ++i) {
         const float t = i * kLookaheadStepS;
         const double lat = s.latDeg + northPerS * t / kMPerDeg;
         const double lon = s.lonDeg + eastPerS * t / (kMPerDeg * std::max(0.05f, cosLat));
         const float terrFt = static_cast<float>(mToFt(terrain.elevationM(lat, lon)));
         const float pathFt = static_cast<float>(s.altMslFt) + climbFtPerS * t;
+        if (terrFt < terrNowFt + kLookaheadMinRiseFt) continue;
         if (pathFt < terrFt + cautionFloor) {
             caution = true;
             if (t <= kLookaheadWarningS && pathFt < terrFt + warnFloor) {
@@ -160,8 +165,10 @@ void GpwsMonitor::update(const AircraftState& s, const AircraftProfile& profile,
     if (!s.valid || s.crashed) return;
 
     // Smoothed vertical speed (tau 2 s) so turbulence does not jitter the projected path.
-    if (!haveVs_) vsSmoothFpm_ = s.vsFpm, haveVs_ = true;
-    else vsSmoothFpm_ += (s.vsFpm - vsSmoothFpm_) * std::min(1.0f, dtS / 2.0f);
+    if (!haveVs_)
+        vsSmoothFpm_ = s.vsFpm, haveVs_ = true;
+    else
+        vsSmoothFpm_ += (s.vsFpm - vsSmoothFpm_) * std::min(1.0f, dtS / 2.0f);
 
     callouts(s);
 
@@ -178,8 +185,9 @@ void GpwsMonitor::update(const AircraftState& s, const AircraftProfile& profile,
     probeAirport(s, navDb);
     float floorScale = 1.0f;
     if (airportNm_ >= 0)
-        floorScale = std::clamp((airportNm_ - kAirportInhibitNm) /
-                                    (kAirportFullFloorNm - kAirportInhibitNm), 0.0f, 1.0f);
+        floorScale =
+            std::clamp((airportNm_ - kAirportInhibitNm) / (kAirportFullFloorNm - kAirportInhibitNm),
+                       0.0f, 1.0f);
     const bool stable = nav && nav->onFinal && nav->gsValid &&
                         std::fabs(nav->gsDeflection) <= kStableGsDeflection &&
                         std::fabs(nav->cdiDeflection) <= 1.0f;
@@ -205,13 +213,19 @@ void GpwsMonitor::update(const AircraftState& s, const AircraftProfile& profile,
     const bool tw = lookActive && terrWarning_.step(lookWarning_, dtS, 0.0f, kGpwsHoldOffS);
 
     int level = 0;
-    if (sw || tw) level = 3;
-    else if (tc) level = 2;
-    else if (sc) level = 1;
+    if (sw || tw)
+        level = 3;
+    else if (tc)
+        level = 2;
+    else if (sc)
+        level = 1;
     if (level > prevLevel_) {
-        if (level == 3) push(GpwsEventKind::PullUp, "PULL UP");
-        else if (level == 2) push(GpwsEventKind::Terrain, "TERRAIN");
-        else push(GpwsEventKind::SinkRate, "SINK RATE");
+        if (level == 3)
+            push(GpwsEventKind::PullUp, "PULL UP");
+        else if (level == 2)
+            push(GpwsEventKind::Terrain, "TERRAIN");
+        else
+            push(GpwsEventKind::SinkRate, "SINK RATE");
     }
     prevLevel_ = level;
     mask_ = level == 3   ? warningBit(WarningId::PullUp)

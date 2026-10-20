@@ -33,17 +33,18 @@ struct GpwsEvent {
     char text[24] = {};  // "SINK RATE", "PULL UP", "TERRAIN", "TOO LOW GEAR", "2500", ...
 };
 
-constexpr float kGpwsMinRaFt = 30.0f;         // no warnings below this (landing roll, flare)
-constexpr float kGpwsSinkMaxRaFt = 2450.0f;   // Mode 1 applies below this radio altitude
-constexpr float kLookaheadStepS = 2.5f;       // sample spacing along the projected path
-constexpr float kLookaheadCautionS = 40.0f;   // TERRAIN horizon
-constexpr float kLookaheadWarningS = 20.0f;   // PULL UP horizon
-constexpr int kLookaheadMaxSamples = 16;      // = kLookaheadCautionS / kLookaheadStepS
-constexpr float kLookaheadPeriodS = 0.2f;     // look-ahead evaluated at 5 Hz
-constexpr float kGpwsHoldOffS = 3.0f;         // a cleared warning stays on this long (flicker)
-constexpr float kStableGsDeflection = 0.65f;  // 1.3 dots (full scale 1.0 = 2 dots)
-constexpr float kAirportInhibitNm = 1.0f;     // no terrain look-ahead this close to an airport
-constexpr float kAirportFullFloorNm = 5.0f;   // clearance floor is full at this distance
+constexpr float kGpwsMinRaFt = 30.0f;          // no warnings below this (landing roll, flare)
+constexpr float kGpwsSinkMaxRaFt = 2450.0f;    // Mode 1 applies below this radio altitude
+constexpr float kLookaheadStepS = 2.5f;        // sample spacing along the projected path
+constexpr float kLookaheadCautionS = 40.0f;    // TERRAIN horizon
+constexpr float kLookaheadWarningS = 20.0f;    // PULL UP horizon
+constexpr int kLookaheadMaxSamples = 16;       // = kLookaheadCautionS / kLookaheadStepS
+constexpr float kLookaheadPeriodS = 0.2f;      // look-ahead evaluated at 5 Hz
+constexpr float kLookaheadMinRiseFt = 150.0f;  // ground ahead must be this much higher
+constexpr float kGpwsHoldOffS = 3.0f;          // a cleared warning stays on this long (flicker)
+constexpr float kStableGsDeflection = 0.65f;   // 1.3 dots (full scale 1.0 = 2 dots)
+constexpr float kAirportInhibitNm = 1.0f;      // no terrain look-ahead this close to an airport
+constexpr float kAirportFullFloorNm = 5.0f;    // clearance floor is full at this distance
 
 // Envelope helpers (exposed for tests and tuning). Sink rate in ft/min (positive = descending).
 float sinkCautionFpm(float raFt);
