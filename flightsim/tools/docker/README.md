@@ -34,15 +34,17 @@ Useful options: `--jsbsim-src DIR` (use a local JSBSim v1.3.3 checkout, no netwo
      if there is no `<build>/assets`, the source `assets/` is used);
    - options `FSIM_WERROR` and `CMAKE_TOOLCHAIN_FILE` as in WP-00.
 3. **Packaging**: `port/package_port.sh` assembles `FlightSim.sh` + `flightsim/` (binary renamed to
-   `flightsim.aarch64`, `libs.aarch64/`, `jsbsim/`, `assets/`, `licenses/`, `port.json`, `gameinfo.xml`,
-   `README.md`, `screenshot.png`) into `dist/flightsim-portmaster.zip`, and the probe into
-   `dist/flightsim-probe-portmaster.zip`.
+   `flightsim.aarch64`, `libs.aarch64/libJSBSim.so.1` as a **regular file** named for the ELF SONAME,
+   `jsbsim/`, `assets/`, `licenses/`, `port.json`, `gameinfo.xml`, `README.md`, `screenshot.png`) into
+   `dist/flightsim-portmaster.zip`, and the probe into `dist/flightsim-probe-portmaster.zip`. The
+   CMake soname symlink chain is collapsed so the zip is FAT/exFAT safe (no `zip -y` symlinks).
 4. **Checks** (`port/check_package.sh`, run on every zip, fail the build): every ELF is aarch64; the highest
    `GLIBC_x.y` among imported symbols in `objdump -T` is <= 2.31; `DT_NEEDED` is limited to libc, libm,
    libdl, libpthread, librt, ld-linux-aarch64, `libSDL2-2.0.so.0` and libraries shipped in the zip; no
-   libstdc++/libgcc_s dependency; launch script has the PortMaster template calls and does not start gptokeyb
-   with `-c`; `port.json` and `gameinfo.xml` are consistent with the script and folder names; licence files
-   are present.
+   libstdc++/libgcc_s dependency; **no symlinks** / FAT-illegal names / case collisions; each shipped
+   `DT_NEEDED` is a regular file under `libs.aarch64/`; launch script has the PortMaster template calls
+   and does not start gptokeyb with `-c`; `port.json` and `gameinfo.xml` are consistent with the script
+   and folder names; licence files are present.
 5. **Smoke test**: the aarch64 probe runs its JSBSim benchmark (`--cpu-only --quick`) under `qemu-aarch64`.
 
 ## Known caveat: libJSBSim needs glibc 2.29

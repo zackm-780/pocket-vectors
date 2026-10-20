@@ -4,7 +4,8 @@ JSBSim - GNU Lesser General Public License v2.1
 The flight dynamics engine is JSBSim (https://github.com/JSBSim-Team/jsbsim), release tag v1.3.3,
 used unmodified. The full licence text is in JSBSim-LGPL-2.1.txt.
 
-LGPL compliance: JSBSim is built as a SHARED library and shipped as libs.aarch64/libJSBSim.so*.
+LGPL compliance: JSBSim is built as a SHARED library and shipped as libs.aarch64/libJSBSim.so.1
+(one regular file named for the ELF SONAME; no symlink chain, so FAT/exFAT SD cards can load it).
 The game links to it dynamically, so you may replace that file with your own build of a compatible
 JSBSim version. The corresponding source is the public tag above; build steps are in
 flightsim/tools/probe/CMakeLists.txt and flightsim/docs/BUILD_AND_DEPLOY.md of the project.

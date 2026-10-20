@@ -1,4 +1,4 @@
-# Terrain pipeline (W3). Pinned versions; Python >= 3.10.
+# Terrain pipeline (W3). Pinned versions; Python >= 3.12 (numpy 2.5.4).
 # rasterio wheels bundle GDAL, so no system GDAL install is needed.
 numpy==2.5.4
 rasterio==1.5.2

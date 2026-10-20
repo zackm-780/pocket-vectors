@@ -68,7 +68,8 @@ Options: `-DPROBE_WITH_JSBSIM=OFF` (skip the CPU benchmark), `-DPROBE_JSBSIM_SOU
 - **SDL API level:** only functions that exist in SDL 2.0.4 or older are called (the device's SDL version is
   unknown), e.g. `SDL_QueueAudio`, `SDL_GetDisplayDPI`, `SDL_JoystickCurrentPowerLevel`.
 - The 8x8 bitmap font is the one in SDL's `SDL_test_font.c` (zlib licence, see `port/licenses/SDL2-zlib.txt`).
-- JSBSim is LGPL-2.1: built as a shared library and shipped as `libs.aarch64/libJSBSim.so*` with its licence.
+- JSBSim is LGPL-2.1: built as a shared library and shipped as `libs.aarch64/libJSBSim.so.1`
+  (one regular file, SONAME) with its licence.
 
 ## Verification done without the device
 

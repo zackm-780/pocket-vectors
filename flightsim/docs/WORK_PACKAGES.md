@@ -138,7 +138,7 @@ any deviation is documented in the PR.
 2. Port folder per BUILD_AND_DEPLOY §6: `FlightSim.sh` (PortMaster template: control.txt, get_controls,
    GAMEDIR, conf dir, log tee, `LD_LIBRARY_PATH=libs.aarch64`, `SDL_GAMECONTROLLERCONFIG`, gptokeyb
    **for the exit hotkey only**, `pm_platform_helper`, `pm_finish`, `FLIGHTSIM_PLATFORM=portmaster`),
-   `flightsim.aarch64`, `libs.aarch64/libJSBSim.so*`, `jsbsim/`, `assets/`, `licenses/`,
+   `flightsim.aarch64`, `libs.aarch64/libJSBSim.so.1` (regular file, no soname symlinks), `jsbsim/`, `assets/`, `licenses/`,
    `port.json`, `gameinfo.xml`, `README.md`.
 3. **Device probe** (`tools/probe/`, own tiny SDL2+GLES2 program, packaged as port "Flight Sim Probe"):
    writes `probe_report.txt` with glibc version, kernel, CPU/RAM, SDL version, video driver, display
