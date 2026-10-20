@@ -596,6 +596,7 @@ class Stats:
         self.altCodes: Counter = Counter()
         self.skippedApproaches: Counter = Counter()
         self.logLines: list[str] = []
+        self.runwayLegs: list[tuple[str, str, float | None, float, float]] = []  # apt, rwy, crs, lat, lon
 
     def log(self, msg: str) -> None:
         if len(self.logLines) < 5000:
@@ -615,23 +616,26 @@ class Ctx:
         return f"{self.apt} {rec.ident} {rec.trans or 'FINAL'} {rec.seq} {rec.pt}"
 
 
-def local_magvar(ctx: Ctx, rec: Record) -> float:
+def local_magvar(ctx: Ctx, rec: Record, fixInfo=None) -> float:
     """Variation that FAA used to publish this leg's magnetic course: the station declination of
-    the recommended navaid when it is a VHF navaid, otherwise the airport's. (Verified against the
-    theta/rho fields of ~17 000 legs: median error 0.1 deg; fix-record variations were 1.2 deg off.)"""
+    the recommended navaid when it is a VHF navaid (or of the leg's own fix when that is a VOR,
+    e.g. a hold at the VOR), otherwise the airport's. (Verified against the theta/rho fields of
+    ~17 000 legs: median error 0.1 deg; waypoint-record variations were 1.2 deg off.)"""
     if rec.navId:
         nv = ctx.db.navaid_position(ctx.apt, rec)
         if nv is not None and nv[2] is not None and rec.navSec == "D":
             return nv[2]
+    if fixInfo is not None and fixInfo[0].kind == "VOR" and fixInfo[1] is not None:
+        return fixInfo[1]
     return ctx.aptMagVar
 
 
-def course_true(ctx: Ctx, rec: Record) -> float | None:
+def course_true(ctx: Ctx, rec: Record, fixInfo=None) -> float | None:
     c = rec.courseDeg()
     if c is None:
         return None
     deg, isTrue = c
-    return norm360(deg if isTrue else deg + local_magvar(ctx, rec))
+    return norm360(deg if isTrue else deg + local_magvar(ctx, rec, fixInfo))
 
 
 def alt_constraint(ctx: Ctx, rec: Record) -> tuple[str | None, float, float]:
@@ -711,7 +715,7 @@ def convert_record(ctx: Ctx, rec: Record, prevFix: cp.Fix | None) -> tuple[list[
                     f"{ctx.where(rec)} fix {rec.fix} ({rec.fixSec}{rec.fixSub.strip()})")
             return [], "unresolved"
     fix = fixInfo[0] if fixInfo else None
-    crs = course_true(ctx, rec)
+    crs = course_true(ctx, rec, fixInfo)
 
     # ---- native types
     if pt in ("IF", "TF", "DF"):
@@ -964,6 +968,9 @@ def build_approach(db: CifpDb, apt: str, ident: str, recs: list[Record], stats: 
         stats.approachesWithApprox += 1
     stats.legsOut += (len(appr.final) + len(appr.missed)
                       + sum(len(t.legs) for t in appr.transitions))
+    for leg in appr.final:
+        if leg.fix is not None and leg.fix.kind == "RWY" and leg.type == "CF":
+            stats.runwayLegs.append((apt, leg.fix.ident[2:], leg.crsTrue, leg.fix.lat, leg.fix.lon))
     return appr
 
 
@@ -1036,6 +1043,36 @@ def format_report(db: CifpDb, stats: Stats, seconds: float, airportsWritten: int
     return "\n".join(L) + "\n"
 
 
+def check_against_runways(stats: Stats, runwaysCsv: Path) -> list[str]:
+    """Compare the CF-to-runway legs with the nav database runways (N1): the final course against
+    the runway true heading and the CIFP runway fix against the threshold position."""
+    import csv
+    import statistics
+    rows = {}
+    with open(runwaysCsv, encoding="utf-8-sig", newline="") as f:
+        for r in csv.DictReader(f):
+            rows[(r["airport_ident"], r["rwy_ident"])] = r
+    dc: list[float] = []
+    dp: list[float] = []
+    for apt, rwy, crs, lat, lon in stats.runwayLegs:
+        r = rows.get((apt, rwy))
+        if r is None or crs is None:
+            continue
+        dc.append(abs((crs - float(r["heading_true_deg"]) + 540.0) % 360.0 - 180.0))
+        dp.append(navgeo.distance_m(lat, lon, float(r["thr_lat_deg"]), float(r["thr_lon_deg"])) * navgeo.FT_PER_M)
+    if not dc:
+        return ["cross-check against runways.csv: no CF-to-runway legs could be matched"]
+    dc.sort()
+    dp.sort()
+    q = lambda v, p: v[min(len(v) - 1, int(p * len(v)))]  # noqa: E731
+    return [f"cross-check against {runwaysCsv.name}: {len(dc)} final-approach CF legs to a runway fix matched",
+            f"  final course vs runway true heading: median {statistics.median(dc):.2f} deg, "
+            f"p95 {q(dc, 0.95):.1f} deg, {sum(1 for d in dc if d <= 3.0)} within 3 deg "
+            f"(the rest are offset non-precision approaches to a different runway heading)",
+            f"  CIFP runway fix vs runways.csv threshold: median {statistics.median(dp):.0f} ft, "
+            f"p95 {q(dp, 0.95):.0f} ft"]
+
+
 # --------------------------------------------------------------------------------------------
 # driver
 # --------------------------------------------------------------------------------------------
@@ -1054,7 +1091,7 @@ def normalise_airports(spec: str | None) -> set[str] | None:
 
 def run(source: str, outDir: Path, airports: set[str] | None = None, offline: bool = False,
         todayIso: str | None = None, reportPath: Path | None = None, quiet: bool = False,
-        updateNavIni: bool = True) -> dict:
+        updateNavIni: bool = True, runwaysPath: Path | None = None) -> dict:
     """Parse CIFP and write ``outDir/procedures/*.proc``. Returns a summary dict."""
     log = (lambda *a: None) if quiet else (lambda *a: print(*a, flush=True))
     t0 = time.time()
@@ -1087,6 +1124,9 @@ def run(source: str, outDir: Path, airports: set[str] | None = None, offline: bo
         written += 1
     seconds = time.time() - t0
     report = format_report(db, stats, seconds, written)
+    runwaysCsv = runwaysPath or (outDir / "runways.csv")
+    if runwaysCsv.exists():
+        report += "\n" + "\n".join(check_against_runways(stats, runwaysCsv)) + "\n"
     rp = reportPath or (procDir / "coverage_report.txt")
     rp.parent.mkdir(parents=True, exist_ok=True)
     rp.write_text(report, encoding="utf-8")
@@ -1126,6 +1166,9 @@ def main(argv=None) -> int:
                     help="only these airports (comma separated, 3-letter idents get a K prefix too)")
     ap.add_argument("--report", type=Path, default=None,
                     help="where to write the coverage report (default <out>/procedures/coverage_report.txt)")
+    ap.add_argument("--runways", type=Path, default=None, metavar="runways.csv",
+                    help="nav database runways.csv for the cross-check in the report "
+                         "(default <out>/runways.csv when it exists)")
     ap.add_argument("--offline", action="store_true", help="never touch the network (cache only)")
     ap.add_argument("--today", default=None, metavar="YYYY-MM-DD",
                     help="date used to pick the current cycle (default: today, UTC)")
@@ -1133,7 +1176,8 @@ def main(argv=None) -> int:
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
     try:
-        res = run(a.cifp, a.out, normalise_airports(a.airports), a.offline, a.today, a.report, a.quiet)
+        res = run(a.cifp, a.out, normalise_airports(a.airports), a.offline, a.today, a.report, a.quiet,
+                  runwaysPath=a.runways)
     except CifpError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

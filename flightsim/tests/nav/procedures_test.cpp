@@ -3,7 +3,10 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
 #include <string>
 
 #include "core/Geo.h"
@@ -336,4 +339,32 @@ TEST_CASE("nav: procedure file parser rejects bad input and skips future options
     CHECK(a.missedLegs[0].missedApproach);
     CHECK(a.missedLegs[0].courseTrueDeg == doctest::Approx(10.5));
     CHECK(a.missedLegs[0].to.ident.empty());
+}
+
+// Optional: parse every procedures/*.proc of a real nav pack. Skipped unless FSIM_NAV_DIR points at
+// a nav directory built with `build_navdb.py --cifp` (tests must not need real data otherwise).
+TEST_CASE("nav: real procedures pack parses (needs FSIM_NAV_DIR)") {
+    const char* dir = std::getenv("FSIM_NAV_DIR");
+    if (!dir) return;
+    clearProcedureCache();
+    size_t files = 0, approaches = 0, legs = 0, noMissed = 0;
+    const auto t0 = std::chrono::steady_clock::now();
+    for (const auto& e : std::filesystem::directory_iterator(std::string(dir) + "/procedures")) {
+        if (e.path().extension() != ".proc") continue;
+        auto set = loadProcedureSet(dir, e.path().stem().string());
+        REQUIRE_MESSAGE((set != nullptr), e.path().string());
+        ++files;
+        approaches += set->approaches.size();
+        for (const Approach& a : set->approaches) {
+            CHECK_MESSAGE(!a.finalLegs.empty(), a.airportIdent << " " << a.id);
+            legs += a.finalLegs.size() + a.missedLegs.size();
+            for (const auto& t : a.transitions) legs += t.legs.size();
+            if (a.missedLegs.empty()) ++noMissed;
+        }
+    }
+    const double ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    MESSAGE("parsed " << files << " files, " << approaches << " approaches, " << legs << " legs in "
+                      << ms << " ms; approaches without missed legs: " << noMissed);
+    CHECK(files > 0);
 }
