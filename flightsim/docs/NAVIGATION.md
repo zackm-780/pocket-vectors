@@ -152,6 +152,27 @@ All geometry is **true** internally. Magnetic is used only for display and user 
   nav box, hollow VNAV diamond on the GS scale (scale ±250 ft).
 - **Minimums:** from the active approach (§3.1). `distToThresholdNm` is used for RA/minimums callouts (X2).
 
+### 4.1 Implementation notes (N5: `src/nav/Navigator*`, `src/nav/ApproachBuilder*`)
+- **API:** `Navigator(db)`; `setPlan`, `loadApproach/loadApproachById`, `startApproachOnly`,
+  `directToLeg/directToIdent`, `reenterApproach` (direct-to IF), `setSourceSelect(Auto|Gps|Loc|Vor)`,
+  `tuneVor`, `update(AircraftState, dtS) -> NavState`. `availableApproaches(db, airport, runway,
+  realProvider)` lists real approaches first (N4 plugs in via the provider), then `I<rwy>` (or `L<rwy>`
+  without a glideslope), `R<rwy>`, `VIS<rwy>`; a synthesized id that a real approach already has is dropped.
+- **Clarifications:** the CDI/GS display clamp (+-1.25) applies to GPS and LOC. Auto GPS -> LOC
+  capture additionally requires the needle to be inside full scale (|cdi| <= 1) and the active leg to be on
+  the final course (DTK within 30 deg of the MAP leg's); LOC then latches until it is invalid, a missed
+  approach starts, or the source is forced. GS is evaluated only with the LOC source; its +-8 deg cone is
+  measured from the point of the centerline abeam the GS antenna (real antennas sit hundreds of feet off
+  the centerline). Advisory VNAV uses the next At / AtOrBelow / Between constraint (Between: the upper
+  altitude) or threshold + 50 ft; `requiredVsFpm` is the path VS once at or past the TOD and 0 before it.
+- **Deviation (MAP):** the MAP is the threshold at TCH = 50 ft, so "AGL > 50 ft" would turn every normal
+  landing into a missed approach. The missed approach starts when the MAP is passed airborne with
+  AGL > 100 ft, or climbing (> 300 fpm), or more than 0.5 NM past it still airborne above 50 ft AGL.
+- **Holds** (`HM`) are flown as direct-to the fix, then the inbound course; the racetrack itself is not
+  generated in v1. `RF` legs are flown as `TF` to the arc end. Mid-plan `IF` legs are flown as `TF`.
+- **Scenario keys:** `plan = <file.fms>` and `approach = <id>` in `[scenario]` (a lone `approach` makes a
+  one-approach plan at the scenario airport). In-air starts activate the leg nearest the aircraft.
+
 ## 5. Autopilot, flight director, autothrottle (N6, D11)
 Generic cascaded controllers driven by `AircraftState`, `NavState` and `AutopilotState` bugs. They
 produce the final `ControlInputs` (AP engaged) or FD cues only (AP off, FD on). Gains and limits live

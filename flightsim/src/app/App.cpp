@@ -20,12 +20,15 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "hud/Hud.h"                   // H2
 #include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "input/InputSystem.h"         // P2
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
+#include "world/AirportGeometry.h"         // W5
+#include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
 #include "world/Sky.h"                     // W4
 #include "world/terrain/TerrainService.h"  // W1
@@ -71,8 +74,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     gfx::DebugRenderer renderer(window.gl(), window.flavor());
     if (!renderer.init()) return 1;
     const Airport* airport = sim.navDb().findAirport(sim.scenario().airportIdent);
-    if (airport)
-        renderer.setWorld(*airport, static_cast<float>(ftToM(sim.startCondition().fieldElevFt)));
+    if (airport) {
+        // W5: AirportRenderer draws the runways; the debug ground grid sits at the lowest runway.
+        renderer.setDrawRunways(false);
+        renderer.setWorld(*airport, static_cast<float>(world::airportLowestFlatElevM(*airport)));
+    }
 
     // W4: shared atmosphere (time from the scenario, else local solar noon) and the sky pass.
     world::Atmosphere atmosphere;
@@ -86,6 +92,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     world::Sky sky(window.gl(), window.flavor());
     if (!sky.init()) return 1;
     renderer.setAtmosphere(&atmosphere, &sky);
+    // W5: airports near the camera (runways, markings, lights, PAPI); registers flatten areas.
+    world::AirportRenderer airports(window.gl(), window.flavor());
+    if (!airports.init()) return 1;
+    airports.setNavDatabase(&sim.navDb());
+    airports.setTerrain(&sim.terrain());
+    airports.setAtmosphere(&atmosphere);
     // H1: 2D HUD renderer (one batched draw call per frame). The glyph sheet is a debug view.
     Renderer2D hud2d(window.gl(), window.flavor());
     if (!hud2d.init()) return 1;
@@ -101,6 +113,19 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     pilotControls.setStickTuning(settings.stickTuning());  // P3
     const bool showFps = effectiveShowFps(opt, settings);  // P3
     MessageQueue messages;
+    Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
+    HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
+    // H2: P3 settings give the starting HUD color and declutter level.
+    switch (settings.hudColor) {
+    case HudColor::White: hudOptions.color = HudPalette::White; break;
+    case HudColor::Amber: hudOptions.color = HudPalette::Amber; break;
+    case HudColor::Green: hudOptions.color = HudPalette::Green; break;
+    }
+    switch (settings.hudDeclutterDefault) {
+    case HudDeclutter::Full: hudOptions.declutter = Declutter::Full; break;
+    case HudDeclutter::Std: hudOptions.declutter = Declutter::Std; break;
+    case HudDeclutter::Min: hudOptions.declutter = Declutter::Min; break;
+    }
     unsigned long shownMessages = 0;
 
     int frames = opt.frames;
@@ -124,6 +149,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         while (SDL_PollEvent(&event)) input.handleEvent(event);
         const ActionState& actions = input.update(dtS);  // P2
         messages.tick(dtS);
+        Hud::applyActions(actions, hudOptions, &messages);  // H2: Action::HudDeclutter
         if (input.quitRequested()) break;
         if (actions.pressed[static_cast<int>(Action::Pause)]) {
             state = state == AppState::Flying ? AppState::Paused : AppState::Flying;
@@ -153,9 +179,17 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(sim.aircraft().altAglFt));
         renderer.render(camera, w, h);
-        if (opt.glyphSheet) {  // H1
+        airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
+        {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
+            hudOptions.paused = state == AppState::Paused;
+            hudOptions.magVarDeg =
+                sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             hud2d.begin(w, h);
-            drawGlyphSheet(hud2d);
+            if (opt.glyphSheet)
+                drawGlyphSheet(hud2d);  // H1
+            else
+                hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
+                         messages, hudOptions);
             hud2d.end();
         }
         ++frame;
@@ -237,8 +271,8 @@ int App::run() {
     if (!navDbOwner) navDbOwner = std::make_unique<SyntheticNavDb>();
     const NavDatabase& navDb = *navDbOwner;
     FlatTerrain terrain;
-    if (const Airport* airport = navDb.findAirport(scenario.airportIdent))
-        terrain.setElevationM(static_cast<float>(ftToM(airport->elevFt)));
+    const Airport* startAirport = navDb.findAirport(scenario.airportIdent);
+    if (startAirport) terrain.setElevationM(static_cast<float>(ftToM(startAirport->elevFt)));
 
     // W1: with a terrain pack at <data root>/terrain (pack.ini present) use TerrainService, else
     // keep FlatTerrain. The flight model's ground stays flat at the scenario elevation until F3.
@@ -252,6 +286,9 @@ int App::run() {
             LOG_ERROR("terrain pack: %s; using flat terrain", svc->error().c_str());
     }
     TerrainQuery& terrainQuery = terrainSvc ? static_cast<TerrainQuery&>(*terrainSvc) : terrain;
+    // W5: the start airport's runway pads exist with or without a window (AirportRenderer keeps
+    // them in sync with the active airport set afterwards).
+    if (startAirport) world::registerAirportFlatten(*startAirport, terrainQuery);
 
     Simulation sim(paths, navDb, terrainQuery);
     if (!sim.init(scenario, aircraftId, error)) {

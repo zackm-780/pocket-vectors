@@ -1,6 +1,7 @@
 #pragma once
 // Pass-through stand-ins for modules built by later work packages, so the loop is complete from
-// day one: the real Navigator (N5) and Autopilot (N6) replace these behind the same calls.
+// day one: the real Autopilot (N6) replaces this behind the same calls. (The Navigator stub was
+// replaced by nav/Navigator in WP N5.)
 
 #include "core/AircraftState.h"
 #include "core/AutopilotState.h"
@@ -8,15 +9,6 @@
 #include "core/NavState.h"
 
 namespace fsim {
-
-class StubNavigator {
-public:
-    const NavState& update(const AircraftState&, double /*dtS*/) { return state_; }
-    const NavState& state() const { return state_; }
-
-private:
-    NavState state_;
-};
 
 class StubAutopilot {
 public:

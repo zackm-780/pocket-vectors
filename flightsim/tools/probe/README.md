@@ -28,7 +28,7 @@ show where it stopped). Everything printed also goes to stdout (so into `log.txt
 ## How to run the probe on the device (human steps)
 
 1. Get `flightsim-probe-portmaster.zip` (CI artifact of the `device` workflow, or `tools/build_device.sh`).
-2. Unzip it into the folder PortMaster uses for ports on the SD card, so that `Flight Sim Probe.sh` and the
+2. Unzip it into the folder PortMaster uses for ports on the SD card, so that `FlightSimProbe.sh` and the
    `flightsimprobe/` folder sit next to your other ports. (Or install it with PortMaster's sideload feature.)
 3. Start **Flight Sim Probe** from the Ports menu. Leave the sticks and triggers alone during the first
    1.5 s ("HANDS OFF": rest values are measured). Then do what each prompt asks. **Never press Select and
