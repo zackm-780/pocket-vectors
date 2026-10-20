@@ -73,13 +73,19 @@ Launch script requirements (P1). Follow the official template at
   `--fullscreen --conf-dir "$GAMEDIR/conf"`, then `pm_finish`.
 
 ## 7. Installing on the RG40XXH (human steps)
-1. Make sure PortMaster is installed and working on the stock OS (any existing port runs).
-2. Copy `Flight Sim.sh` and the `flightsim/` folder into the ports folder that PortMaster uses on your
-   SD card. The exact path on the stock OS goes into DEVICE.md once confirmed.
-3. Copy your data pack into `flightsim/data/`. Alternatively, put it anywhere on the card and set
+PortMaster is **optional**. The Anbernic stock OS does not ship it, and the launch scripts work
+without it: they then use the folder next to the script and the game handles Select+Start itself.
+1. Copy `Flight Sim.sh` **and** the `flightsim/` folder side by side into the folder your launcher
+   runs ports or scripts from (the same folder as each other). The exact path on the stock OS goes
+   into DEVICE.md once confirmed.
+2. Copy your data pack into `flightsim/data/`. Alternatively, put it anywhere on the card and set
    `data_dir` in `flightsim/conf/settings.ini`.
-4. Launch "Flight Sim" from the Ports menu. Exit with **Select + Start**. Logs: `flightsim/log.txt`.
-5. Start with the probe port ("Flight Sim Probe") once and send back `probe_report.txt`.
+3. Launch "Flight Sim". Exit with **Select + Start**.
+4. **Logs:** every launch writes `flightsim_launch_log.txt` **next to `Flight Sim.sh`**, even when
+   the game never starts. It records PortMaster detection, the folder used, the libraries found, and the
+   game's own output and exit status. The game also keeps `flightsim/conf/log.txt`.
+5. Run the probe port ("Flight Sim Probe") once and send back `flightsimprobe/probe_report.txt` and
+   `flightsimprobe_launch_log.txt`.
 
 ## 8. Device test checklist (per milestone, human)
 - Launches, renders at the native 640×480, exits cleanly with Select+Start.

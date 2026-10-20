@@ -169,7 +169,7 @@ input is ignored when `FLIGHTSIM_PLATFORM=portmaster`, because gptokeyb may inje
 playable with keyboard and any gamepad. Default mapping matches CONTROLS.md exactly.
 
 ## P3: Settings, persistence, paths
-**Status:** in progress (wp/P3-settings) · **Model / effort:** Sonnet / medium · **Depends:** WP-00, P2 · **Specs:** ARCHITECTURE §8, CONTROLS §4
+**Status:** done (merged wp/P3-settings; needs device test: conf dir + fsync on SD) · **Model / effort:** Sonnet / medium · **Depends:** WP-00, P2 · **Specs:** ARCHITECTURE §8, CONTROLS §4
 
 **Owns:** `src/app/Settings*`, `tests/app/settings*`.
 
@@ -179,7 +179,7 @@ config, plan), and safe writes (write temp, then rename).
 **Acceptance:** round-trip tests. Corrupt or missing files fall back to defaults.
 
 ## F1: JSBSim flight model wrapper
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** ARCHITECTURE §5, §7
+**Status:** done (merged wp/F1-flight-model) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** ARCHITECTURE §5, §7
 
 **Owns:** `src/sim/` (replaces the WP-00 bootstrap), `tests/sim/`, `src/sim/README.md` (property map).
 
@@ -195,7 +195,7 @@ trim. (c) Reset 100 times with no growth in RSS. (d) Hard-impact scenario sets `
 cruise start holds altitude ±200 ft for 60 s.
 
 ## F2: Core fleet profiles and flyability tests
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
+**Status:** in progress (wp/F2-core-fleet) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
 
 **Owns:** `assets/aircraft/{c172p,c310,global5000,737,B747}.ini`, `assets/jsbsim-overlay/` (only if
 a stock file needs a fix), `tests/fleet/`.
@@ -209,7 +209,7 @@ reversers if present).
 **Acceptance:** all 5 aircraft pass, or a documented exception approved by the supervisor.
 
 ## F3: Terrain ground contact
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
+**Status:** in progress (wp/F3-ground-contact) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
 
 **Owns:** `src/sim/GroundCallback*`, `tests/sim/ground*`.
 
@@ -223,7 +223,7 @@ synthetic terrain rolls flat. The c172p can't sink through terrain at 120 Hz.
 Profiles plus flyability tests and autopilot gains for `pa28`, `c182`, `J3Cub`, `DHC6`, `A320`, `787-8`, `MD11`.
 
 ## W1: Terrain runtime
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** DATA §3–4, ARCHITECTURE §3, §5
+**Status:** done (merged wp/W1-terrain-runtime; needs device test: SD-card load times) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** DATA §3–4, ARCHITECTURE §3, §5
 
 **Owns:** `src/world/terrain/`, `tests/world/terrain/`, `tools/fixtures/make_synthetic_terrain.py`.
 
@@ -235,7 +235,7 @@ prefetch, `isDetailReady`), and an API for W2 to enumerate resident tiles and LO
 flatten blend). No blocking on the main thread. Cache stays under its cap in a fly-through test.
 
 ## W2: Terrain renderer
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
+**Status:** in progress (wp/W2-terrain-renderer) · **Model / effort:** Sonnet / high · **Depends:** W1 · **Specs:** ARCHITECTURE §4, §6; DATA §4
 
 **Owns:** `src/world/TerrainRenderer*`, `src/gfx/` additions it needs (new files only), `assets/shaders/terrain*` if shaders are external.
 
