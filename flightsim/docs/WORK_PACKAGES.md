@@ -431,7 +431,7 @@ Manual wind, gusts, visibility and QNH. Optional METAR fetch over Wi-Fi for the 
 destination airports (aviationweather.gov), applied to JSBSim atmosphere and wind and to fog.
 
 ## X2: Terrain and ground warnings
-**Status:** in progress (wp/X2-gpws) · **Model / effort:** Sonnet / medium · **Depends:** W1, H2 · **Owns:** `src/hud/Gpws*`
+**Status:** done, merged (needs device test: alert timing and feel; tones come with S1 via GpwsMonitor::consumeEvent) · **Model / effort:** Sonnet / medium · **Depends:** W1, H2 · **Owns:** `src/hud/Gpws*`
 GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain query, "too low gear/flaps"),
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
