@@ -332,7 +332,7 @@ altitudes and missed approach (checked against the published charts).
 Unsupported legs are counted in a report across all US airports.
 
 ## N5: Navigator and approach builder
-**Status:** in progress (wp/N5-navigator) · **Model / effort:** Sonnet / high · **Depends:** N2, N3 · **Specs:** NAVIGATION §3–4
+**Status:** done, ready for review (wp/N5-navigator; additive NavState fields, see NAVIGATION 4.1) · **Model / effort:** Sonnet / high · **Depends:** N2, N3 · **Specs:** NAVIGATION §3–4
 
 **Owns:** `src/nav/Navigator*`, `src/nav/ApproachBuilder*`, `tests/nav/navigator*`.
 

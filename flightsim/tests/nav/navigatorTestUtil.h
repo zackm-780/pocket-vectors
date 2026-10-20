@@ -64,10 +64,12 @@ struct Follower {
         // Lateral: intercept with up to 30 degrees, LOC with a gentler gain.
         double cmdDeg = headingDeg();
         if (nav.source == NavSource::Loc) {
-            const double corr = std::clamp(12.0 * static_cast<double>(nav.cdiDeflection), -25.0, 25.0);
+            const double corr =
+                std::clamp(12.0 * static_cast<double>(nav.cdiDeflection), -25.0, 25.0);
             cmdDeg = static_cast<double>(nav.desiredTrackTrueDeg) + corr;
         } else if (nav.source == NavSource::Gps) {
-            const double corr = std::clamp(40.0 * static_cast<double>(nav.crossTrackNm), -30.0, 30.0);
+            const double corr =
+                std::clamp(40.0 * static_cast<double>(nav.crossTrackNm), -30.0, 30.0);
             cmdDeg = static_cast<double>(nav.desiredTrackTrueDeg) - corr;
         }
         const double omegaMax =
@@ -86,8 +88,8 @@ struct Follower {
             if (nav.vnavDevFt <= 100.0f)
                 vsFpm = pathVs + std::clamp(static_cast<double>(nav.vnavDevFt), -300.0, 300.0);
         } else if (nav.targetAltFt > 0) {
-            vsFpm = std::clamp(0.5 * (static_cast<double>(nav.targetAltFt) - ac.altMslFt), -vsLimitFpm,
-                               vsLimitFpm);
+            vsFpm = std::clamp(0.5 * (static_cast<double>(nav.targetAltFt) - ac.altMslFt),
+                               -vsLimitFpm, vsLimitFpm);
         }
         vsFpm = std::clamp(vsFpm, -1500.0, 1500.0);
 

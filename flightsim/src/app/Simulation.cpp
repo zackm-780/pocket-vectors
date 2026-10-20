@@ -5,7 +5,7 @@
 #include "core/Log.h"
 #include "core/SimTime.h"
 #include "nav/ApproachBuilder.h"  // N5
-#include "nav/FlightPlan.h"      // N5
+#include "nav/FlightPlan.h"       // N5
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
@@ -62,7 +62,8 @@ bool Simulation::initNavigation(std::string& error) {
         const std::string path = paths_.resolveInputFile(scenario_.planPath);
         PlanBuildResult r = loadPlanFromFmsFile(path, nav_);
         if (!r.ok) {
-            error = "scenario plan '" + path + "': " + (r.errors.empty() ? "unreadable" : r.errors[0]);
+            error =
+                "scenario plan '" + path + "': " + (r.errors.empty() ? "unreadable" : r.errors[0]);
             return false;
         }
         if (!scenario_.approachId.empty()) {

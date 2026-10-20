@@ -45,8 +45,10 @@ TEST_CASE("nav: ApproachBuilder ILS 27 geometry, altitudes and minimums") {
     CHECK(map.to.kind == WaypointKind::Runway);
     CHECK(map.flyOver);
     // 10 / 5 NM out on the extended centerline (landing 270, so the fixes are EAST of the threshold).
-    CHECK(distNmTo(ifLeg.to, x.r27->thrLatDeg, x.r27->thrLonDeg) == doctest::Approx(10.0).epsilon(0.002));
-    CHECK(distNmTo(faf.to, x.r27->thrLatDeg, x.r27->thrLonDeg) == doctest::Approx(5.0).epsilon(0.002));
+    CHECK(distNmTo(ifLeg.to, x.r27->thrLatDeg, x.r27->thrLonDeg) ==
+          doctest::Approx(10.0).epsilon(0.002));
+    CHECK(distNmTo(faf.to, x.r27->thrLatDeg, x.r27->thrLonDeg) ==
+          doctest::Approx(5.0).epsilon(0.002));
     CHECK(distNmTo(map.to, x.r27->thrLatDeg, x.r27->thrLonDeg) < 0.001);
     CHECK(ifLeg.to.lonDeg > x.r27->thrLonDeg);
     CHECK(inboundCourseTrueDeg(a) == doctest::Approx(270.0).epsilon(0.001));
@@ -71,7 +73,7 @@ TEST_CASE("nav: ApproachBuilder missed approach and IAF transitions") {
     CHECK(a.missedLegs[2].type == LegType::HM);
     CHECK(a.missedLegs[2].to.ident == "IF");
     CHECK(a.missedLegs[2].courseTrueDeg == doctest::Approx(270.0f));  // inbound on final course
-    CHECK(a.missedLegs[2].arcRight);                                   // right turns
+    CHECK(a.missedLegs[2].arcRight);                                  // right turns
     for (const Leg& l : a.missedLegs) CHECK(l.missedApproach);
     for (const Leg& l : a.finalLegs) CHECK_FALSE(l.missedApproach);
 

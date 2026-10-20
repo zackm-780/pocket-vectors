@@ -36,8 +36,8 @@ enum class NavSourceSelect { Auto, Gps, Loc, Vor };
 
 // Limits the navigator applies (exposed for tests and the HUD).
 struct NavConstants {
-    static constexpr float kCdiClamp = 1.25f;          // display clamp, NAVIGATION 3.2
-    static constexpr float kScaleEnrNm = 2.0f;         // CDI full scale, NAVIGATION 4
+    static constexpr float kCdiClamp = 1.25f;   // display clamp, NAVIGATION 3.2
+    static constexpr float kScaleEnrNm = 2.0f;  // CDI full scale, NAVIGATION 4
     static constexpr float kScaleTermNm = 1.0f;
     static constexpr float kScaleAprNm = 0.3f;
     static constexpr float kScaleRampS = 60.0f;        // linear ramp between scales
@@ -45,13 +45,13 @@ struct NavConstants {
     static constexpr float kAprBeforeFafNm = 2.0f;     // APR scaling starts this far before FAF
     static constexpr float kLocMaxDistNm = 18.0f;      // LOC validity cone
     static constexpr float kLocMaxOffDeg = 35.0f;
-    static constexpr float kGsMaxDistNm = 10.0f;       // GS validity cone
+    static constexpr float kGsMaxDistNm = 10.0f;  // GS validity cone
     static constexpr float kGsMaxOffDeg = 8.0f;
-    static constexpr float kGsFullScaleDeg = 0.7f;     // 1 dot = 0.35 deg
+    static constexpr float kGsFullScaleDeg = 0.7f;  // 1 dot = 0.35 deg
     static constexpr float kLocCaptureInterceptDeg = 45.0f;
     static constexpr float kVorFullScaleDeg = 10.0f;
     static constexpr float kVnavPathDeg = 3.0f;
-    static constexpr float kMissedAglFt = 100.0f;      // MAP passed airborne (see Navigator.cpp)
+    static constexpr float kMissedAglFt = 100.0f;  // MAP passed airborne (see Navigator.cpp)
     static constexpr float kMissedClimbFpm = 300.0f;
 };
 
@@ -93,10 +93,10 @@ public:
     const Approach* activeApproach() const { return approach_ ? &*approach_ : nullptr; }
 
     // ---- guidance commands -----------------------------------------------------------------
-    bool directToLeg(int legIndex);                 // direct-to legs[legIndex].to (N3)
-    bool directToIdent(std::string_view ident);     // plan waypoint first, else nearest DB match
-    bool reenterApproach();                         // direct-to the IF (NAVIGATION 3.4)
-    bool activateLeg(int legIndex);                 // makes a leg active, no direct-to
+    bool directToLeg(int legIndex);              // direct-to legs[legIndex].to (N3)
+    bool directToIdent(std::string_view ident);  // plan waypoint first, else nearest DB match
+    bool reenterApproach();                      // direct-to the IF (NAVIGATION 3.4)
+    bool activateLeg(int legIndex);              // makes a leg active, no direct-to
     // Picks the leg whose segment is closest ahead of the aircraft (scenario starts in flight).
     void activateNearestLeg(const AircraftState& aircraft);
 
@@ -115,10 +115,10 @@ private:
     struct Cache {
         uint64_t signature = 0;
         bool valid = false;
-        std::vector<float> legLenNm;      // per leg, from legDistNm
-        std::vector<float> afterNm;       // sum of legLen after leg i (missed legs excluded)
-        std::vector<float> afterAllNm;    // same, missed legs included
-        std::vector<float> toMapNm;       // distance from leg i's fix to the MAP, -1 if none
+        std::vector<float> legLenNm;    // per leg, from legDistNm
+        std::vector<float> afterNm;     // sum of legLen after leg i (missed legs excluded)
+        std::vector<float> afterAllNm;  // same, missed legs included
+        std::vector<float> toMapNm;     // distance from leg i's fix to the MAP, -1 if none
         int mapIdx = -1, firstMissedIdx = -1, firstFinalIdx = -1, fafIdx = -1;
         float finalCourseTrueDeg = 0;
         bool haveFinalCourse = false;

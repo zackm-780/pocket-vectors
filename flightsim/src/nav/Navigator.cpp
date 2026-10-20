@@ -99,9 +99,8 @@ void Navigator::tuneVor(const Navaid& navaid, float obsMagDeg) {
     vorTuned_ = true;
     vorIdent_ = navaid.ident;
     vorPos_ = LatLon{navaid.latDeg, navaid.lonDeg};
-    vorMagVarDeg_ = navaid.magVarDeg != 0.0f
-                        ? navaid.magVarDeg
-                        : db_.magVarDeg(navaid.latDeg, navaid.lonDeg);
+    vorMagVarDeg_ =
+        navaid.magVarDeg != 0.0f ? navaid.magVarDeg : db_.magVarDeg(navaid.latDeg, navaid.lonDeg);
     vorObsMagDeg_ = obsMagDeg;
 }
 
@@ -125,13 +124,12 @@ void Navigator::setPlan(FlightPlan plan) {
     if (!plan_.approachId.empty()) {
         if (plan_.approachStartLeg < 0) {
             if (!loadApproachById(plan_.approachId))
-                LOG_WARN("navigator: approach %s not available for %s %s",
-                         plan_.approachId.c_str(), plan_.destIdent.c_str(),
-                         plan_.arrRunway.c_str());
+                LOG_WARN("navigator: approach %s not available for %s %s", plan_.approachId.c_str(),
+                         plan_.destIdent.c_str(), plan_.arrRunway.c_str());
         } else {
             // Legs were inserted by someone else (N3/N4): keep them, fetch the metadata.
-            std::string rwy = plan_.arrRunway.empty() ? runwayFromApproachId(plan_.approachId)
-                                                      : plan_.arrRunway;
+            std::string rwy =
+                plan_.arrRunway.empty() ? runwayFromApproachId(plan_.approachId) : plan_.arrRunway;
             approach_ = findApproach(db_, plan_.destIdent, rwy, plan_.approachId, realProvider_);
         }
     }
@@ -477,8 +475,8 @@ Navigator::Guide Navigator::computeGuide(const AircraftState& ac, int legIndex) 
             g.dtkRad = courseRad;
         } else {
             // Local desired track: bearing from the point of the great circle abeam us to the end.
-            const double brg0 = initialBearingTrueRad(start.latDeg, start.lonDeg, end.latDeg,
-                                                      end.lonDeg);
+            const double brg0 =
+                initialBearingTrueRad(start.latDeg, start.lonDeg, end.latDeg, end.lonDeg);
             if (g.remNm > 0.01) {
                 const LatLon foot = pointFrom(start, brg0, alongNm);
                 g.dtkRad = initialBearingTrueRad(foot.latDeg, foot.lonDeg, end.latDeg, end.lonDeg);
@@ -508,8 +506,9 @@ bool Navigator::shouldSequence(const AircraftState& ac, const Guide& g, int legI
     const Leg& cur = plan_.legs[static_cast<size_t>(legIndex)];
     const Leg& next = plan_.legs[static_cast<size_t>(legIndex + 1)];
     if (isHoldLeg(cur.type)) return false;
-    if (g.altTerminated) return cur.alt.kind != AltConstraintKind::None &&
-                                ac.altMslFt >= static_cast<double>(cur.alt.altFt);
+    if (g.altTerminated)
+        return cur.alt.kind != AltConstraintKind::None &&
+               ac.altMslFt >= static_cast<double>(cur.alt.altFt);
 
     // The MAP sequences into the missed approach only when passed airborne (NAVIGATION 3.4).
     // Deviation: the spec says AGL > 50 ft, but a normal 3 degree approach crosses the MAP at
@@ -526,8 +525,8 @@ bool Navigator::shouldSequence(const AircraftState& ac, const Guide& g, int legI
     if (flyOver) return g.remNm <= 0;
 
     const double dtkDeg = radToDeg(g.dtkRad);
-    const double dPsiDeg = std::min(
-        std::fabs(wrap180(radToDeg(courseOutRad(legIndex)) - dtkDeg)), kMaxTurnAnticipationDeg);
+    const double dPsiDeg = std::min(std::fabs(wrap180(radToDeg(courseOutRad(legIndex)) - dtkDeg)),
+                                    kMaxTurnAnticipationDeg);
     const double vMps = ktToMps(std::max(static_cast<double>(ac.gsKt), kAnticipationMinGsKt));
     const double bankRad = degToRad(std::max(static_cast<double>(bankDeg_), 5.0));
     const double radiusM = vMps * vMps / (kStdGravityMps2 * std::tan(bankRad));
@@ -553,8 +552,7 @@ float Navigator::targetScaleNm(const Guide& g, NavPhase phase) const {
                   (a == cache_.fafIdx && g.distToWptNm <= NavConstants::kAprBeforeFafNm);
         else if (a >= 0 && a < static_cast<int>(cache_.toMapNm.size()) &&
                  cache_.toMapNm[static_cast<size_t>(a)] >= 0)
-            apr = g.distToWptNm + cache_.toMapNm[static_cast<size_t>(a)] <=
-                  7.0 /* FAF 5 NM + 2 */;
+            apr = g.distToWptNm + cache_.toMapNm[static_cast<size_t>(a)] <= 7.0 /* FAF 5 NM + 2 */;
         else
             apr = false;
         return apr ? NavConstants::kScaleAprNm : NavConstants::kScaleTermNm;
@@ -570,9 +568,10 @@ Navigator::Angular Navigator::computeLoc(const AircraftState& ac) const {
     const double backDeg = courseDeg + 180.0;
     const double halfWidthDeg = 0.5 * (ils.locWidthDeg > 0 ? ils.locWidthDeg : 5.0);
 
-    r.distToAntennaNm = static_cast<float>(distNm(ac.latDeg, ac.lonDeg, ils.locLatDeg, ils.locLonDeg));
-    const double brgDeg = radToDeg(
-        initialBearingTrueRad(ils.locLatDeg, ils.locLonDeg, ac.latDeg, ac.lonDeg));
+    r.distToAntennaNm =
+        static_cast<float>(distNm(ac.latDeg, ac.lonDeg, ils.locLatDeg, ils.locLonDeg));
+    const double brgDeg =
+        radToDeg(initialBearingTrueRad(ils.locLatDeg, ils.locLonDeg, ac.latDeg, ac.lonDeg));
     const double offDeg = wrap180(brgDeg - backDeg);  // + = aircraft LEFT of the course
     r.offRightDeg = static_cast<float>(-offDeg);
     r.locValid = r.distToAntennaNm <= NavConstants::kLocMaxDistNm &&
@@ -590,8 +589,8 @@ Navigator::Angular Navigator::computeLoc(const AircraftState& ac) const {
         // antenna's lateral offset (hundreds of feet) does not invalidate the signal close in.
         const double alongNm = gsDistNm * std::cos(degToRad(wrap180(gsBrgDeg - backDeg)));
         const double lateralNm = r.distToAntennaNm * std::sin(degToRad(r.offRightDeg));
-        const double gsOffDeg = alongNm > 1e-6 ? radToDeg(std::atan2(std::fabs(lateralNm), alongNm))
-                                               : 180.0;
+        const double gsOffDeg =
+            alongNm > 1e-6 ? radToDeg(std::atan2(std::fabs(lateralNm), alongNm)) : 180.0;
         const double heightFt = ac.altMslFt - static_cast<double>(ils.gsElevFt);
         const double distFt = nmToFt(gsDistNm);
         const double elevDeg = radToDeg(std::atan2(heightFt, distFt));
@@ -655,8 +654,9 @@ void Navigator::computeVnav(const AircraftState& ac, const Guide& g, NavPhase ph
     s.vnavDevFt = static_cast<float>(devFt);
     s.todDistNm = static_cast<float>(std::max(0.0, todNm));
     const double fpmPerKt = kFtPerNm / 60.0;  // 1 kt = 101.27 fpm
-    s.requiredVsFpm =
-        devFt <= 0.0 ? static_cast<float>(-static_cast<double>(ac.gsKt) * fpmPerKt * tanPath) : 0.0f;
+    s.requiredVsFpm = devFt <= 0.0
+                          ? static_cast<float>(-static_cast<double>(ac.gsKt) * fpmPerKt * tanPath)
+                          : 0.0f;
 }
 
 // ---- VOR (optional source) ---------------------------------------------------------------------
@@ -677,20 +677,19 @@ void Navigator::updateVor(const AircraftState& ac, NavState& s) const {
     }
     s.source = NavSource::Vor;
     s.toFlag = to;
-    s.cdiDeflection = static_cast<float>(
-        clampd(devDeg / NavConstants::kVorFullScaleDeg, -NavConstants::kCdiClamp,
-               NavConstants::kCdiClamp));
+    s.cdiDeflection = static_cast<float>(clampd(devDeg / NavConstants::kVorFullScaleDeg,
+                                                -NavConstants::kCdiClamp, NavConstants::kCdiClamp));
     s.cdiFullScaleNm = 0;
     s.desiredTrackTrueDeg = static_cast<float>(obsTrueDeg);
-    s.distToWptNm = static_cast<float>(distNm(ac.latDeg, ac.lonDeg, vorPos_.latDeg, vorPos_.lonDeg));
+    s.distToWptNm =
+        static_cast<float>(distNm(ac.latDeg, ac.lonDeg, vorPos_.latDeg, vorPos_.lonDeg));
     s.crossTrackNm = static_cast<float>(-s.distToWptNm * std::sin(degToRad(devDeg)));
     s.bearingToWptTrueDeg = static_cast<float>(brgToDeg);
     s.wptLatDeg = vorPos_.latDeg;
     s.wptLonDeg = vorPos_.lonDeg;
     copyIdent(s.activeWptIdent, vorIdent_);
-    s.eteToWptS = ac.gsKt > kMinGsForRatesKt
-                      ? static_cast<float>(eteS(s.distToWptNm, ac.gsKt))
-                      : 0.0f;
+    s.eteToWptS =
+        ac.gsKt > kMinGsForRatesKt ? static_cast<float>(eteS(s.distToWptNm, ac.gsKt)) : 0.0f;
 }
 
 void Navigator::fillIdent(char (&dst)[8], const Leg& leg) const {
@@ -777,10 +776,9 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
 
     // Final-course facts and LOC.
     const bool approachIls = cache_.ils != nullptr && phase != NavPhase::Missed;
-    const bool onFinal =
-        inApproach && cache_.haveFinalCourse &&
-        std::fabs(wrap180(radToDeg(g.dtkRad) - cache_.finalCourseTrueDeg)) <
-            kLocFinalCourseToleranceDeg;
+    const bool onFinal = inApproach && cache_.haveFinalCourse &&
+                         std::fabs(wrap180(radToDeg(g.dtkRad) - cache_.finalCourseTrueDeg)) <
+                             kLocFinalCourseToleranceDeg;
     Angular loc;
     if (approachIls) loc = computeLoc(ac);
     const double trackRad = ac.gsKt > kMinGsForRatesKt ? ac.trackTrueRad : ac.headingTrueRad;
@@ -815,7 +813,8 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
     s.activeLegIndex = a;
     s.distToWptNm = static_cast<float>(g.distToWptNm);
     s.bearingToWptTrueDeg = static_cast<float>(radToDeg(g.brgToWptRad));
-    const double distAfterNm = phase == NavPhase::Missed ? cache_.afterAllNm[ua] : cache_.afterNm[ua];
+    const double distAfterNm =
+        phase == NavPhase::Missed ? cache_.afterAllNm[ua] : cache_.afterNm[ua];
     s.distToDestNm = static_cast<float>(g.distToWptNm + distAfterNm);
     if (ac.gsKt > kMinGsForRatesKt) {
         s.eteToWptS = static_cast<float>(eteS(s.distToWptNm, ac.gsKt));
@@ -826,8 +825,8 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
     // Approach information.
     const ApproachKind kind = approach_ ? approach_->kind : plan_.approachKind;
     if (kind != ApproachKind::None && plan_.approachStartLeg >= 0) {
-        const char* rwy = cache_.arrRunway ? cache_.arrRunway->ident.c_str()
-                                           : plan_.arrRunway.c_str();
+        const char* rwy =
+            cache_.arrRunway ? cache_.arrRunway->ident.c_str() : plan_.arrRunway.c_str();
         std::snprintf(s.approachName, sizeof s.approachName, "%s %s", kindName(kind), rwy);
         if (approach_) {
             s.minimumsFt = approach_->minimumsFt;
@@ -858,8 +857,8 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
         s.desiredTrackTrueDeg = static_cast<float>(radToDeg(g.dtkRad));
         s.crossTrackNm = static_cast<float>(g.xtkNm);
         s.cdiFullScaleNm = scaleNm_;
-        s.cdiDeflection = static_cast<float>(clampd(-g.xtkNm / scaleNm_, -NavConstants::kCdiClamp,
-                                                    NavConstants::kCdiClamp));
+        s.cdiDeflection = static_cast<float>(
+            clampd(-g.xtkNm / scaleNm_, -NavConstants::kCdiClamp, NavConstants::kCdiClamp));
         s.toFlag = g.altTerminated || g.remNm >= 0.0;
     }
 

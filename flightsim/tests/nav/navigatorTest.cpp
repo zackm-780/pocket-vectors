@@ -60,7 +60,8 @@ struct Xtst {
 // Point on the extended centerline of a runway, distNm before the threshold, rightNm to the
 // right of the INBOUND course.
 LatLon finalPoint(const Runway& r, double distNm, double rightNm = 0) {
-    return offsetPoint(LatLon{r.thrLatDeg, r.thrLonDeg}, r.headingTrueDeg + 180.0, distNm, -rightNm);
+    return offsetPoint(LatLon{r.thrLatDeg, r.thrLonDeg}, r.headingTrueDeg + 180.0, distNm,
+                       -rightNm);
 }
 
 AircraftState onFinal(const Runway& r, double distNm, double rightNm, double altMslFt,
@@ -203,9 +204,9 @@ TEST_CASE("nav: LOC deviation signs and scale (right of course: cdi -)") {
 
     // 0.2 NM north of the centerline, flying west: aircraft is to the RIGHT of the course.
     const LatLon ant{x.r27->ils->locLatDeg, x.r27->ils->locLonDeg};
-    const double dAnt = mToNm(greatCircleDistM(finalPoint(*x.r27, 5.0, 0.2).latDeg,
-                                               finalPoint(*x.r27, 5.0, 0.2).lonDeg, ant.latDeg,
-                                               ant.lonDeg));
+    const double dAnt =
+        mToNm(greatCircleDistM(finalPoint(*x.r27, 5.0, 0.2).latDeg,
+                               finalPoint(*x.r27, 5.0, 0.2).lonDeg, ant.latDeg, ant.lonDeg));
     const double expectedDeg = radToDeg(std::asin(0.2 / dAnt));
     s = nav.update(onFinal(*x.r27, 5.0, 0.2, gsPathAltFt(*x.r27, 5.0)), 0.1);
     CHECK(s.cdiDeflection < 0.0f);
@@ -235,8 +236,10 @@ TEST_CASE("nav: LOC sensitivity increases toward the threshold") {
         prev = dev;
     }
     // Same lateral offset at 2 NM gives much more than 2x the deflection of 8 NM.
-    const double d8 = std::fabs(nav.update(onFinal(*x.r27, 8.0, lateralNm, 4000), 0.1).cdiDeflection);
-    const double d2 = std::fabs(nav.update(onFinal(*x.r27, 2.0, lateralNm, 2400), 0.1).cdiDeflection);
+    const double d8 =
+        std::fabs(nav.update(onFinal(*x.r27, 8.0, lateralNm, 4000), 0.1).cdiDeflection);
+    const double d2 =
+        std::fabs(nav.update(onFinal(*x.r27, 2.0, lateralNm, 2400), 0.1).cdiDeflection);
     CHECK(d2 > 2.0 * d8);
 }
 
@@ -357,7 +360,8 @@ TEST_CASE("nav: no LOC capture with a large intercept angle, outside full scale 
     {
         // An RNAV approach never switches to LOC.
         Navigator nav(x.db);
-        REQUIRE(nav.startApproachOnly(buildRnavApproach(x.airport, *x.r27), finalPoint(*x.r27, 14.0), 0));
+        REQUIRE(nav.startApproachOnly(buildRnavApproach(x.airport, *x.r27),
+                                      finalPoint(*x.r27, 14.0), 0));
         NavState s = nav.update(onFinal(*x.r27, 7.0, 0.0, 4300), 0.1);
         CHECK(s.source == NavSource::Gps);
         CHECK_FALSE(s.locValid);
@@ -372,8 +376,9 @@ TEST_CASE("nav: no LOC capture with a large intercept angle, outside full scale 
 TEST_CASE("nav: fly-by anticipation distance d = R tan(dPsi/2)") {
     SyntheticNavDb db;
     // A -> B east, B -> C north: a 90 degree turn at B.
-    auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
-                          makeLeg(LegType::TF, "C", 46.0, -99.0)});
+    auto plan =
+        makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
+                  makeLeg(LegType::TF, "C", 46.0, -99.0)});
     const Waypoint a = plan.legs[0].to, b = plan.legs[1].to;
     // Light aircraft: bank 20, V = 100 kt.
     const double v = ktToMps(100.0);
@@ -411,7 +416,8 @@ TEST_CASE("nav: fly-by anticipation distance d = R tan(dPsi/2)") {
     }
 }
 
-TEST_CASE("nav: turn anticipation caps the course change at 120 degrees and small turns barely lead") {
+TEST_CASE(
+    "nav: turn anticipation caps the course change at 120 degrees and small turns barely lead") {
     SyntheticNavDb db;
     const double v = ktToMps(100.0);
     const double r = v * v / (kStdGravityMps2 * std::tan(degToRad(20.0)));
@@ -444,8 +450,9 @@ TEST_CASE("nav: turn anticipation caps the course change at 120 degrees and smal
 
 TEST_CASE("nav: fly-over legs sequence only when abeam; the last leg never sequences") {
     SyntheticNavDb db;
-    auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
-                          makeLeg(LegType::TF, "C", 46.0, -99.0)});
+    auto plan =
+        makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
+                  makeLeg(LegType::TF, "C", 46.0, -99.0)});
     plan.legs[1].flyOver = true;
     Navigator nav(db);
     nav.setPlan(plan);
@@ -464,8 +471,9 @@ TEST_CASE("nav: fly-over legs sequence only when abeam; the last leg never seque
 
 TEST_CASE("nav: legs sequence in order when several fixes are crossed in one update") {
     SyntheticNavDb db;
-    auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.99),
-                          makeLeg(LegType::TF, "C", 45.0, -99.98), makeLeg(LegType::TF, "D", 45.0, -90.0)});
+    auto plan =
+        makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.99),
+                  makeLeg(LegType::TF, "C", 45.0, -99.98), makeLeg(LegType::TF, "D", 45.0, -90.0)});
     Navigator nav(db);
     nav.setPlan(plan);
     // The aircraft is already past B and C (and on the way to D).
@@ -478,8 +486,8 @@ TEST_CASE("nav: CA legs sequence when climbing through the leg altitude") {
     SyntheticNavDb db;
     Leg ca = makeLeg(LegType::CA, "CA", 45.0, -99.9, 3000, AltConstraintKind::AtOrAbove);
     ca.courseTrueDeg = 90;
-    auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), ca,
-                          makeLeg(LegType::TF, "B", 45.0, -98.0)});
+    auto plan = makePlan(
+        {makeLeg(LegType::IF, "A", 45.0, -100.0), ca, makeLeg(LegType::TF, "B", 45.0, -98.0)});
     Navigator nav(db);
     nav.setPlan(plan);
     NavState s = nav.update(makeAircraft(45.0, -99.99, 2500, 90), 0.1);
@@ -610,7 +618,8 @@ TEST_CASE("nav: missed approach sequences only after the MAP is passed airborne"
     }
 }
 
-TEST_CASE("nav: missed approach legs CA -> DF IF -> HM, hold never sequences, re-entry via direct-to IF") {
+TEST_CASE("nav: missed approach legs CA -> DF IF -> HM, hold never sequences, re-entry via "
+          "direct-to IF") {
     Xtst x;
     Navigator nav = ilsNavigator(x, *x.r27, finalPoint(*x.r27, 14.0));
     nav.update(onFinal(*x.r27, 1.0, 0.0, 2300), 0.1);
@@ -653,8 +662,8 @@ TEST_CASE("nav: missed approach legs CA -> DF IF -> HM, hold never sequences, re
 
 TEST_CASE("nav: advisory VNAV 3 degree path, required VS and TOD distance") {
     SyntheticNavDb db;
-    auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0),
-                          makeLeg(LegType::TF, "B", 45.0, -98.0, 2000)});
+    auto plan = makePlan(
+        {makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -98.0, 2000)});
     Navigator nav(db);
     nav.setPlan(plan);
     const Waypoint a = plan.legs[0].to, b = plan.legs[1].to;
@@ -713,7 +722,8 @@ TEST_CASE("nav: VNAV targets the destination threshold + 50 ft when no constrain
 TEST_CASE("nav: VNAV on a synthesized approach follows the leg altitude constraints") {
     Xtst x;
     Navigator nav(x.db);
-    REQUIRE(nav.startApproachOnly(buildRnavApproach(x.airport, *x.r27), finalPoint(*x.r27, 14.0), 0));
+    REQUIRE(
+        nav.startApproachOnly(buildRnavApproach(x.airport, *x.r27), finalPoint(*x.r27, 14.0), 0));
     // Between the IF and the FAF at 5200 ft: next constraint is the FAF at 3600 ft.
     NavState s = nav.update(onFinal(*x.r27, 9.5, 0.0, 5200), 0.1);
     CHECK(std::strcmp(s.activeWptIdent, "FAF") == 0);
@@ -721,8 +731,9 @@ TEST_CASE("nav: VNAV on a synthesized approach follows the leg altitude constrai
     CHECK(s.vnavValid);
     // The 3 degree path from the FAF at 5 NM thr+1600: at 7.5 NM out the path is ~ 3600 + 2.5 NM x 318 ft.
     s = nav.update(onFinal(*x.r27, 7.5, 0.0, 4300), 0.1);
-    CHECK(s.vnavDevFt == doctest::Approx(3600.0 + 2.5 * kFtPerNm * std::tan(degToRad(3.0)) - 4300.0)
-                             .epsilon(0.02));
+    CHECK(
+        s.vnavDevFt ==
+        doctest::Approx(3600.0 + 2.5 * kFtPerNm * std::tan(degToRad(3.0)) - 4300.0).epsilon(0.02));
 }
 
 // ---- VOR (optional source) -------------------------------------------------------------------
@@ -738,7 +749,8 @@ TEST_CASE("nav: VOR source TO/FROM flags and deflection signs") {
     nav.setSourceSelect(NavSourceSelect::Vor);
 
     // 10 NM south of the station, 1 NM east of the radial: heading north the course is to the left.
-    LatLon p = offsetPoint(LatLon{45.0, -100.0}, 180.0, 10.0, -1.0);  // right of 180 = west; -1 = east
+    LatLon p =
+        offsetPoint(LatLon{45.0, -100.0}, 180.0, 10.0, -1.0);  // right of 180 = west; -1 = east
     NavState s = nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 0), 0.1);
     CHECK(s.source == NavSource::Vor);
     CHECK(s.toFlag);
@@ -780,11 +792,13 @@ TEST_CASE("nav: empty navigator and invalid aircraft give an empty NavState") {
     CHECK(nav.state().source == NavSource::None);
 }
 
-TEST_CASE("nav: magnetic variation comes from the database and activateNearestLeg picks the leg ahead") {
+TEST_CASE(
+    "nav: magnetic variation comes from the database and activateNearestLeg picks the leg ahead") {
     SyntheticNavDb db;
     Navigator nav(db);
-    auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
-                          makeLeg(LegType::TF, "C", 45.0, -98.0), makeLeg(LegType::TF, "D", 45.0, -97.0)});
+    auto plan =
+        makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
+                  makeLeg(LegType::TF, "C", 45.0, -98.0), makeLeg(LegType::TF, "D", 45.0, -97.0)});
     nav.setPlan(plan);
     // Over the middle of leg C -> D, heading east.
     AircraftState ac = makeAircraft(45.0, -97.5, 5000, 90);

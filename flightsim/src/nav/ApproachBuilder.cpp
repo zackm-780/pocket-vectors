@@ -235,9 +235,9 @@ float inboundCourseTrueDeg(const Approach& a) {
         const Leg& last = a.finalLegs.back();
         // Course arriving at the last fix (the runway heading at a threshold MAP): the reverse of
         // the bearing from there back to the first fix, which avoids meridian-convergence error.
-        return static_cast<float>(wrap360(
-            180.0 + radToDeg(initialBearingTrueRad(last.to.latDeg, last.to.lonDeg, first.to.latDeg,
-                                                    first.to.lonDeg))));
+        return static_cast<float>(
+            wrap360(180.0 + radToDeg(initialBearingTrueRad(last.to.latDeg, last.to.lonDeg,
+                                                           first.to.latDeg, first.to.lonDeg))));
     }
     for (const Leg& l : a.finalLegs)
         if (l.type == LegType::CF || l.type == LegType::CA) return l.courseTrueDeg;

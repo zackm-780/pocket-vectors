@@ -32,7 +32,7 @@ struct Sample {
 struct FlightResult {
     bool reachedThreshold = false;
     double timeS = 0;
-    std::vector<Sample> samples;  // every 2 s
+    std::vector<Sample> samples;   // every 2 s
     std::vector<int> legSequence;  // active leg index each time it changes
     std::vector<std::string> identSequence;
     std::set<NavPhase> phases;
@@ -86,17 +86,21 @@ FlightResult fly(Navigator& nav, Follower& pilot, double maxS, double endNm = 0.
         }
         // Worst deviations on final.
         if (s.source == NavSource::Loc && s.distToThresholdNm <= 6.0f && s.distToThresholdNm > 0.3f)
-            r.maxCdiWithin6Nm = std::max(r.maxCdiWithin6Nm, std::fabs(static_cast<double>(s.cdiDeflection)));
+            r.maxCdiWithin6Nm =
+                std::max(r.maxCdiWithin6Nm, std::fabs(static_cast<double>(s.cdiDeflection)));
         if (s.source == NavSource::Loc && s.gsValid && s.distToThresholdNm <= 4.5f &&
             s.distToThresholdNm > 0.3f)
-            r.maxGsWithin45Nm = std::max(r.maxGsWithin45Nm, std::fabs(static_cast<double>(s.gsDeflection)));
+            r.maxGsWithin45Nm =
+                std::max(r.maxGsWithin45Nm, std::fabs(static_cast<double>(s.gsDeflection)));
         // GPS legs: cross-track in the second half of long legs.
-        if (s.source == NavSource::Gps && !s.onFinal && leg >= 1 && leg < static_cast<int>(legLen.size()) &&
-            legLen[static_cast<size_t>(leg)] > 8.0 && s.distToWptNm < 0.4 * legLen[static_cast<size_t>(leg)] &&
-            s.distToWptNm > 1.5f && s.phase != NavPhase::Missed)
+        if (s.source == NavSource::Gps && !s.onFinal && leg >= 1 &&
+            leg < static_cast<int>(legLen.size()) && legLen[static_cast<size_t>(leg)] > 8.0 &&
+            s.distToWptNm < 0.4 * legLen[static_cast<size_t>(leg)] && s.distToWptNm > 1.5f &&
+            s.phase != NavPhase::Missed)
             r.maxXtkGpsSecondHalf =
                 std::max(r.maxXtkGpsSecondHalf, std::fabs(static_cast<double>(s.crossTrackNm)));
-        if (s.distToThresholdNm > 0 && s.distToThresholdNm < endNm && s.activeLegIndex == nav.mapLegIndex()) {
+        if (s.distToThresholdNm > 0 && s.distToThresholdNm < endNm &&
+            s.activeLegIndex == nav.mapLegIndex()) {
             r.reachedThreshold = true;
             r.timeS = t;
             r.atEnd = smp;
@@ -114,23 +118,26 @@ void printHighlights(const char* title, const FlightResult& r) {
         std::printf("%s%d(%s)", i ? " > " : "", r.legSequence[i], r.identSequence[i].c_str());
     std::printf("\n");
     if (r.firstLocS >= 0)
-        std::printf("LOC capture at t=%.0f s: %.2f NM to threshold, cdi %.2f, gs %.2f (valid %d), alt %.0f ft\n",
-                    r.firstLocS, r.atLocCapture.nav.distToThresholdNm, r.atLocCapture.nav.cdiDeflection,
-                    r.atLocCapture.nav.gsDeflection, r.atLocCapture.nav.gsValid ? 1 : 0,
-                    r.atLocCapture.altMslFt);
-    std::printf("max |cdi| within 6 NM: %.3f   max |gs| within 4.5 NM: %.3f   max GPS xtk (2nd half): %.3f NM\n",
+        std::printf("LOC capture at t=%.0f s: %.2f NM to threshold, cdi %.2f, gs %.2f (valid %d), "
+                    "alt %.0f ft\n",
+                    r.firstLocS, r.atLocCapture.nav.distToThresholdNm,
+                    r.atLocCapture.nav.cdiDeflection, r.atLocCapture.nav.gsDeflection,
+                    r.atLocCapture.nav.gsValid ? 1 : 0, r.atLocCapture.altMslFt);
+    std::printf("max |cdi| within 6 NM: %.3f   max |gs| within 4.5 NM: %.3f   max GPS xtk (2nd "
+                "half): %.3f NM\n",
                 r.maxCdiWithin6Nm, r.maxGsWithin45Nm, r.maxXtkGpsSecondHalf);
-    std::printf("at threshold: src %d phase %d cdi %.3f gs %.3f (valid %d) agl %.0f ft dist %.3f NM\n",
-                static_cast<int>(r.atEnd.nav.source), static_cast<int>(r.atEnd.nav.phase),
-                r.atEnd.nav.cdiDeflection, r.atEnd.nav.gsDeflection, r.atEnd.nav.gsValid ? 1 : 0,
-                r.atEnd.aglFt, r.atEnd.nav.distToThresholdNm);
+    std::printf(
+        "at threshold: src %d phase %d cdi %.3f gs %.3f (valid %d) agl %.0f ft dist %.3f NM\n",
+        static_cast<int>(r.atEnd.nav.source), static_cast<int>(r.atEnd.nav.phase),
+        r.atEnd.nav.cdiDeflection, r.atEnd.nav.gsDeflection, r.atEnd.nav.gsValid ? 1 : 0,
+        r.atEnd.aglFt, r.atEnd.nav.distToThresholdNm);
     std::printf("trace (every ~60 s): t src phase leg wpt dist xtk cdi gs alt\n");
     for (size_t i = 0; i < r.samples.size(); i += 30) {
         const Sample& s = r.samples[i];
         std::printf("  %5.0f %d %d %2d %-7s %6.2f %6.3f %6.2f %6.2f %6.0f\n", s.tS,
-                    static_cast<int>(s.nav.source), static_cast<int>(s.nav.phase), s.nav.activeLegIndex,
-                    s.nav.activeWptIdent, s.nav.distToWptNm, s.nav.crossTrackNm, s.nav.cdiDeflection,
-                    s.nav.gsDeflection, s.altMslFt);
+                    static_cast<int>(s.nav.source), static_cast<int>(s.nav.phase),
+                    s.nav.activeLegIndex, s.nav.activeWptIdent, s.nav.distToWptNm,
+                    s.nav.crossTrackNm, s.nav.cdiDeflection, s.nav.gsDeflection, s.altMslFt);
     }
 }
 
@@ -160,7 +167,8 @@ LatLon finalPointForTest(const Runway& r, double distNm) {
 
 }  // namespace
 
-TEST_CASE("nav: perfect pilot flies the XTST pattern plan and the synthesized ILS 09 to the threshold") {
+TEST_CASE(
+    "nav: perfect pilot flies the XTST pattern plan and the synthesized ILS 09 to the threshold") {
     SyntheticNavDb db;
     auto parsed = loadPlanFromFmsFile("assets/plans/XTST-pattern.fms", db);
     REQUIRE(parsed.ok);
@@ -237,7 +245,8 @@ TEST_CASE("nav: perfect pilot flies the pattern plan and the synthesized ILS 27 
     CHECK(sawIf);
 }
 
-TEST_CASE("nav: perfect pilot on a synthesized RNAV approach stays on GPS and follows VNAV constraints") {
+TEST_CASE(
+    "nav: perfect pilot on a synthesized RNAV approach stays on GPS and follows VNAV constraints") {
     SyntheticNavDb db;
     const Airport& ap = db.airport();
     const Runway* r27 = findRunway(ap, "27");
