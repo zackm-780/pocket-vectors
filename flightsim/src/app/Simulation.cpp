@@ -4,14 +4,24 @@
 
 #include "core/Log.h"
 #include "core/SimTime.h"
+#include "core/SyntheticNavDb.h"  // findRunway
+#include "core/Units.h"
 #include "nav/ApproachBuilder.h"  // N5
 #include "nav/FlightPlan.h"       // N5
+#include "nav/Procedures.h"       // N4
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
+namespace {
+constexpr float kSpawnPrefetchRadiusM = 5000.0f;  // F3
+}
 
 Simulation::Simulation(const Paths& paths, const NavDatabase& nav, TerrainQuery& terrain)
-    : paths_(paths), nav_(nav), terrain_(terrain), model_(paths.asset("jsbsim")), navigator_(nav) {}
+    : paths_(paths), nav_(nav), terrain_(terrain), model_(paths.asset("jsbsim")), navigator_(nav) {
+    // N4: real FAA CIFP approaches (<data root>/nav/procedures/{ICAO}.proc) are listed before the
+    // synthesized ones; airports without a file keep the synthesized approaches.
+    navigator_.setRealApproachProvider(makeCifpApproachProvider(paths.data("nav")));
+}
 
 bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverride,
                       std::string& error) {
@@ -22,6 +32,25 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
         paths_.asset("assets/aircraft/" + scenario_.aircraftId + ".ini");
     if (!loadAircraftProfile(profilePath, profile_, error)) return false;
     if (!resolveStart(scenario_, nav_, profile_, start_, error)) return false;
+
+    // F3: the flight model's ground is the terrain. Make the start sit on it. The runway pads
+    // (flatten areas) must already be registered (W5: App does it before init()).
+    const Airport* airport = nav_.findAirport(scenario_.airportIdent);
+    const Runway* runway = airport ? findRunway(*airport, scenario_.runwayIdent) : nullptr;
+    std::vector<SpawnPoint> gatePoints{{start_.latDeg, start_.lonDeg}};
+    if (runway && start_.kind != StartCondition::Kind::Runway)
+        gatePoints.push_back({runway->thrLatDeg, runway->thrLonDeg});  // where it will land
+    spawnGate_ = waitForSpawnDetail(terrain_, gatePoints, kSpawnPrefetchRadiusM, spawnTimeoutS_,
+                                    terrainPump_);
+    if (spawnGate_.timedOut)
+        LOG_WARN("terrain detail not ready after %.1f s; starting anyway (ground may jump)",
+                 spawnGate_.waitedS);
+    else if (spawnGate_.polls > 0)
+        LOG_INFO("terrain detail ready after %.2f s", spawnGate_.waitedS);
+    // A runway start sits on the (flattened) surface, not at the nominal field elevation.
+    start_.fieldElevFt = mToFt(terrain_.elevationM(start_.latDeg, start_.lonDeg));
+    model_.setTerrain(&terrain_);
+
     if (!model_.start(profile_, start_)) {
         error = "flight model failed to start " + profile_.id + " (see log)";
         return false;
@@ -81,7 +110,8 @@ bool Simulation::initNavigation(std::string& error) {
     } else if (!scenario_.approachId.empty()) {
         std::string rwy = runwayFromApproachId(scenario_.approachId);
         if (rwy.empty()) rwy = scenario_.runwayIdent;
-        auto approach = findApproach(nav_, scenario_.airportIdent, rwy, scenario_.approachId);
+        auto approach = findApproach(nav_, scenario_.airportIdent, rwy, scenario_.approachId,
+                                     makeCifpApproachProvider(paths_.data("nav")));  // N4
         if (!approach) {
             error = "scenario approach '" + scenario_.approachId + "' is not available for " +
                     scenario_.airportIdent + " " + rwy;
