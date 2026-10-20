@@ -20,6 +20,7 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
+#include "hud/GpwsMonitor.h"          // X2
 #include "hud/Hud.h"                   // H2
 #include "hud/NavHud.h"                // H3
 #include "hud/NavHudFake.h"            // H3
@@ -57,8 +58,14 @@ void printSummary(const Simulation& sim, double simulatedS) {
 int runHeadless(Simulation& sim, const CliOptions& opt, terrain::TerrainService* terrainSvc) {
     const double durationS = opt.durationS > 0 ? opt.durationS : kDefaultHeadlessDurationS;
     const long steps = static_cast<long>(durationS * kSimHz + 0.5);
+    GpwsMonitor gpws;  // X2
     for (long i = 0; i < steps; ++i) {
         sim.stepOnce();
+        // X2: GPWS-lite events are logged with their time (no HUD or audio in headless runs).
+        gpws.update(sim.aircraft(), sim.profile(), &sim.navState(), sim.terrain(), &sim.navDb());
+        for (GpwsEvent ev; gpws.consumeEvent(ev);)
+            LOG_INFO("GPWS t=%.1f s: %s (agl %.0f ft)", sim.aircraft().simTimeS, ev.text,
+                     sim.aircraft().altAglFt);
         // W1: integrate finished tiles and keep the load ring on the aircraft.
         if (terrainSvc) terrainSvc->update(sim.aircraft().latDeg, sim.aircraft().lonDeg);
     }
@@ -152,6 +159,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
+    GpwsMonitor gpws;       // X2: ground proximity warnings and radio altitude callouts
     MapPage mapPage;        // H4: moving map (MapToggle), replaces the HUD while shown
     bool mapShown = opt.mapZoomNm > 0;
     if (mapShown) mapPage.setZoomNm(static_cast<float>(opt.mapZoomNm));
@@ -237,6 +245,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                      &messages);  // P2
             sim.advance(dtS);
         }
+        {  // X2: GPWS-lite; text callouts go to the message queue (S1 will add the tones)
+            gpws.update(sim.aircraft(), sim.profile(), &sim.navState(), sim.terrain(),
+                        &sim.navDb());
+            for (GpwsEvent ev; gpws.consumeEvent(ev);)
+                if (ev.kind == GpwsEventKind::Callout || ev.kind == GpwsEventKind::TooLowGear ||
+                    ev.kind == GpwsEventKind::TooLowFlaps)
+                    messages.post(ev.text);
+        }
         // W1: once per frame (also while paused, so tiles keep arriving).
         const AircraftState view = viewState();  // W2
         if (terrainSvc) terrainSvc->update(view.latDeg, view.lonDeg);
@@ -270,6 +286,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 else
                     hudOptions.extraWarnings =
                         hudAp.disconnectWarning ? warningBit(WarningId::ApOff) : 0;
+                hudOptions.extraWarnings |= gpws.warnings();  // X2
                 navHud.setStates(hudNav, hudAp);
             }
             hud2d.begin(w, h);
