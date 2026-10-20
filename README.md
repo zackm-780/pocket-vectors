@@ -4,6 +4,6 @@ Games for the Anbernic RG40XXH handheld (stock OS, delivered as PortMaster ports
 
 | Project | Status | What it is |
 |---|---|---|
-| [`flightsim/`](flightsim/README.md) | Planning complete, build starting | First-person flight sim with HUD, real terrain, real airports, flight plans and instrument approaches. Uses the JSBSim flight model. |
+| [`flightsim/`](flightsim/README.md) | Planning complete, build starting | First-person flight sim with HUD, real terrain, real airports, flight plans and instrument approaches. Uses the JSBSim flight model. Handheld install: [`flightsim/INSTALL.md`](flightsim/INSTALL.md). |
 
 Contributors and agents: start with [`CLAUDE.md`](CLAUDE.md).
