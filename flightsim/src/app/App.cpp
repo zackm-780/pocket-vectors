@@ -20,7 +20,7 @@
 #include "gfx/Camera.h"
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
-#include "hud/GpwsMonitor.h"          // X2
+#include "hud/GpwsMonitor.h"           // X2
 #include "hud/Hud.h"                   // H2
 #include "hud/NavHud.h"                // H3
 #include "hud/NavHudFake.h"            // H3
