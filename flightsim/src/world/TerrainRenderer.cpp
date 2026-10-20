@@ -36,6 +36,7 @@ constexpr char kVertexShader[] =
     "varying vec3 vNormal;\n"
     "varying vec4 vColor;\n"
     "varying float vDist;\n"
+    "varying float vUrban;\n"  // X4: urban share 0..1 (normal.w)
     "varying highp vec3 vNA;\n"
     "varying highp vec3 vNB;\n"
     "void main() {\n"
@@ -44,6 +45,7 @@ constexpr char kVertexShader[] =
     "  vec3 p = aPos + aMorph * k;\n"
     "  vDist = length(p + uEyeOffset);\n"
     "  vNormal = aNormal.xyz;\n"
+    "  vUrban = aNormal.w;\n"
     "  vColor = aColor;\n"
     "  vNA = p * 0.16 + uNoiseA;\n"
     "  vNB = p * 0.025 + uNoiseB;\n"
@@ -62,10 +64,13 @@ constexpr char kFragmentBody[] =
     "uniform vec3 uAmbient;\n"
     "uniform vec3 uDiffuse;\n"
     "uniform vec3 uWater;\n"
+    "uniform vec3 uMoon;\n"    // X4: moonlight colour (0 by day)
+    "uniform float uNight;\n"  // X4: 0 day .. 1 night, gates city lights
     "uniform vec4 uDetail;\n"  // x = amplitude, y = fade-out start A, z = fade-out end A, w = scale B
     "varying vec3 vNormal;\n"
     "varying vec4 vColor;\n"
     "varying float vDist;\n"
+    "varying float vUrban;\n"
     "varying highp vec3 vNA;\n"
     "varying highp vec3 vNB;\n"
     "float hash3(vec3 p) {\n"
@@ -96,9 +101,25 @@ constexpr char kFragmentBody[] =
     "  if (fadeB > 0.01) t += (vnoise(vNB) - 0.5) * fadeB * 0.9;\n"
     "  if (fadeA > 0.01) t += (vnoise(vNA) - 0.5) * fadeA;\n"
     "  albedo *= 1.0 + uDetail.x * t * (1.0 - water);\n"
-    "  vec3 land = albedo * (uAmbient + uDiffuse * ndl);\n"
-    "  vec3 sea = uWater * (uAmbient + uDiffuse * 0.25);\n"
+    "  float moon = max(dot(n, -uSun), 0.0);\n"  // X4: full moon opposite the sun
+    "  vec3 land = albedo * (uAmbient + uDiffuse * ndl + uMoon * moon);\n"
+    "  vec3 sea = uWater * (uAmbient + uDiffuse * 0.25 + uMoon * 0.4);\n"
     "  vec3 rgb = mix(land, sea, water);\n"
+    // X4: city lights. Hash-jittered points on a ~160 m 3D lattice (the surface slices through the
+    // cells, so spot size and spacing vary naturally), density from the urban share, spot radius
+    // grows with distance to stay >= 1 px, and far away the speckle gives way to a faint glow.
+    "  if (uNight > 0.01 && vUrban > 0.03 && water < 0.5) {\n"
+    "    vec3 cell = vNB * 0.4;\n"
+    "    vec3 ci = floor(cell);\n"
+    "    float h = hash3(ci);\n"
+    "    vec3 jit = 0.25 + 0.5 * fract(h * vec3(37.1, 91.7, 13.3));\n"
+    "    float r = min(0.20 + vDist * 2.5e-5, 0.5);\n"
+    "    float spot = (1.0 - smoothstep(0.0, r, length(fract(cell) - jit)));\n"
+    "    spot *= step(h, vUrban * 1.2 + 0.05) * (0.8 + 1.0 * fract(h * 53.7));\n"
+    "    float far = smoothstep(5000.0, 12000.0, vDist);\n"
+    "    float em = mix(spot, vUrban * 0.22, far) * uNight * (1.0 - water);\n"
+    "    rgb += vec3(1.0, 0.72, 0.40) * em;\n"
+    "  }\n"
     "  gl_FragColor = vec4(fsimApplyFog(rgb, vDist), 1.0);\n"
     "}\n";
 
@@ -161,6 +182,8 @@ bool TerrainRenderer::init() {
     loc_.diffuse = program_.uniform("uDiffuse");
     loc_.water = program_.uniform("uWater");
     loc_.detail = program_.uniform("uDetail");
+    loc_.moon = program_.uniform("uMoon");    // X4
+    loc_.night = program_.uniform("uNight");  // X4
     fogUniforms_.locate(program_);
     const std::vector<uint16_t>& ix = nodeIndices();
     gl_.GenBuffers(1, &ibo_);
@@ -413,6 +436,8 @@ void TerrainRenderer::render(const gfx::Camera& camera, const Atmosphere* atmosp
     gl_.Uniform3f(loc_.sun, light.sunDirEcef[0], light.sunDirEcef[1], light.sunDirEcef[2]);
     gl_.Uniform3f(loc_.ambient, light.ambientRgb[0], light.ambientRgb[1], light.ambientRgb[2]);
     gl_.Uniform3f(loc_.diffuse, light.diffuseRgb[0], light.diffuseRgb[1], light.diffuseRgb[2]);
+    gl_.Uniform3f(loc_.moon, light.moonRgb[0], light.moonRgb[1], light.moonRgb[2]);  // X4
+    gl_.Uniform1f(loc_.night, light.nightFactor);                                    // X4
     gl_.Uniform3f(loc_.water, kWaterRgb[0], kWaterRgb[1], kWaterRgb[2]);
     gl_.Uniform4f(loc_.detail, 0.28f, 150.0f, 1500.0f, 0);
     for (int i = 0; i < 4; ++i) gl_.EnableVertexAttribArray(static_cast<gfx::GLuint>(i));

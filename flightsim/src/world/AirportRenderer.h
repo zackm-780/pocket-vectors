@@ -102,7 +102,8 @@ private:
     gfx::ShaderProgram surfaceProgram_, lightProgram_;
     gfx::GLint uSMvp_ = -1, uSMv_ = -1, uSSun_ = -1, uSAmbient_ = -1, uSDiffuse_ = -1;
     gfx::GLint uLMvp_ = -1, uLMv_ = -1, uLAxis_ = -1, uLScale_ = -1, uLMaxPoint_ = -1,
-               uLFlash_ = -1, uLPapi_ = -1, uLIntensity_ = -1, uLBias_ = -1;
+               uLFlash_ = -1, uLPapi_ = -1, uLIntensity_ = -1, uLBias_ = -1,
+               uLFogK_ = -1;  // X4
     FogUniforms surfaceFog_, lightFog_;
 
     const NavDatabase* nav_ = nullptr;

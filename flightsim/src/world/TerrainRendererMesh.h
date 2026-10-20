@@ -59,7 +59,7 @@ double nodeCellMeanM(const NodeId& id);
 struct NodeVertex {
     float pos[3];      // offset from the mesh anchor, ECEF axes, metres
     float morph[3];    // pos + k * morph = vertex on the parent (half resolution) lattice
-    int8_t normal[4];  // ECEF unit normal * 127 (w unused)
+    int8_t normal[4];  // ECEF unit normal * 127; w = urban share * 127 (X4 city lights)
     uint8_t color[4];  // rgb albedo, a = water fraction
 };
 static_assert(sizeof(NodeVertex) == 32, "NodeVertex layout is shared with the vertex shader");

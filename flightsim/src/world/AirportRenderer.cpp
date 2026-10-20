@@ -59,6 +59,7 @@ constexpr char kLightVertexBody[] =
     "uniform vec4 uPapiWhite;\n"
     "uniform float uIntensity;\n"
     "uniform float uDepthBias;\n"
+    "uniform float uFogK;\n"  // X4: fog distance scale (0.5 by day, lower at night)
     "varying vec4 vColor;\n"
     "void main() {\n"
     "  vec4 e = uMv * vec4(aPos, 1.0);\n"
@@ -80,7 +81,7 @@ constexpr char kLightVertexBody[] =
     "    vis *= smoothstep(-0.02, 0.30, c);\n"
     "  }\n"
     // Lights are brighter than surfaces: fog them over half the distance.
-    "  float fog = fsimFogFactor(dist * 0.5);\n"
+    "  float fog = fsimFogFactor(dist * uFogK);\n"
     "  vColor = vec4(col, vis * fog * uIntensity);\n"
     "  gl_PointSize = clamp(aInfo.x * uPointScale / dist, 2.0, uMaxPoint);\n"
     "  vec4 p = uMvp * vec4(aPos, 1.0);\n"
@@ -140,6 +141,7 @@ bool AirportRenderer::init() {
     uLPapi_ = lightProgram_.uniform("uPapiWhite");
     uLIntensity_ = lightProgram_.uniform("uIntensity");
     uLBias_ = lightProgram_.uniform("uDepthBias");
+    uLFogK_ = lightProgram_.uniform("uFogK");  // X4
     lightFog_.locate(lightProgram_);
     return true;
 }
@@ -369,6 +371,7 @@ void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewpo
     gl_.Uniform1f(uLMaxPoint_, kMaxPointPx);
     gl_.Uniform1f(uLIntensity_, 1.0f - 0.25f * dayF);
     gl_.Uniform1f(uLBias_, kPointDepthBias);
+    gl_.Uniform1f(uLFogK_, 0.2f + 0.3f * dayF);  // X4: lights carry further through night haze
     gl_.Uniform1f(uLFlash_, static_cast<float>(flasherActiveIndex(timeS)));
     if (flavor_ == GlFlavor::Desktop21) {
         gl_.Enable(kGlProgramPointSize);

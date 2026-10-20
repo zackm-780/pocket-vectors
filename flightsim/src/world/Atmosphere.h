@@ -65,6 +65,10 @@ struct LightParams {
     float diffuseRgb[3] = {0.80f, 0.76f, 0.68f};
     float sunDirEcef[3] = {0, 0, 1};  // unit vector toward the sun, ECEF axes
     float sunDirNed[3] = {0, 0, -1};  // same, local north-east-down axes at the observer
+    // X4: night lighting. Moonlight is a faint blue directional term from the antisolar point
+    // (full moon); nightFactor is 0 by day, 1 at night (drives city lights).
+    float moonRgb[3] = {0, 0, 0};
+    float nightFactor = 0;
 };
 
 struct SkyColors {

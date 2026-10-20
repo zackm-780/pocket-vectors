@@ -1,5 +1,7 @@
 #include "world/TerrainRendererMesh.h"
 
+#include "world/NightLights.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -386,7 +388,7 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
             const double colS = static_cast<double>(gx0 + i) * scale - xs * kTileCells;
             const double rowS = (ys + 1.0) * kTileCells - static_cast<double>(gy0 + j) * scale;
             float rgb[3] = {0, 0, 0};
-            int land = 0, water = 0, total = 0;
+            int land = 0, water = 0, total = 0, urban = 0;  // X4: urban counts city-light cells
             const float hv = h[b][a];
             float fallback[3];
             fallbackAlbedo(hv, slopeCos, fallback);
@@ -409,6 +411,7 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
                             ++water;
                             continue;
                         }
+                        if (isCityLightClass(cls)) ++urban;  // X4
                         float c[3];
                         if (cls == static_cast<uint8_t>(LandClass::Unknown) || cls > 11) {
                             if (hv <= 0.5f) {
@@ -438,6 +441,8 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
             for (int q = 0; q < 3; ++q)
                 v.color[q] = static_cast<uint8_t>(std::lround(clamp01(rgb[q]) * 255.0f));
             v.color[3] = static_cast<uint8_t>(std::lround(clamp01(waterFrac) * 255.0f));
+            // X4: urban share rides in the spare normal.w byte (0..127) for the city-light mask.
+            v.normal[3] = static_cast<int8_t>(urbanMaskByte(urban, total));
             if (waterFrac < 0.999f) allWater = false;
             minH = std::min(minH, hv);
             maxH = std::max(maxH, hv);
