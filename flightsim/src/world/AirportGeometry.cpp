@@ -18,7 +18,7 @@ constexpr float kFlasherRgb[3] = {0.90f, 0.95f, 1.0f};
 
 constexpr float kAsphaltRgb[3] = {0.20f, 0.20f, 0.22f};
 constexpr float kGrassStripRgb[3] = {0.40f, 0.49f, 0.26f};
-constexpr float kMarkingRgb[3] = {0.92f, 0.92f, 0.88f};
+constexpr float kMarkingRgb[3] = {0.80f, 0.80f, 0.76f};
 constexpr float kApronRgb[3] = {0.33f, 0.33f, 0.35f};
 
 constexpr double kPavementLiftM = 0.10;

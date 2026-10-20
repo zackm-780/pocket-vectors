@@ -103,7 +103,7 @@ void DebugRenderer::setWorld(const Airport& airport, float groundElevM) {
     runwayMarkings_.clear();
     for (const Runway& r : airport_.runways) {
         // Both landing directions share one pavement: draw it once.
-        if (r.ident < r.oppositeIdent) buildRunway(r);
+        if (drawRunways_ && r.ident < r.oppositeIdent) buildRunway(r);  // W5
     }
 }
 
@@ -245,7 +245,7 @@ void DebugRenderer::drawMesh(const Camera& camera, const Mesh& mesh, bool lines,
     const Mat4 mvp = camera.projection() * modelView;
     gl_.UniformMatrix4fv(uMvp_, 1, 0, mvp.m);
     gl_.UniformMatrix4fv(uMv_, 1, 0, modelView.m);
-    gl_.Uniform4f(uColor_, rgba[0], rgba[1], rgba[2], rgba[3]);
+    gl_.Uniform4f(uColor_, rgba[0] * shade_[0], rgba[1] * shade_[1], rgba[2] * shade_[2], rgba[3]);
     gl_.BindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
     gl_.EnableVertexAttribArray(0);
     gl_.VertexAttribPointer(0, 3, GL_FLOAT, 0, 3 * sizeof(float), nullptr);
@@ -276,6 +276,14 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
         static_cast<int>(std::floor((eye.lonDeg - airport_.lonDeg) * mPerDegLon / kCellM));
     if (cellN != groundCellN_ || cellE != groundCellE_) rebuildGround(cellN, cellE);
 
+    // W5: darken the placeholder ground with the sun (same terms terrain shading will use) so
+    // dusk and night screenshots read correctly; full brightness by day.
+    if (atmosphere_) {
+        const world::LightParams& light = atmosphere_->light();
+        const float sunUp = static_cast<float>(std::max(0.0, std::sin(atmosphere_->sun().elevationRad)));
+        for (int i = 0; i < 3; ++i)
+            shade_[i] = std::min(1.0f, light.ambientRgb[i] + light.diffuseRgb[i] * sunUp);
+    }
     gl_.Enable(GL_DEPTH_TEST);
     gl_.DepthFunc(GL_LEQUAL);
     gl_.Disable(GL_CULL_FACE);
