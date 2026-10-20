@@ -6,6 +6,7 @@
 #include "core/Log.h"
 #include "core/Units.h"
 #include "world/Sky.h"  // W4
+#include "world/TerrainRenderer.h"  // W2
 
 namespace fsim::gfx {
 namespace {
@@ -265,6 +266,7 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
     gl_.ClearColor(clear[0], clear[1], clear[2], 1.0f);
     gl_.Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if (atmosphere_ && sky_) sky_->draw(camera, *atmosphere_);  // W4
+    if (terrain_) terrain_->render(camera, atmosphere_);        // W2
     if (!haveWorld_ || !program_.valid()) return;
 
     // Keep the ground window centered on the camera, snapped to whole cells.
@@ -274,7 +276,8 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
         static_cast<int>(std::floor((eye.latDeg - airport_.latDeg) * kMPerDegLat / kCellM));
     const int cellE =
         static_cast<int>(std::floor((eye.lonDeg - airport_.lonDeg) * mPerDegLon / kCellM));
-    if (cellN != groundCellN_ || cellE != groundCellE_) rebuildGround(cellN, cellE);
+    if (!terrain_ && (cellN != groundCellN_ || cellE != groundCellE_))  // W2: no grid with terrain
+        rebuildGround(cellN, cellE);
 
     gl_.Enable(GL_DEPTH_TEST);
     gl_.DepthFunc(GL_LEQUAL);
@@ -289,13 +292,13 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
     // Fill pushed back so the grid lines and the runway (pulled forward) win depth ties.
     gl_.Enable(GL_POLYGON_OFFSET_FILL);
     gl_.PolygonOffset(1.0f, 1.0f);
-    drawMesh(camera, ground_, false, kGroundColor);
+    if (!terrain_) drawMesh(camera, ground_, false, kGroundColor);  // W2
     gl_.PolygonOffset(-1.0f, -1.0f);
     for (const Mesh& m : runwaySurfaces_) drawMesh(camera, m, false, kRunwayColor);
     gl_.PolygonOffset(-2.0f, -2.0f);
     for (const Mesh& m : runwayMarkings_) drawMesh(camera, m, false, kMarkingColor);
     gl_.Disable(GL_POLYGON_OFFSET_FILL);
-    drawMesh(camera, ground_, true, kGridColor);
+    if (!terrain_) drawMesh(camera, ground_, true, kGridColor);  // W2
     gl_.DisableVertexAttribArray(0);
 }
 

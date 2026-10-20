@@ -14,7 +14,8 @@
 #include "world/Atmosphere.h"  // W4
 
 namespace fsim::world {
-class Sky;  // W4
+class Sky;              // W4
+class TerrainRenderer;  // W2
 }
 
 namespace fsim::gfx {
@@ -32,6 +33,8 @@ public:
         atmosphere_ = atmosphere;
         sky_ = sky;
     }
+    // W2: with a terrain renderer the flat ground grid is replaced by real terrain.
+    void setTerrain(world::TerrainRenderer* terrain) { terrain_ = terrain; }
     // The airport's runways are drawn on flat ground at groundElevM; the ground grid is anchored
     // to the airport reference point.
     void setWorld(const Airport& airport, float groundElevM);
@@ -63,6 +66,7 @@ private:
     world::FogUniforms fogUniforms_;                 // W4: shared fog uniforms
     const world::Atmosphere* atmosphere_ = nullptr;  // W4
     world::Sky* sky_ = nullptr;                      // W4
+    world::TerrainRenderer* terrain_ = nullptr;      // W2
 
     Airport airport_;
     bool haveWorld_ = false;
