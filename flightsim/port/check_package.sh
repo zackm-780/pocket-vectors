@@ -77,6 +77,13 @@ check_tree() {
   ok "launch script '$(basename "$script")', port folder '$portname'"
   [[ "$portname" =~ ^[a-z0-9][a-z0-9._]*$ ]] || fail "port folder name '$portname' violates PortMaster naming"
   bash -n "$script" && ok "launch script passes bash -n" || fail "launch script has a syntax error"
+  # Some launchers (e.g. the Anbernic stock OS) run scripts with a plain POSIX sh.
+  if command -v dash >/dev/null 2>&1; then
+    dash -n "$script" && ok "launch script passes POSIX sh -n (dash)" || fail "launch script is not POSIX-sh parseable"
+  fi
+  grep -q 'command -v pm_finish' "$script" && grep -q '_launch_log.txt' "$script" \
+    && ok "launch script runs without PortMaster and writes a launch log" \
+    || fail "launch script lacks the no-PortMaster fallback / launch log"
   head -n1 "$script" | grep -q '^#!/bin/bash' || fail "launch script must start with #!/bin/bash"
   grep -q 'control.txt' "$script" && grep -q 'get_controls' "$script" && grep -q 'pm_finish' "$script" \
     && grep -q 'pm_platform_helper' "$script" && grep -q 'LD_LIBRARY_PATH' "$script" \
