@@ -364,7 +364,7 @@ runway (NAVIGATION §3.2), and missed-approach sequencing.
 headless "perfect pilot" (ideal follower) flies a full XTST plan and approach.
 
 ## N6: Autopilot, flight director, autothrottle
-**Status:** queued (wp/N6-autopilot started, paused under the 3-agent cap) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+**Status:** in progress (wp/N6-autopilot) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
 
 **Owns:** `src/autopilot/`, `tests/autopilot/`, `[autopilot]` keys in aircraft profiles (coordinate with F2/F4).
 
@@ -399,7 +399,7 @@ warnings, transient messages, and declutter levels.
 HUD.md. Every status field is visible in FULL declutter.
 
 ## H3: Nav and autopilot HUD
-**Status:** queued (wp/H3-nav-hud started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
+**Status:** in progress (wp/H3-nav-hud) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
 
 **Owns:** `src/hud/NavHud*`, `tests/hud/navhud*`.
 FMA line, nav box, CDI, LOC/GS scales, bearing and DTK marks on the heading tape, bugs, FD guidance
@@ -413,7 +413,7 @@ North-up / track-up modes, zoom 2–160 NM, route legs and waypoints, airports a
 symbol, optional terrain shading from coarse tiles, and a waypoint info panel.
 
 ## H5: Menus and flight setup
-**Status:** queued (wp/H5-menus started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
+**Status:** in progress (wp/H5-menus) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
 
 **Owns:** `src/ui/` (except MapPage), `tests/ui/`.
 Menu framework (D-pad/A/B), pause menu, aircraft select, airport search (on-screen keyboard plus
