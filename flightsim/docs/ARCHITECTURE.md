@@ -123,7 +123,9 @@ and `core/MessageQueue.h` (fixed ring of short HUD feedback messages, ticked onc
 documented `Ils::locWidthDeg` as the total course width and `freqMhz = 0` as untuned. The
 supervisor added `Approach` / `ApproachTransition` to `NavTypes.h` (the one approach type that N4's
 real CIFP procedures and N5's synthesized approaches both produce) and
-`NavDatabase::navaidsNear()` (default empty). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
+`NavDatabase::navaidsNear()` (default empty). F1 added `FlapDetent::vfeKt` (per-detent flap limit; 0 = use the profile `vfeKt`)
+and stores extra profile sections `[crash]`/`[ground]` as `crash.*`/`ground.*` keys in
+`AircraftProfile::properties` (documented in `src/sim/README.md`). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
 must have safe defaults, so a zero-initialised value means "nothing / invalid".
 
 ```cpp
@@ -416,8 +418,10 @@ struct ActionState {
 - **Trim recipe (verified for c172p and 737):** settle flaps and gear with `SetHoldDown(true)`
   before trimming (737 flaps take about 25 s). `DoTrim(tFull)` already writes the elevator trim into
   `fcs/pitch-trim-cmd-norm`, so only the trimmed aileron and rudder are moved into the roll and yaw
-  trims. Apply the IC wind *after* the speed, and re-trim with a nudged IC speed until IAS is within
-  0.3 kt of the target.
+  trims. Wind (F1, supersedes the earlier "apply wind after speed and re-trim" recipe, which fails
+  for quartering crosswinds): trim in **calm air** at the requested IAS, then switch the wind on with
+  `FGWinds::SetWindNED` and shift the body velocity by the same vector (IAS stays exact). Final
+  starts crab the IC heading so the ground track stays on the extended centerline.
 - **Weight on wheels:** `wowAny` and `wowAll` count wheel (bogey) contact points only. Contact by any
   non-wheel point is a structure strike, which sets `crashed`.
 - **Stock-model quirks:** the 737 binds input sockets 5137 and 5139, and the c310 opens output
