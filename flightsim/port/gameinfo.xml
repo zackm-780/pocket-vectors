@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <gameList>
   <game>
-    <path>./Flight Sim.sh</path>
+    <path>./FlightSim.sh</path>
     <name>Flight Sim</name>
     <desc>A first-person flight simulator with a full HUD, real terrain and airports, flight plans and ILS approaches. Fly aircraft from the Cessna 172 to the Boeing 747 on the JSBSim flight model.</desc>
     <releasedate>20261019T000000</releasedate>

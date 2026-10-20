@@ -134,7 +134,7 @@ any deviation is documented in the PR.
 1. A reproducible aarch64 build: Docker image based on Debian 11 (bullseye) with a cross g++ and
    `libsdl2-dev:arm64` (or native arm64 under QEMU if cross-compiling proves impractical). CMake
    toolchain file. `tools/build_device.sh` produces `dist/flightsim-portmaster.zip`.
-2. Port folder per BUILD_AND_DEPLOY §6: `Flight Sim.sh` (PortMaster template: control.txt, get_controls,
+2. Port folder per BUILD_AND_DEPLOY §6: `FlightSim.sh` (PortMaster template: control.txt, get_controls,
    GAMEDIR, conf dir, log tee, `LD_LIBRARY_PATH=libs.aarch64`, `SDL_GAMECONTROLLERCONFIG`, gptokeyb
    **for the exit hotkey only**, `pm_platform_helper`, `pm_finish`, `FLIGHTSIM_PLATFORM=portmaster`),
    `flightsim.aarch64`, `libs.aarch64/libJSBSim.so*`, `jsbsim/`, `assets/`, `licenses/`,

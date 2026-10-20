@@ -33,7 +33,7 @@ Useful options: `--jsbsim-src DIR` (use a local JSBSim v1.3.3 checkout, no netwo
    - runtime layout in `<build>/jsbsim/` and `<build>/assets/` next to the binary (BUILD_AND_DEPLOY section 2;
      if there is no `<build>/assets`, the source `assets/` is used);
    - options `FSIM_WERROR` and `CMAKE_TOOLCHAIN_FILE` as in WP-00.
-3. **Packaging**: `port/package_port.sh` assembles `Flight Sim.sh` + `flightsim/` (binary renamed to
+3. **Packaging**: `port/package_port.sh` assembles `FlightSim.sh` + `flightsim/` (binary renamed to
    `flightsim.aarch64`, `libs.aarch64/`, `jsbsim/`, `assets/`, `licenses/`, `port.json`, `gameinfo.xml`,
    `README.md`, `screenshot.png`) into `dist/flightsim-portmaster.zip`, and the probe into
    `dist/flightsim-probe-portmaster.zip`.
