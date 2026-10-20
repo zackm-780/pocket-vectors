@@ -110,7 +110,7 @@ inline void takeoffClimbTest(const FleetSpec& sp) {
     CHECK(log.liftoffIasKt >= p.vrKt - 5.0);
     CHECK(log.liftoffIasKt <= p.vrKt + 20.0);
     CHECK(log.liftoffDistFt < sp.maxLiftoffDistFt);
-    CHECK(log.maxHeadingErrDeg < 6.0);
+    CHECK(log.maxHeadingErrDeg < sp.maxTakeoffHdgErrDeg);
     CHECK(log.maxPitchDeg < 20.0);
     // Reaches 3,000 ft AGL in a sane time with the aircraft cleaned up.
     REQUIRE(log.timeTo3000S > 0);

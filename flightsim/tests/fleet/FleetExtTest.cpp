@@ -59,6 +59,12 @@ void stallTestExt(const FleetSpec& sp) {
     }                                                                                              \
     TEST_CASE("sim: fleet MD11 " PHASE) {                                                          \
         FN(kFleetExt[2]);                                                                          \
+    }                                                                                              \
+    TEST_CASE("sim: fleet c182 " PHASE) {                                                          \
+        FN(kFleetExt[3]);                                                                          \
+    }                                                                                              \
+    TEST_CASE("sim: fleet pa28 " PHASE) {                                                          \
+        FN(kFleetExt[4]);                                                                          \
     }
 
 FLEET_EXT_CASES("profile", profileTest)
