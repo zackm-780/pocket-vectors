@@ -153,5 +153,4 @@ void buildNavBox(const NavState& nav, int navBoxLines, float magVarDeg, NavBoxTe
 // separately). Empty when there is no active waypoint.
 void buildFmaNavSummary(const NavState& nav, char* out, int n);
 
-
 }  // namespace fsim

@@ -105,7 +105,8 @@ void buildFma(const AutopilotState& ap, FmaText& out) {
     const int cap = static_cast<int>(sizeof out.status);
     int used = 0;
     auto add = [&](const char* s) {
-        used += std::snprintf(p + used, static_cast<size_t>(cap - used), "%s%s", used ? " " : "", s);
+        used +=
+            std::snprintf(p + used, static_cast<size_t>(cap - used), "%s%s", used ? " " : "", s);
     };
     if (ap.apEngaged) add("AP");
     if (ap.fdOn) add("FD");
@@ -178,7 +179,8 @@ const char* navSourceName(NavSource s) {
 
 ScaleState buildScales(const NavState& nav, const AutopilotState& ap) {
     ScaleState s;
-    s.locVisible = nav.locValid || (nav.source == NavSource::Gps && nav.phase == NavPhase::Approach);
+    s.locVisible =
+        nav.locValid || (nav.source == NavSource::Gps && nav.phase == NavPhase::Approach);
     if (s.locVisible) {
         s.loc = deviationDots(nav.cdiDeflection);
         s.locFilled = !(ap.latArmed == LatMode::Loc && ap.latActive != LatMode::Loc);
@@ -321,7 +323,7 @@ void buildNavBox(const NavState& nav, int navBoxLines, float magVarDeg, NavBoxTe
         line("DTK %03d XTK %.1f%c ETE %s", dtk, std::fabs(nav.crossTrackNm),
              nav.crossTrackNm < 0 ? 'L' : 'R', ete);
         if (nav.phase == NavPhase::Missed)
-            line("MISSED APPR");
+            line("%s", "MISSED APPR");
         else if (mins[0])
             line("%s  %s", nav.approachName, mins);
         else if (nav.nextWptIdent[0] && nav.vnavValid && nav.targetAltFt > 0)
@@ -335,15 +337,13 @@ void buildNavBox(const NavState& nav, int navBoxLines, float magVarDeg, NavBoxTe
             line("DME %.1f  %s", nav.distToThresholdNm, mins);
         else
             line("DME %.1f", nav.distToThresholdNm);
-        if (nav.phase == NavPhase::Missed) line("MISSED APPR");
+        if (nav.phase == NavPhase::Missed) line("%s", "MISSED APPR");
         break;
     case NavSource::Vor:
         line("VOR %s %s", nav.activeWptIdent, nav.toFlag ? "TO" : "FROM");
         line("CRS %03d DME %s", dtk, dist);
         break;
-    case NavSource::None:
-        line("NO NAV");
-        break;
+    case NavSource::None: line("%s", "NO NAV"); break;
     }
     out.lines = std::min(n, maxLines);
 }
