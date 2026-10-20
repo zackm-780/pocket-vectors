@@ -165,6 +165,9 @@ struct AircraftState {
   // position
   double latDeg = 0, lonDeg = 0, altMslFt = 0;
   float  altAglFt = 0;              // above terrain/runway surface under the CG
+  // Additive (X1): indicated altitude = altMslFt + altBaroOffsetFt (0 while the altimeter is set
+  // to the real QNH, the default); altimeterSettingHpa is what the pilot has set. See core/Baro.h.
+  float  altBaroOffsetFt = 0, altimeterSettingHpa = 1013.25f;
   float  terrainElevFt = 0;
   // attitude and rates (NED)
   float  rollRad = 0, pitchRad = 0, headingTrueRad = 0;

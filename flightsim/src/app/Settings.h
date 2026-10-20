@@ -37,9 +37,9 @@ struct Settings {
     float pitchSens = 1.0f, rollSens = 1.0f, rudderSens = 1.0f;  // 0.25..2
     float pitchExpo = 0.0f, rollExpo = 0.0f, rudderExpo = 0.0f;  // 0..1
     // X1: weather
-    bool weatherMetar = true;         // use <data>/weather/<ICAO>.txt when the airport has one
-    bool weatherGusts = true;         // gusts from the scenario or METAR
-    float weatherTurbulence = 0.0f;   // 0..1 light turbulence (scenario value wins)
+    bool weatherMetar = true;        // use <data>/weather/<ICAO>.txt when the airport has one
+    bool weatherGusts = true;        // gusts from the scenario or METAR
+    float weatherTurbulence = 0.0f;  // 0..1 light turbulence (scenario value wins)
     std::string lastAircraft;
 
     // Parses settings text onto *this (keys that are absent or invalid keep their current value;

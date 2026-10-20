@@ -27,7 +27,7 @@ struct WeatherSetup {
     std::optional<float> turbulence;    // 0..1
     // Legacy [wind] scenarios: the same wind at every height (no default veer/strengthening).
     bool uniformWind = false;
-    std::optional<bool> metar;          // false: ignore METAR files for this scenario
+    std::optional<bool> metar;  // false: ignore METAR files for this scenario
     std::uint32_t seed = 1;
 };
 

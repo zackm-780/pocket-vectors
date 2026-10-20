@@ -632,8 +632,8 @@ void FlightModel::Impl::refresh(AircraftState& s) {
         s.windKt > 0.01f ? static_cast<float>(wrap360(radToDeg(std::atan2(-windE, -windN)))) : 0.f;
     // X1: altimeter offset (indicated minus true altitude), 0 when set to the real QNH.
     s.altimeterSettingHpa = static_cast<float>(altimeterSettingHpa);
-    s.altBaroOffsetFt = static_cast<float>(
-        indicatedAltFt(s.altMslFt, qnhHpa, altimeterSettingHpa) - s.altMslFt);
+    s.altBaroOffsetFt =
+        static_cast<float>(indicatedAltFt(s.altMslFt, qnhHpa, altimeterSettingHpa) - s.altMslFt);
     for (int i = 0; i < 3; ++i) s.eyeBodyM[i] = eyeBodyM[i];
 
     s.flapPosNorm = static_cast<float>(pFlap.get());

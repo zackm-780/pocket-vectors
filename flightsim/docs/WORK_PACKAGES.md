@@ -426,7 +426,7 @@ SDL audio. Engine sound by type and RPM/N1, wind by IAS, gear and flap motor sou
 stall horn, AP disconnect tone, and altitude/minimums alert tones. Volume setting.
 
 ## X1: Weather
-**Status:** in progress (wp/X1-weather) · **Model / effort:** Sonnet / medium · **Depends:** F1, W4 · **Owns:** `src/world/Weather*`
+**Status:** done, merged (needs device test: gust/turbulence feel, low-visibility fog on GLES; follow-ups: baro knob/display, AP on indicated altitude, [weather] in last_flight.ini, on-device METAR refresh) · **Model / effort:** Sonnet / medium · **Depends:** F1, W4 · **Owns:** `src/world/Weather*`
 Manual wind, gusts, visibility and QNH. Optional METAR fetch over Wi-Fi for the departure and
 destination airports (aviationweather.gov), applied to JSBSim atmosphere and wind and to fog.
 

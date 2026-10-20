@@ -51,7 +51,7 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
     start_.fieldElevFt = mToFt(terrain_.elevationM(start_.latDeg, start_.lonDeg));
     model_.setTerrain(&terrain_);
 
-    {   // X1: weather. The start wind is the profile wind at the start height (F1 trims in calm
+    {  // X1: weather. The start wind is the profile wind at the start height (F1 trims in calm
         // air and then switches it on), later steps add gusts and turbulence.
         world::Metar metar;
         const bool haveMetar =

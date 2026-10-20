@@ -84,8 +84,8 @@ WeatherConditions resolveWeather(const WeatherSetup& setup, const WeatherOptions
     // Aloft: explicit, else veered and stronger than the surface.
     const float veerDeg = setup.uniformWind ? 0.0f : Weather::kDefaultVeerDeg;
     const float aloftFactor = setup.uniformWind ? 1.0f : Weather::kDefaultAloftFactor;
-    c.aloftFromTrueDeg = setup.aloftFromTrueDeg.value_or(
-        static_cast<float>(wrap360(c.windFromTrueDeg + veerDeg)));
+    c.aloftFromTrueDeg =
+        setup.aloftFromTrueDeg.value_or(static_cast<float>(wrap360(c.windFromTrueDeg + veerDeg)));
     c.aloftKt = setup.aloftKt.value_or(c.windKt * aloftFactor);
 
     if (setup.visibilityM) {
