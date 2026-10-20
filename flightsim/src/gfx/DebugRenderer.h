@@ -16,7 +16,7 @@
 namespace fsim::world {
 class Sky;              // W4
 class TerrainRenderer;  // W2
-}
+}  // namespace fsim::world
 
 namespace fsim::gfx {
 

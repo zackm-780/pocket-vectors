@@ -51,12 +51,11 @@ constexpr char kVertexShader[] =
     "}\n";
 
 // The fog functions (W4) are pasted after the precision block.
-constexpr char kFragmentHead[] =
-    "#ifdef GL_ES\n"
-    "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
-    "precision highp float;\n"
-    "#endif\n"
-    "#endif\n";
+constexpr char kFragmentHead[] = "#ifdef GL_ES\n"
+                                 "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
+                                 "precision highp float;\n"
+                                 "#endif\n"
+                                 "#endif\n";
 
 constexpr char kFragmentBody[] =
     "uniform vec3 uSun;\n"
@@ -245,9 +244,13 @@ int TerrainRenderer::prewarm(const gfx::Camera& camera, int maxMeshes) {
 }
 
 void TerrainRenderer::setNoiseUniforms(const Ecef& a) {
-    auto base = [](double v, double f) { return static_cast<float>(std::fmod(v * f, kNoisePeriod)); };
-    gl_.Uniform3f(loc_.noiseA, base(a.x, kNoiseFreqA), base(a.y, kNoiseFreqA), base(a.z, kNoiseFreqA));
-    gl_.Uniform3f(loc_.noiseB, base(a.x, kNoiseFreqB), base(a.y, kNoiseFreqB), base(a.z, kNoiseFreqB));
+    auto base = [](double v, double f) {
+        return static_cast<float>(std::fmod(v * f, kNoisePeriod));
+    };
+    gl_.Uniform3f(loc_.noiseA, base(a.x, kNoiseFreqA), base(a.y, kNoiseFreqA),
+                  base(a.z, kNoiseFreqA));
+    gl_.Uniform3f(loc_.noiseB, base(a.x, kNoiseFreqB), base(a.y, kNoiseFreqB),
+                  base(a.z, kNoiseFreqB));
 }
 
 void TerrainRenderer::drawNode(const gfx::Camera& camera, const gfx::Mat4& proj,
@@ -277,7 +280,8 @@ void TerrainRenderer::rebuildSea(const GeoPos& center) {
     seaAnchor_ = geodeticToEcef(seaCenter_);
     constexpr int kSegments = 48;
     std::vector<double> radii = {0.0};
-    for (double r = 250.0; r < kSeaRadiusM * 1.0001; r *= 1.6) radii.push_back(std::min(r, kSeaRadiusM));
+    for (double r = 250.0; r < kSeaRadiusM * 1.0001; r *= 1.6)
+        radii.push_back(std::min(r, kSeaRadiusM));
     if (radii.back() < kSeaRadiusM) radii.push_back(kSeaRadiusM);
 
     std::vector<NodeVertex> verts;
@@ -318,15 +322,16 @@ void TerrainRenderer::rebuildSea(const GeoPos& center) {
     }
     for (size_t r = 1; r + 1 < radii.size(); ++r) {
         for (int s = 0; s < kSegments; ++s) {
-            ix.insert(ix.end(), {vi(r, s), vi(r + 1, s), vi(r + 1, s + 1), vi(r, s), vi(r + 1, s + 1),
-                                 vi(r, s + 1)});
+            ix.insert(ix.end(), {vi(r, s), vi(r + 1, s), vi(r + 1, s + 1), vi(r, s),
+                                 vi(r + 1, s + 1), vi(r, s + 1)});
         }
     }
     if (!seaVbo_) gl_.GenBuffers(1, &seaVbo_);
     if (!seaIbo_) gl_.GenBuffers(1, &seaIbo_);
     gl_.BindBuffer(gfx::GL_ARRAY_BUFFER, seaVbo_);
-    gl_.BufferData(gfx::GL_ARRAY_BUFFER, static_cast<gfx::GLsizeiptr>(verts.size() * sizeof(NodeVertex)),
-                   verts.data(), gfx::GL_STATIC_DRAW);
+    gl_.BufferData(gfx::GL_ARRAY_BUFFER,
+                   static_cast<gfx::GLsizeiptr>(verts.size() * sizeof(NodeVertex)), verts.data(),
+                   gfx::GL_STATIC_DRAW);
     gl_.BindBuffer(gfx::GL_ELEMENT_ARRAY_BUFFER, seaIbo_);
     gl_.BufferData(gfx::GL_ELEMENT_ARRAY_BUFFER, static_cast<gfx::GLsizeiptr>(ix.size() * 2),
                    ix.data(), gfx::GL_STATIC_DRAW);
@@ -336,8 +341,8 @@ void TerrainRenderer::rebuildSea(const GeoPos& center) {
 
 void TerrainRenderer::drawSea(const gfx::Camera& camera, const gfx::Mat4& proj) {
     const GeoPos& eye = camera.eyeGeo();
-    if (!haveSea_ || greatCircleDistM(eye.latDeg, eye.lonDeg, seaCenter_.latDeg, seaCenter_.lonDeg) >
-                         kSeaRebuildM)
+    if (!haveSea_ || greatCircleDistM(eye.latDeg, eye.lonDeg, seaCenter_.latDeg,
+                                      seaCenter_.lonDeg) > kSeaRebuildM)
         rebuildSea(eye);
     const gfx::Mat4 mvp = proj * camera.modelView(seaAnchor_);
     float t[3];
@@ -453,7 +458,8 @@ TerrainDebugOverrides readTerrainDebugEnv() {
     if (const char* vis = std::getenv("FSIM_W2_VISIBILITY_KM")) {
         o.visibilityKm = static_cast<float>(std::atof(vis));
     }
-    if (const char* px = std::getenv("FSIM_W2_PX_PER_CELL")) o.pixelsPerCell = static_cast<float>(std::atof(px));
+    if (const char* px = std::getenv("FSIM_W2_PX_PER_CELL"))
+        o.pixelsPerCell = static_cast<float>(std::atof(px));
     return o;
 }
 

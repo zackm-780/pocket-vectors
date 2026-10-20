@@ -30,13 +30,13 @@ struct TerrainRenderConfig {
 
 struct TerrainRenderStats {
     int nodesDrawn = 0, drawCalls = 0;
-    int triangles = 0;  // issued this frame, skirts included
-    int meshesBuilt = 0;                // this frame
-    int buildQueue = 0;                 // nodes still waiting for a mesh (after this frame's budget)
+    int triangles = 0;    // issued this frame, skirts included
+    int meshesBuilt = 0;  // this frame
+    int buildQueue = 0;   // nodes still waiting for a mesh (after this frame's budget)
     int cachedMeshes = 0;
     size_t gpuBytes = 0;
     int visited = 0, culledFrustum = 0, culledHorizon = 0, seaSkipped = 0;
-    int minLevel = 0, maxLevel = 0;  // node levels drawn
+    int minLevel = 0, maxLevel = 0;                // node levels drawn
     double selectMs = 0, buildMs = 0, drawMs = 0;  // CPU time on this frame
     uint64_t totalMeshBuilds = 0;
     std::string summary() const;  // one log line

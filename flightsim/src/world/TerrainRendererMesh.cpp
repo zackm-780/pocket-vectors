@@ -84,7 +84,8 @@ private:
             if (yy >= 0 && yy < static_cast<int64_t>(terrain::tilesHigh(c.k))) {
                 const int64_t wide = terrain::tilesWide(c.k);
                 const int64_t xx = ((static_cast<int64_t>(c.x) + dx) % wide + wide) % wide;
-                tiles_[idx] = lookup_(TileId{c.k, static_cast<uint32_t>(xx), static_cast<uint32_t>(yy)});
+                tiles_[idx] =
+                    lookup_(TileId{c.k, static_cast<uint32_t>(xx), static_cast<uint32_t>(yy)});
             }
         }
         return tiles_[idx].get();
@@ -155,9 +156,9 @@ void elevationRamp(float h, float out[3]) {
         float h;
         float rgb[3];
     };
-    static const Key keys[] = {{0, {0.33f, 0.45f, 0.22f}},     {600, {0.22f, 0.36f, 0.16f}},
-                               {1400, {0.16f, 0.28f, 0.12f}},  {2000, {0.40f, 0.38f, 0.30f}},
-                               {2600, {0.50f, 0.47f, 0.42f}},  {3200, {0.90f, 0.92f, 0.95f}}};
+    static const Key keys[] = {{0, {0.33f, 0.45f, 0.22f}},    {600, {0.22f, 0.36f, 0.16f}},
+                               {1400, {0.16f, 0.28f, 0.12f}}, {2000, {0.40f, 0.38f, 0.30f}},
+                               {2600, {0.50f, 0.47f, 0.42f}}, {3200, {0.90f, 0.92f, 0.95f}}};
     constexpr int n = sizeof(keys) / sizeof(keys[0]);
     if (h <= keys[0].h) {
         std::copy(keys[0].rgb, keys[0].rgb + 3, out);
@@ -165,7 +166,8 @@ void elevationRamp(float h, float out[3]) {
     }
     for (int i = 1; i < n; ++i) {
         if (h <= keys[i].h) {
-            mix3(keys[i - 1].rgb, keys[i].rgb, (h - keys[i - 1].h) / (keys[i].h - keys[i - 1].h), out);
+            mix3(keys[i - 1].rgb, keys[i].rgb, (h - keys[i - 1].h) / (keys[i].h - keys[i - 1].h),
+                 out);
             return;
         }
     }
@@ -203,17 +205,18 @@ const std::vector<uint16_t>& nodeIndices() {
             for (int i = 0; i < kPatchCells; ++i) {
                 // The diagonal alternates with the lattice parity; geomorphing relies on it.
                 if (((i + j) & 1) == 0) {
-                    ix.insert(ix.end(), {g(i, j), g(i + 1, j), g(i + 1, j + 1), g(i, j), g(i + 1, j + 1),
-                                         g(i, j + 1)});
+                    ix.insert(ix.end(), {g(i, j), g(i + 1, j), g(i + 1, j + 1), g(i, j),
+                                         g(i + 1, j + 1), g(i, j + 1)});
                 } else {
-                    ix.insert(ix.end(), {g(i, j), g(i + 1, j), g(i, j + 1), g(i + 1, j), g(i + 1, j + 1),
-                                         g(i, j + 1)});
+                    ix.insert(ix.end(), {g(i, j), g(i + 1, j), g(i, j + 1), g(i + 1, j),
+                                         g(i + 1, j + 1), g(i, j + 1)});
                 }
             }
         }
         // Skirts: south, north, west, east strips of kPatchVerts vertices each.
         const int base[4] = {kGridVertexCount, kGridVertexCount + kPatchVerts,
-                             kGridVertexCount + 2 * kPatchVerts, kGridVertexCount + 3 * kPatchVerts};
+                             kGridVertexCount + 2 * kPatchVerts,
+                             kGridVertexCount + 3 * kPatchVerts};
         for (int e = 0; e < 4; ++e) {
             for (int s = 0; s < kPatchCells; ++s) {
                 uint16_t a, b;  // surface vertices
@@ -340,9 +343,11 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
             v.pos[2] = static_cast<float>(pos[b][a].z);
 
             // Normal: east x north of the neighbouring lattice points (right-handed, = up).
-            const double ex = pos[b][a + 1].x - pos[b][a - 1].x, ey = pos[b][a + 1].y - pos[b][a - 1].y,
+            const double ex = pos[b][a + 1].x - pos[b][a - 1].x,
+                         ey = pos[b][a + 1].y - pos[b][a - 1].y,
                          ez = pos[b][a + 1].z - pos[b][a - 1].z;
-            const double nx = pos[b + 1][a].x - pos[b - 1][a].x, ny = pos[b + 1][a].y - pos[b - 1][a].y,
+            const double nx = pos[b + 1][a].x - pos[b - 1][a].x,
+                         ny = pos[b + 1][a].y - pos[b - 1][a].y,
                          nz = pos[b + 1][a].z - pos[b - 1][a].z;
             double cx = ey * nz - ez * ny, cy = ez * nx - ex * nz, cz = ex * ny - ey * nx;
             const double len = std::sqrt(cx * cx + cy * cy + cz * cz);
@@ -413,7 +418,8 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
                             std::copy(fallback, fallback + 3, c);
                         } else {
                             const ClassStyle& st = kStyles[cls];
-                            const float rock = smoothstep(0.82f, 0.62f, slopeCos) * st.rockiness * 0.75f;
+                            const float rock =
+                                smoothstep(0.82f, 0.62f, slopeCos) * st.rockiness * 0.75f;
                             mix3(st.rgb, kRockRgb, rock, c);
                         }
                         for (int q = 0; q < 3; ++q) rgb[q] += c[q];
@@ -421,7 +427,8 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
                     }
                 }
             }
-            float waterFrac = total > 0 ? static_cast<float>(water) / static_cast<float>(total) : 0.f;
+            float waterFrac =
+                total > 0 ? static_cast<float>(water) / static_cast<float>(total) : 0.f;
             if (land > 0) {
                 for (float& q : rgb) q /= static_cast<float>(land);
             } else {
@@ -451,10 +458,12 @@ bool buildNodeMesh(const NodeId& id, const TileLookupFn& lookup, const MeshBuild
         out.vertices[static_cast<size_t>(dst)] = v;
     };
     for (int s = 0; s < kPatchVerts; ++s) {
-        skirt(kGridVertexCount + s, 0 * kPatchVerts + s, 1, s + 1);                          // south
-        skirt(kGridVertexCount + kPatchVerts + s, kPatchCells * kPatchVerts + s, kPatchVerts, s + 1);  // north
-        skirt(kGridVertexCount + 2 * kPatchVerts + s, s * kPatchVerts, s + 1, 1);            // west
-        skirt(kGridVertexCount + 3 * kPatchVerts + s, s * kPatchVerts + kPatchCells, s + 1, kPatchVerts);  // east
+        skirt(kGridVertexCount + s, 0 * kPatchVerts + s, 1, s + 1);  // south
+        skirt(kGridVertexCount + kPatchVerts + s, kPatchCells * kPatchVerts + s, kPatchVerts,
+              s + 1);                                                              // north
+        skirt(kGridVertexCount + 2 * kPatchVerts + s, s * kPatchVerts, s + 1, 1);  // west
+        skirt(kGridVertexCount + 3 * kPatchVerts + s, s * kPatchVerts + kPatchCells, s + 1,
+              kPatchVerts);  // east
     }
     return true;
 }

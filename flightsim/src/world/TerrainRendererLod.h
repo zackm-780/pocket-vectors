@@ -53,9 +53,9 @@ struct LodConfig {
     // Grazing views foreshorten cells in depth, so the range shrinks by sqrt(sin(grazing angle)),
     // never below sqrt(foreshortenMin) (1 disables). Saves most triangles near the ground.
     float foreshortenMin = 0.16f;
-    size_t maxRecords = 1600;        // node cache cap (records with or without meshes)
-    uint64_t keepFrames = 300;       // unused records older than this are dropped
-    int requestRepeatFrames = 45;    // re-request a still missing tile at most this often
+    size_t maxRecords = 1600;      // node cache cap (records with or without meshes)
+    uint64_t keepFrames = 300;     // unused records older than this are dropped
+    int requestRepeatFrames = 45;  // re-request a still missing tile at most this often
 };
 
 // Split range in metres for a node with the given mean cell size.
@@ -112,12 +112,14 @@ struct SelectionStats {
 
 class TerrainSelector {
 public:
-    TerrainSelector(terrain::TerrainService& svc, const LodConfig& cfg = {}) : svc_(svc), cfg_(cfg) {}
+    TerrainSelector(terrain::TerrainService& svc, const LodConfig& cfg = {})
+        : svc_(svc), cfg_(cfg) {}
     void setConfig(const LodConfig& cfg) { cfg_ = cfg; }
     const LodConfig& config() const { return cfg_; }
 
     // One selection pass. Fills `draw` (front to back) and `builds` (unsorted, deduplicated).
-    void select(const ViewParams& view, std::vector<DrawNode>& draw, std::vector<BuildRequest>& builds);
+    void select(const ViewParams& view, std::vector<DrawNode>& draw,
+                std::vector<BuildRequest>& builds);
 
     // Records a finished build: refreshes the record's box, source level and flags.
     void applyMesh(NodeRecord& rec, const NodeMesh& mesh, uint32_t vbo);

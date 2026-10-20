@@ -70,12 +70,13 @@ struct NodeMesh {
     int sourceLevel = -1;                  // tile level the heights came from
     float minHeightM = 0, maxHeightM = 0;  // over the surface vertices (skirts excluded)
     float skirtDepthM = 0;
-    bool allSea = false;  // every vertex is water at about 0 m: the sea disc covers it
+    bool allSea = false;               // every vertex is water at about 0 m: the sea disc covers it
     std::vector<NodeVertex> vertices;  // kNodeVertexCount: (kPatchVerts^2 grid, then 4 skirts)
 };
 
 // Supplies resident tiles (null when not resident / not in the pack).
-using TileLookupFn = std::function<std::shared_ptr<const terrain::TerrainTile>(const terrain::TileId&)>;
+using TileLookupFn =
+    std::function<std::shared_ptr<const terrain::TerrainTile>(const terrain::TileId&)>;
 
 struct MeshBuildOptions {
     int coarsestTileLevel = 0;  // == root node level; its nodes have no parent, hence no morph

@@ -5,7 +5,7 @@
 
 #include "core/Log.h"
 #include "core/Units.h"
-#include "world/Sky.h"  // W4
+#include "world/Sky.h"              // W4
 #include "world/TerrainRenderer.h"  // W2
 
 namespace fsim::gfx {

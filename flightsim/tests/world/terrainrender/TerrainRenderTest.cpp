@@ -1,6 +1,7 @@
 // W2 terrain renderer, CPU side (no GL): mesh building, LOD selection, culling, flatten pads.
 #include <doctest/doctest.h>
 
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <set>
@@ -26,7 +27,8 @@ double hills(double lat, double lon) {
 }
 uint8_t landFn(double lat, double lon) {
     (void)lon;
-    return lat > 45.2 ? static_cast<uint8_t>(LandClass::Tree) : static_cast<uint8_t>(LandClass::Crop);
+    return lat > 45.2 ? static_cast<uint8_t>(LandClass::Tree)
+                      : static_cast<uint8_t>(LandClass::Crop);
 }
 
 struct Fixture {
@@ -158,8 +160,8 @@ TEST_CASE("terrainrender: mesh vertices sit on the tile samples; RTC anchor math
         for (int i = 0; i < kPatchVerts; ++i) {
             const int v = j * kPatchVerts + i;
             const NodeVertex& nv = mesh.vertices[static_cast<size_t>(v)];
-            maxOffsetM = std::max({maxOffsetM, std::fabs(nv.pos[0]), std::fabs(nv.pos[1]),
-                                   std::fabs(nv.pos[2])});
+            maxOffsetM = std::max(
+                {maxOffsetM, std::fabs(nv.pos[0]), std::fabs(nv.pos[1]), std::fabs(nv.pos[2])});
             const GeoPos g = ecefToGeodetic(nodeVertexEcef(mesh, v));
             const double lat = -90.0 + (static_cast<double>(id.y) * kPatchCells + j) * cellDeg;
             const double lon = -180.0 + (static_cast<double>(id.x) * kPatchCells + i) * cellDeg;
@@ -193,7 +195,8 @@ TEST_CASE("terrainrender: normals are unit and point away from the earth") {
     REQUIRE(buildNodeMesh(id, lookupOf(*f.svc), opt, mesh));
     for (int v = 0; v < kGridVertexCount; ++v) {
         const NodeVertex& nv = mesh.vertices[static_cast<size_t>(v)];
-        const double nx = nv.normal[0] / 127.0, ny = nv.normal[1] / 127.0, nz = nv.normal[2] / 127.0;
+        const double nx = nv.normal[0] / 127.0, ny = nv.normal[1] / 127.0,
+                     nz = nv.normal[2] / 127.0;
         CHECK(std::sqrt(nx * nx + ny * ny + nz * nz) == doctest::Approx(1.0).epsilon(0.02));
         const Ecef p = nodeVertexEcef(mesh, v);
         const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
@@ -226,8 +229,9 @@ TEST_CASE("terrainrender: neighbouring nodes share edge vertices exactly (also a
         CHECK(std::fabs(pa.z - pb.z) < 1e-3);
         // lighting is continuous across the seam, too
         for (int k = 0; k < 3; ++k)
-            CHECK(std::abs(a.vertices[static_cast<size_t>(j * kPatchVerts + kPatchCells)].normal[k] -
-                           b.vertices[static_cast<size_t>(j * kPatchVerts)].normal[k]) <= 2);
+            CHECK(
+                std::abs(a.vertices[static_cast<size_t>(j * kPatchVerts + kPatchCells)].normal[k] -
+                         b.vertices[static_cast<size_t>(j * kPatchVerts)].normal[k]) <= 2);
     }
     for (int i = 0; i < kPatchVerts; ++i) {
         const Ecef pa = nodeVertexEcef(a, kPatchCells * kPatchVerts + i);
@@ -364,8 +368,10 @@ TEST_CASE("terrainrender: land class colours") {
     MeshBuildOptions opt;
     opt.coarsestTileLevel = kCoarsest;
     NodeMesh crop, tree;
-    REQUIRE(buildNodeMesh(nodeAt(kFinest + kPatchShift, 45.1, -122.3), lookupOf(*f.svc), opt, crop));
-    REQUIRE(buildNodeMesh(nodeAt(kFinest + kPatchShift, 45.3, -122.3), lookupOf(*f.svc), opt, tree));
+    REQUIRE(
+        buildNodeMesh(nodeAt(kFinest + kPatchShift, 45.1, -122.3), lookupOf(*f.svc), opt, crop));
+    REQUIRE(
+        buildNodeMesh(nodeAt(kFinest + kPatchShift, 45.3, -122.3), lookupOf(*f.svc), opt, tree));
     const NodeVertex& vc = crop.vertices[8 * kPatchVerts + 8];
     const NodeVertex& vt = tree.vertices[8 * kPatchVerts + 8];
     CHECK(vc.color[3] == 0);  // not water
@@ -398,8 +404,10 @@ TEST_CASE("terrainrender: frustum, box distance and horizon culling") {
     const double dLat = 15000.0 / (kEarthRadiusM * kRadPerDeg);
     const ViewParams north = makeView(midLat - dLat, bounds(id).centerLonDeg(), 1500, 0);
     const ViewParams south = makeView(midLat - dLat, bounds(id).centerLonDeg(), 1500, 180);
-    const Frustum fn = makeFrustum(north.ecefToEye, north.vFovRad, north.aspect, north.nearM, 40000);
-    const Frustum fs = makeFrustum(south.ecefToEye, south.vFovRad, south.aspect, south.nearM, 40000);
+    const Frustum fn =
+        makeFrustum(north.ecefToEye, north.vFovRad, north.aspect, north.nearM, 40000);
+    const Frustum fs =
+        makeFrustum(south.ecefToEye, south.vFovRad, south.aspect, south.nearM, 40000);
     CHECK(frustumIntersects(fn, box, north.eye));
     CHECK(!frustumIntersects(fs, box, south.eye));
     const Frustum shortFar = makeFrustum(north.ecefToEye, north.vFovRad, north.aspect, 0.5f, 10000);
@@ -454,7 +462,8 @@ TEST_CASE("terrainrender: LOD selection gets finer with proximity and never over
     int lowMax = 0;
     for (const DrawNode& d : draw) lowMax = std::max(lowMax, d.rec->id.k);
     CHECK(lowMax == kFinest + kPatchShift);
-    for (size_t i = 1; i < draw.size(); ++i) CHECK(draw[i - 1].distM <= draw[i].distM);  // front to back
+    for (size_t i = 1; i < draw.size(); ++i)
+        CHECK(draw[i - 1].distM <= draw[i].distM);           // front to back
     CHECK(draw.front().rec->id.k >= draw.back().rec->id.k);  // nearest finest, farthest coarsest
     for (size_t i = 0; i < draw.size(); ++i)  // never a node together with its ancestor
         for (size_t j = 0; j < draw.size(); ++j)
@@ -545,4 +554,27 @@ TEST_CASE("terrainrender: no resident tiles draws nothing and does not crash") {
     sel.select(makeView(45.2, -122.2, 2000, 0), draw, builds);
     CHECK(draw.empty());
     CHECK(builds.empty());
+}
+
+TEST_CASE("terrainrender: mesh build cost stays far below the frame budget") {
+    Fixture& f = fx();
+    MeshBuildOptions opt;
+    opt.coarsestTileLevel = kCoarsest;
+    const TileLookupFn lookup = lookupOf(*f.svc);
+    const int m = kFinest + kPatchShift;
+    NodeMesh mesh;
+    const auto t0 = std::chrono::steady_clock::now();
+    const int n = 200;
+    for (int i = 0; i < n; ++i) {
+        NodeId id = nodeAt(m, 45.1, -122.3);
+        id.x += static_cast<uint32_t>(i % 10);
+        id.y += static_cast<uint32_t>(i / 10);
+        REQUIRE(buildNodeMesh(id, lookup, opt, mesh));
+    }
+    const double perMeshMs =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() /
+        n;
+    MESSAGE("mesh build: " << perMeshMs << " ms per node (desktop, " << kNodeVertexCount
+                           << " vertices)");
+    CHECK(perMeshMs < 2.0);
 }

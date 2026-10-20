@@ -72,8 +72,8 @@ NodeBox computeNodeBox(const NodeId& id, double minHeightM, double maxHeightM) {
         mid.z += m * box.axis[k].z;
     }
     box.centre = {c0.x + mid.x, c0.y + mid.y, c0.z + mid.z};
-    box.boundRadiusM =
-        std::sqrt(box.half[0] * box.half[0] + box.half[1] * box.half[1] + box.half[2] * box.half[2]);
+    box.boundRadiusM = std::sqrt(box.half[0] * box.half[0] + box.half[1] * box.half[1] +
+                                 box.half[2] * box.half[2]);
     return box;
 }
 
@@ -81,8 +81,9 @@ double distanceToBox(const NodeBox& box, const Ecef& p) {
     const Vec3d d{p.x - box.centre.x, p.y - box.centre.y, p.z - box.centre.z};
     double sum = 0;
     for (int k = 0; k < 3; ++k) {
-        const double v = std::fabs(box.axis[k].x * d.x + box.axis[k].y * d.y + box.axis[k].z * d.z) -
-                         box.half[k];
+        const double v =
+            std::fabs(box.axis[k].x * d.x + box.axis[k].y * d.y + box.axis[k].z * d.z) -
+            box.half[k];
         if (v > 0) sum += v * v;
     }
     return std::sqrt(sum);
@@ -91,8 +92,8 @@ double distanceToBox(const NodeBox& box, const Ecef& p) {
 Frustum makeFrustum(const Mat3d& ecefToEye, float vFovRad, float aspect, float nearM, float farM) {
     const double tanV = std::tan(0.5 * vFovRad), tanH = tanV * aspect;
     // Inward normals in eye axes (x right, y up, -z forward) and plane offsets.
-    const double ne[6][3] = {{1, 0, -tanH}, {-1, 0, -tanH}, {0, 1, -tanV},
-                             {0, -1, -tanV}, {0, 0, -1},    {0, 0, 1}};
+    const double ne[6][3] = {{1, 0, -tanH},  {-1, 0, -tanH}, {0, 1, -tanV},
+                             {0, -1, -tanV}, {0, 0, -1},     {0, 0, 1}};
     const double off[6] = {0, 0, 0, 0, -static_cast<double>(nearM), static_cast<double>(farM)};
     Frustum f;
     for (int p = 0; p < 6; ++p) {
@@ -129,7 +130,8 @@ bool horizonVisible(const Ecef& eye, double occluderRadiusM, const NodeBox& box)
     if (cR <= 1.0) return true;
     const double lateral = std::sqrt(box.half[0] * box.half[0] + box.half[1] * box.half[1]);
     const double topR = std::sqrt((cR + box.half[2]) * (cR + box.half[2]) + lateral * lateral);
-    double cosT = (eye.x * box.centre.x + eye.y * box.centre.y + eye.z * box.centre.z) / (eyeR * cR);
+    double cosT =
+        (eye.x * box.centre.x + eye.y * box.centre.y + eye.z * box.centre.z) / (eyeR * cR);
     cosT = std::max(-1.0, std::min(1.0, cosT));
     const double theta = std::acos(cosT);
     const double alpha = std::asin(std::min(1.0, (lateral + box.half[2]) / cR));
@@ -357,7 +359,8 @@ void TerrainSelector::visit(const NodeId& id) {
         const double dc = std::sqrt(rel.x * rel.x + rel.y * rel.y + rel.z * rel.z);
         if (dc > 2.0 * rec.box.boundRadiusM) {
             const Vec3d& up = rec.box.axis[2];
-            range *= foreshortenFactor(std::fabs(rel.x * up.x + rel.y * up.y + rel.z * up.z) / dc, cfg_);
+            range *=
+                foreshortenFactor(std::fabs(rel.x * up.x + rel.y * up.y + rel.z * up.z) / dc, cfg_);
         }
     }
     const int maxLevel = svc_.finestLevel() + kPatchShift;
@@ -387,8 +390,7 @@ bool TerrainSelector::tryExpand(NodeRecord& rec, double rangeM) {
         const terrain::TileId t = terrain::ancestorAt(kids[0], childTile);
         if (!svc_.isTileResident(t)) {
             // Absent from the pack: no finer data exists, keep this node. Otherwise ask for it.
-            if (svc_.packHasTile(t))
-                requestTile(t, distanceToBox(rec.box, view_.eye), rangeM);
+            if (svc_.packHasTile(t)) requestTile(t, distanceToBox(rec.box, view_.eye), rangeM);
             return false;
         }
     }

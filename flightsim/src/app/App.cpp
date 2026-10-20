@@ -99,8 +99,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (dbg.visibilityKm > 0) atmosphere.setVisibilityM(dbg.visibilityKm * 1000.0f);
     std::unique_ptr<world::TerrainRenderer> terrainRenderer;
     if (terrainSvc) {
-        terrainRenderer = std::make_unique<world::TerrainRenderer>(window.gl(), window.flavor(),
-                                                                   *terrainSvc);
+        terrainRenderer =
+            std::make_unique<world::TerrainRenderer>(window.gl(), window.flavor(), *terrainSvc);
         if (terrainRenderer->init()) {
             renderer.setTerrain(terrainRenderer.get());
             if (dbg.pixelsPerCell > 0) {
@@ -108,8 +108,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 tc.lod.pixelsPerCell = dbg.pixelsPerCell;
                 terrainRenderer->setConfig(tc);
             }
-        }
-        else
+        } else
             terrainRenderer.reset();
     }
     auto viewState = [&]() {  // W2: the aircraft state, or the debug camera pose
@@ -121,7 +120,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             s.rollRad = 0;
             s.eyeBodyM[0] = s.eyeBodyM[1] = s.eyeBodyM[2] = 0;
             const float groundFt =
-                terrainSvc ? static_cast<float>(mToFt(terrainSvc->elevationM(s.latDeg, s.lonDeg))) : 0;
+                terrainSvc ? static_cast<float>(mToFt(terrainSvc->elevationM(s.latDeg, s.lonDeg)))
+                           : 0;
             s.altAglFt = std::max(0.0f, static_cast<float>(s.altMslFt) - groundFt);
         }
         return s;
@@ -262,7 +262,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                               fpsFrames / fpsClockS, s.iasKt, s.altMslFt);
                 window.setTitle(title);
                 LOG_INFO("%.1f fps", fpsFrames / fpsClockS);
-                if (terrainRenderer) LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
+                if (terrainRenderer)
+                    LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             }
             fpsFrames = 0;
             fpsClockS = 0;
