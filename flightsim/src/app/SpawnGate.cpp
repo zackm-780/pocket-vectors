@@ -49,14 +49,13 @@ SpawnGateResult waitForSpawnDetail(TerrainQuery& terrain, const std::vector<Spaw
     }
 }
 
-FlattenArea runwayFlattenArea(const Runway& rwy, float shoulderM, float endMarginM,
-                              float blendM) {
+FlattenArea runwayFlattenArea(const Runway& rwy, float shoulderM, float endMarginM, float blendM) {
     // Along-runway bearing from the pavement start to its far end (the stored heading is rounded;
     // the end points are authoritative).
     double bearingRad = degToRad(rwy.headingTrueDeg);
     if (rwy.startLatDeg != rwy.endLatDeg || rwy.startLonDeg != rwy.endLonDeg)
-        bearingRad = initialBearingTrueRad(rwy.startLatDeg, rwy.startLonDeg, rwy.endLatDeg,
-                                           rwy.endLonDeg);
+        bearingRad =
+            initialBearingTrueRad(rwy.startLatDeg, rwy.startLonDeg, rwy.endLatDeg, rwy.endLonDeg);
     const double halfWidthM = 0.5 * ftToM(rwy.widthFt) + shoulderM;
 
     double baseLat = 0, baseLon = 0, tipLat = 0, tipLon = 0;

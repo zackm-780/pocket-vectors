@@ -28,8 +28,12 @@ Rest parkOn(TerrainQuery& terrain) {
     REQUIRE_MESSAGE(f.begin(), f.error);
     f.run(12.0);
     const AircraftState& s = f.s();
-    return {static_cast<float>(radToDeg(s.pitchRad)), static_cast<float>(radToDeg(s.rollRad)),
-            s.altAglFt, s.gsKt, s.wowAll, s.crashed};
+    return {static_cast<float>(radToDeg(s.pitchRad)),
+            static_cast<float>(radToDeg(s.rollRad)),
+            s.altAglFt,
+            s.gsKt,
+            s.wowAll,
+            s.crashed};
 }
 
 }  // namespace

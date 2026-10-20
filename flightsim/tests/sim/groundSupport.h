@@ -43,8 +43,8 @@ struct GridPlane {
 };
 inline GridPlane gridPlane(int level, int mPerColumnWest, int mPerRowNorth) {
     const double stepDeg = 90.0 / static_cast<double>(1u << level) / 256.0;
-    const double colM = stepDeg * kRadPerDeg * kEarthRadiusM *
-                        std::cos(degToRad(SyntheticNavDb::kLatDeg));
+    const double colM =
+        stepDeg * kRadPerDeg * kEarthRadiusM * std::cos(degToRad(SyntheticNavDb::kLatDeg));
     const double rowM = stepDeg * kRadPerDeg * kEarthRadiusM;
     GridPlane g;
     g.slopeWest = mPerColumnWest / colM;

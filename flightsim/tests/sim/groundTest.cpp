@@ -149,8 +149,8 @@ TEST_CASE("ground: repeated queries at one location in one step cost one terrain
 TEST_CASE("ground: surface follows a TerrainService pack and its runway flatten area") {
     // Rough terrain: 8 m hills with a 150 m wavelength around XTST.
     const HeightFn rough = [](double lat, double lon) {
-        return kXtstElevM + 8.0 * std::sin(xtstEastM(lat, lon) / 24.0) *
-                                std::cos(xtstNorthM(lat) / 24.0);
+        return kXtstElevM +
+               8.0 * std::sin(xtstEastM(lat, lon) / 24.0) * std::cos(xtstNorthM(lat) / 24.0);
     };
     SynthWorld world(rough);
     const SyntheticNavDb nav;

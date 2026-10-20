@@ -563,13 +563,13 @@ void FlightModel::Impl::installGroundCallback() {
             groundCallback->setTerrain(terrain);
             return;
         }
-        groundCallback = new TerrainGroundCallback(terrain, inertial->GetSemimajor(),
-                                                   inertial->GetSemiminor());
+        groundCallback =
+            new TerrainGroundCallback(terrain, inertial->GetSemimajor(), inertial->GetSemiminor());
         inertial->SetGroundCallback(groundCallback);  // FGInertial takes ownership
     } else if (groundCallback) {
         groundCallback = nullptr;
-        auto flat = new JSBSim::FGDefaultGroundCallback(inertial->GetSemimajor(),
-                                                        inertial->GetSemiminor());
+        auto flat =
+            new JSBSim::FGDefaultGroundCallback(inertial->GetSemimajor(), inertial->GetSemiminor());
         flat->SetTerrainElevation(startCondition.fieldElevFt);
         inertial->SetGroundCallback(flat);
     }

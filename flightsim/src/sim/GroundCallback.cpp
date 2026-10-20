@@ -108,9 +108,8 @@ double TerrainGroundCallback::GetAGLevel(double, const JSBSim::FGLocation& locat
     // Upward normal of the surface z = f(north, east): (-df/dn, -df/de, up 1), written in the
     // local north-east-down frame (down = -1) and rotated to ECEF with the location's geodetic
     // frame (the ellipse is set, so Tl2ec is the geodetic one).
-    const double invLen =
-        1.0 / std::sqrt(1.0 + surface.slopeNorth * surface.slopeNorth +
-                        surface.slopeEast * surface.slopeEast);
+    const double invLen = 1.0 / std::sqrt(1.0 + surface.slopeNorth * surface.slopeNorth +
+                                          surface.slopeEast * surface.slopeEast);
     const JSBSim::FGColumnVector3 normalLocal(-surface.slopeNorth * invLen,
                                               -surface.slopeEast * invLen, -invLen);
     normal = l.GetTl2ec() * normalLocal;

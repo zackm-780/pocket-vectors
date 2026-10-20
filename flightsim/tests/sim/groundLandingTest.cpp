@@ -18,8 +18,8 @@ struct LandingResult {
     bool touched = false, crashed = false;
     std::string reason;
     double touchdownVsFpm = 0;
-    int groundTransitions = 0;      // wowAny edges after the first touchdown (bounces)
-    double maxBounceAglFt = 0;      // highest wheel clearance after the first touchdown
+    int groundTransitions = 0;  // wowAny edges after the first touchdown (bounces)
+    double maxBounceAglFt = 0;  // highest wheel clearance after the first touchdown
     double maxPitchDeg = 0, maxAbsRollDeg = 0;
     double stopGsKt = 99;
     double maxHeadingErrDeg = 0;
@@ -57,8 +57,9 @@ LandingResult land(TerrainQuery& terrain, double distNm, double headingTrueDeg =
             r.maxPitchDeg = std::max(r.maxPitchDeg, radToDeg(s.pitchRad));
             r.maxAbsRollDeg = std::max(r.maxAbsRollDeg, std::fabs(radToDeg(s.rollRad)));
             if (s.simTimeS > touchdownT + 3.0)
-                r.maxHeadingErrDeg = std::max(
-                    r.maxHeadingErrDeg, std::fabs(wrap180(radToDeg(s.headingTrueRad) - headingTrueDeg)));
+                r.maxHeadingErrDeg =
+                    std::max(r.maxHeadingErrDeg,
+                             std::fabs(wrap180(radToDeg(s.headingTrueRad) - headingTrueDeg)));
         }
     }
     r.crashed = f.s().crashed;
@@ -78,11 +79,11 @@ void checkGoodLanding(const char* what, const LandingResult& r) {
     CHECK(r.touched);
     CHECK_FALSE(r.crashed);
     CHECK(r.touchdownVsFpm > -600.0);
-    CHECK(r.groundTransitions <= 4);       // a small skip is fine, a bouncing aircraft is not
+    CHECK(r.groundTransitions <= 4);  // a small skip is fine, a bouncing aircraft is not
     CHECK(r.maxBounceAglFt < 6.0);
     CHECK(r.maxPitchDeg < 12.0);
     CHECK(r.maxAbsRollDeg < 10.0);
-    CHECK(r.stopGsKt < 2.0);               // braked to a stop on the slope
+    CHECK(r.stopGsKt < 2.0);  // braked to a stop on the slope
 }
 
 }  // namespace
@@ -128,7 +129,7 @@ TEST_CASE("sim: ground a c172p rolls on a slope without a bounce explosion") {
     std::printf("[ground] downhill roll: gs %.1f kt, agl %.2f..%.2f ft\n", f.s().gsKt, minAgl,
                 maxAgl);
     CHECK_FALSE(f.s().crashed);
-    CHECK(f.s().gsKt > 5.0);   // it does roll downhill
+    CHECK(f.s().gsKt > 5.0);  // it does roll downhill
     CHECK(f.s().gsKt < 40.0);
     CHECK(f.s().wowAll);
     CHECK(maxAgl - minAgl < 1.0);  // glued to the surface (rolling over 1 m quantised ground)
@@ -141,14 +142,14 @@ namespace {
 
 HeightFn roughHills(double amplitudeM) {
     return [=](double lat, double lon) {
-        return kXtstElevM + amplitudeM * std::sin(xtstEastM(lat, lon) / 24.0) *
-                                std::cos(xtstNorthM(lat) / 24.0);
+        return kXtstElevM +
+               amplitudeM * std::sin(xtstEastM(lat, lon) / 24.0) * std::cos(xtstNorthM(lat) / 24.0);
     };
 }
 
 struct RollStats {
     double liftoffKt = -1;
-    double maxAglDevFt = 0;   // CG height deviation from its standing value while rolling
+    double maxAglDevFt = 0;  // CG height deviation from its standing value while rolling
     double maxPitchDevDeg = 0;
     double maxAbsVsFpm = 0;
     double maxHdgErrDeg = 0;
@@ -174,7 +175,8 @@ RollStats takeoffRoll(TerrainQuery& terrain) {
         r.maxAglDevFt = std::max(r.maxAglDevFt, std::fabs(s.altAglFt - agl0));
         r.maxPitchDevDeg = std::max(r.maxPitchDevDeg, std::fabs(radToDeg(s.pitchRad) - pitch0));
         r.maxAbsVsFpm = std::max<double>(r.maxAbsVsFpm, std::fabs(s.vsFpm));
-        r.maxHdgErrDeg = std::max(r.maxHdgErrDeg, std::fabs(wrap180(radToDeg(s.headingTrueRad) - 270.0)));
+        r.maxHdgErrDeg =
+            std::max(r.maxHdgErrDeg, std::fabs(wrap180(radToDeg(s.headingTrueRad) - 270.0)));
         if (!s.wowAny) r.liftoffKt = s.iasKt;
     }
     r.crashed = f.s().crashed;
@@ -203,8 +205,9 @@ TEST_CASE("sim: ground a runway pad on rough terrain rolls flat") {
         "heading err %.1f\n",
         flat.maxAglDevFt, flat.maxPitchDevDeg, flat.maxAbsVsFpm, flat.maxHdgErrDeg);
     CHECK_FALSE(flat.crashed);
-    CHECK(flat.liftoffKt < 0);          // stayed on the ground up to 52 kt
-    std::printf("[ground] roll on level ground:          agl dev %.2f ft, pitch dev %.2f deg, |vs| %.0f fpm\n",
+    CHECK(flat.liftoffKt < 0);  // stayed on the ground up to 52 kt
+    std::printf("[ground] roll on level ground:          agl dev %.2f ft, pitch dev %.2f deg, |vs| "
+                "%.0f fpm\n",
                 ref.maxAglDevFt, ref.maxPitchDevDeg, ref.maxAbsVsFpm);
     CHECK(flat.maxAglDevFt < ref.maxAglDevFt + 0.1);  // as flat as level ground
     CHECK(std::fabs(flat.maxPitchDevDeg - ref.maxPitchDevDeg) < 0.5);
@@ -219,7 +222,7 @@ namespace {
 
 struct DropResult {
     double impactFpm = 0;
-    double minAglFt = 99;     // lowest CG height above the surface during the drop
+    double minAglFt = 99;  // lowest CG height above the surface during the drop
     double minNoseGearClearFt = 99;
     bool crashed = false;
     std::string reason;
@@ -274,8 +277,8 @@ TEST_CASE("sim: ground the c172p cannot sink through terrain at 120 Hz") {
 
 TEST_CASE("sim: ground hard drops are judged a crash, soft ones are not") {
     FunctionTerrain level([](double, double) { return kXtstElevM; });
-    const DropResult soft = drop(level, 0.5, false);   // ~ 340 fpm
-    const DropResult hard = drop(level, 8.0, false);   // ~ 1350 fpm
+    const DropResult soft = drop(level, 0.5, false);  // ~ 340 fpm
+    const DropResult hard = drop(level, 8.0, false);  // ~ 1350 fpm
     CHECK_FALSE(soft.crashed);
     CHECK(hard.crashed);
     CHECK(hard.reason == "hard landing");

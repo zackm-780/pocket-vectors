@@ -77,10 +77,10 @@ private:
     double accumulatorS_ = 0;
     double nextTraceS_ = 0;
     bool paused_ = false;
-    TerrainPump terrainPump_;         // F3
-    double spawnTimeoutS_ = 10.0;     // F3
-    SpawnGateResult spawnGate_;       // F3
-    std::string flattenedRunway_;     // F3: temporary until W5
+    TerrainPump terrainPump_;      // F3
+    double spawnTimeoutS_ = 10.0;  // F3
+    SpawnGateResult spawnGate_;    // F3
+    std::string flattenedRunway_;  // F3: temporary until W5
 };
 
 }  // namespace fsim

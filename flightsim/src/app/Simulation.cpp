@@ -3,9 +3,9 @@
 #include <algorithm>
 
 #include "core/Log.h"
+#include "core/SimTime.h"
 #include "core/SyntheticNavDb.h"  // findRunway
 #include "core/Units.h"
-#include "core/SimTime.h"
 #include "sim/ProfileLoader.h"
 
 namespace fsim {

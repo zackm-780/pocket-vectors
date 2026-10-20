@@ -23,8 +23,8 @@ struct SimWorld {
 
 HeightFn hills(double amplitudeM) {
     return [=](double lat, double lon) {
-        return kXtstElevM + amplitudeM * std::sin(xtstEastM(lat, lon) / 24.0) *
-                                std::cos(xtstNorthM(lat) / 24.0);
+        return kXtstElevM +
+               amplitudeM * std::sin(xtstEastM(lat, lon) / 24.0) * std::cos(xtstNorthM(lat) / 24.0);
     };
 }
 
@@ -56,8 +56,8 @@ TEST_CASE("ground: the spawn gate is bounded when detail never arrives") {
     NeverReadyTerrain never;
     const double t0 = nowS();
     int pumps = 0;
-    const SpawnGateResult r = waitForSpawnDetail(
-        never, {{40.0, -100.0}}, 5000.0f, 0.25, [&](double, double) { ++pumps; });
+    const SpawnGateResult r = waitForSpawnDetail(never, {{40.0, -100.0}}, 5000.0f, 0.25,
+                                                 [&](double, double) { ++pumps; });
     const double elapsedS = nowS() - t0;
     CHECK_FALSE(r.ready);
     CHECK(r.timedOut);
@@ -67,7 +67,8 @@ TEST_CASE("ground: the spawn gate is bounded when detail never arrives") {
     CHECK(never.prefetches == 1);
     // Without a pump nothing could change, so it does not sit there waiting.
     const double t1 = nowS();
-    const SpawnGateResult noPump = waitForSpawnDetail(never, {{40.0, -100.0}}, 5000.0f, 5.0, nullptr);
+    const SpawnGateResult noPump =
+        waitForSpawnDetail(never, {{40.0, -100.0}}, 5000.0f, 5.0, nullptr);
     CHECK(nowS() - t1 < 0.1);
     CHECK_FALSE(noPump.ready);
     CHECK_FALSE(noPump.timedOut);
@@ -86,7 +87,8 @@ TEST_CASE("sim: ground Simulation::init gates the start on terrain detail and si
     Simulation sim(env.paths, env.nav, svc);
     sim.setTerrainPump([&](double lat, double lon) { svc.update(lat, lon); });
     REQUIRE_FALSE(svc.isDetailReady(SyntheticNavDb::kLatDeg, SyntheticNavDb::kLonDeg));
-    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error), env.error);
+    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error),
+                    env.error);
     const SpawnGateResult& gate = sim.spawnGate();
     std::printf("[ground] init waited %.3f s\n", gate.waitedS);
     CHECK(gate.ready);
@@ -94,7 +96,8 @@ TEST_CASE("sim: ground Simulation::init gates the start on terrain detail and si
     CHECK(svc.isDetailReady(sim.startCondition().latDeg, sim.startCondition().lonDeg));
 
     // The start sits on the flat runway pad (2,000 ft), not on a hill and not at sea level.
-    CHECK(sim.startCondition().fieldElevFt == doctest::Approx(SyntheticNavDb::kElevFt).epsilon(1e-4));
+    CHECK(sim.startCondition().fieldElevFt ==
+          doctest::Approx(SyntheticNavDb::kElevFt).epsilon(1e-4));
     for (long i = 0; i < 6 * kSimHz; ++i) sim.stepOnce();
     const AircraftState& s = sim.aircraft();
     CHECK(s.wowAll);
@@ -111,7 +114,8 @@ TEST_CASE("sim: ground Simulation::init starts anyway after the gate times out")
     sim.setTerrainPump([](double, double) {});
     sim.setSpawnGateTimeoutS(0.2);
     const double t0 = nowS();
-    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error), env.error);
+    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error),
+                    env.error);
     CHECK(nowS() - t0 < 5.0);
     CHECK(sim.spawnGate().timedOut);
     sim.stepOnce();
@@ -124,8 +128,9 @@ TEST_CASE("sim: ground a final start gates on both the start point and the runwa
     terrain::TerrainService& svc = world.terrain();
     Simulation sim(env.paths, env.nav, svc);
     sim.setTerrainPump([&](double lat, double lon) { svc.update(lat, lon); });
-    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = final\nrunway = 27\ndistance_nm = 3\n", env.error),
-                    env.error);
+    REQUIRE_MESSAGE(
+        initSim(sim, "[scenario]\nstart = final\nrunway = 27\ndistance_nm = 3\n", env.error),
+        env.error);
     const Runway* rwy = findRunway(env.nav.airport(), "27");
     CHECK(sim.spawnGate().ready);
     CHECK(svc.isDetailReady(rwy->thrLatDeg, rwy->thrLonDeg));
@@ -143,11 +148,12 @@ TEST_CASE("sim: ground a runway start takes off from the pad on rough terrain") 
     SynthWorld world(hills(3.0));
     terrain::TerrainService& svc = world.terrain();
     Simulation sim(env.paths, env.nav, svc);
-    REQUIRE_MESSAGE(initSim(sim,
-                            "[scenario]\nstart = runway\nrunway = 27\n[inputs]\n0.0 = parkingbrake 0\n"
-                            "0.0 = throttle 1.0\n",
-                            env.error),
-                    env.error);
+    REQUIRE_MESSAGE(
+        initSim(sim,
+                "[scenario]\nstart = runway\nrunway = 27\n[inputs]\n0.0 = parkingbrake 0\n"
+                "0.0 = throttle 1.0\n",
+                env.error),
+        env.error);
     double liftoffKt = -1, maxHdgErr = 0;
     for (long i = 0; i < 40 * kSimHz && liftoffKt < 0; ++i) {
         // rudder and steering to hold the heading, rotate at 55 kt
@@ -161,7 +167,8 @@ TEST_CASE("sim: ground a runway start takes off from the pad on rough terrain") 
         maxHdgErr = std::max(maxHdgErr, std::fabs(wrap180(radToDeg(s.headingTrueRad) - 270.0)));
         if (!s.wowAny) liftoffKt = s.iasKt;
     }
-    std::printf("[ground] pad takeoff: liftoff %.1f kt, heading err %.1f deg\n", liftoffKt, maxHdgErr);
+    std::printf("[ground] pad takeoff: liftoff %.1f kt, heading err %.1f deg\n", liftoffKt,
+                maxHdgErr);
     CHECK(liftoffKt > 50.0);
     CHECK(liftoffKt < 65.0);
     CHECK(maxHdgErr < 5.0);
@@ -173,7 +180,8 @@ TEST_CASE("sim: ground the flat fallback world still works through the callback"
     SimWorld env;
     FlatTerrain flat{static_cast<float>(kXtstElevM)};
     Simulation sim(env.paths, env.nav, flat);
-    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error), env.error);
+    REQUIRE_MESSAGE(initSim(sim, "[scenario]\nstart = runway\nrunway = 27\n", env.error),
+                    env.error);
     for (long i = 0; i < 5 * kSimHz; ++i) sim.stepOnce();
     CHECK(sim.aircraft().wowAll);
     CHECK(sim.aircraft().terrainElevFt == doctest::Approx(SyntheticNavDb::kElevFt).epsilon(1e-4));

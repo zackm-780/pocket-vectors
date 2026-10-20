@@ -65,15 +65,16 @@ TEST_CASE("sim: ground flying into a ridge is a terrain crash") {
     // 250 ft above the field, so the ramp meets it about 600 m after the foot.
     SynthWorld w(ridge(2000.0, 0.15, 500.0));
     const CruiseRun r = flyWestInto(w.terrain(), SyntheticNavDb::kElevFt + 250.0, 120.0);
-    std::printf("[ground] ridge: crashed=%d '%s' at %.0f m west, agl %.1f ft, ias %.0f kt, t=%.1f\n",
-                r.crashed, r.reason.c_str(), r.crashWestM, r.crashAglFt, r.crashIasKt, r.simTimeS);
+    std::printf(
+        "[ground] ridge: crashed=%d '%s' at %.0f m west, agl %.1f ft, ias %.0f kt, t=%.1f\n",
+        r.crashed, r.reason.c_str(), r.crashWestM, r.crashAglFt, r.crashIasKt, r.simTimeS);
     REQUIRE(r.crashed);
     CHECK(r.crashAglFt < 30.0);
-    CHECK(r.crashWestM > 2000.0);   // it hit the ramp, not the level ground
+    CHECK(r.crashWestM > 2000.0);  // it hit the ramp, not the level ground
     CHECK(r.crashWestM < 3500.0);
     CHECK(!r.reason.empty());
     CHECK(r.reason != "water impact");
-    CHECK(r.minAglFt > -1.0);       // frozen at the surface, not below it
+    CHECK(r.minAglFt > -1.0);  // frozen at the surface, not below it
 }
 
 TEST_CASE("sim: ground the same flight clears the ridge with enough altitude or without it") {
