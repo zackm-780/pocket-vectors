@@ -44,8 +44,8 @@ jobs:
         working-directory: flightsim
         run: |
           for f in tools/build_device.sh tools/docker/*.sh port/*.sh; do bash -n "$f"; done
-          bash -n "port/Flight Sim.sh"
-          bash -n "tools/probe/port/Flight Sim Probe.sh"
+          bash -n port/FlightSim.sh
+          bash -n tools/probe/port/FlightSimProbe.sh
           shellcheck -S warning tools/build_device.sh tools/docker/*.sh port/package_port.sh port/check_package.sh
 
       - name: Build and check the device packages (Docker, Debian 11)
