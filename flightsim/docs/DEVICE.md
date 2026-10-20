@@ -42,14 +42,21 @@ Add observations from device tests here (date, build, what was seen).
   to `FlightSim.sh` / `FlightSimProbe.sh` (no spaces, in case the launcher does not quote paths),
   and the log now records whether the userspace is 64-bit (some stock OS releases are 32-bit,
   which the aarch64 build cannot run on). Awaiting a retest.
+- **2026-10-20, libJSBSim.so symlinks vs FAT/exFAT:** device zips originally stored the CMake/JSBSim
+  soname chain (`libJSBSim.so` → `libJSBSim.so.1` → `libJSBSim.so.1.3.3`) with `cp -a` and `zip -y`.
+  Unzipping onto a FAT/exFAT SD card (or via many Windows/macOS unzippers) drops those symlinks, so
+  `DT_NEEDED: libJSBSim.so.1` fails to load. Packaging now ships one regular file
+  `libs.aarch64/libJSBSim.so.1`, and `check_package.sh` fails the build if any symlink remains in
+  the zip. Re-copy ports from a zip built after that fix.
 
 ## 4. How to run the probe
 The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in
 `tools/probe/README.md`). Every row of the table in section 2 has a matching entry in the report's
 KEY FACTS block.
 1. Get `flightsim-probe-portmaster.zip` from the `device` CI workflow artifact (or `tools/build_device.sh`).
-2. Unzip it into your PortMaster ports folder on the SD card (`FlightSimProbe.sh` and `flightsimprobe/`
-   side by side).
+2. Unzip it so `FlightSimProbe.sh` and `flightsimprobe/` sit **side by side** in the folder your
+   launcher runs ports from (PortMaster's ports folder, or the stock OS equivalent). Confirm
+   `flightsimprobe/libs.aarch64/libJSBSim.so.1` is a normal file (not a symlink/shortcut).
 3. Run "Flight Sim Probe" from the Ports menu. Hands off for the first 1.5 s, then press what each prompt
    asks (never Select and Start together: that exits). About 2 minutes in total.
 4. Send back `flightsimprobe/probe_report.txt` and `flightsimprobe/log.txt`.

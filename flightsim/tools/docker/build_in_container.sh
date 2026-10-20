@@ -45,7 +45,9 @@ if [ "${SKIP_PROBE:-0}" != 1 ]; then
 
   PROBE_LIBS="$BUILD/probe-libs"
   rm -rf "$PROBE_LIBS"; mkdir -p "$PROBE_LIBS"
-  # libJSBSim.so, libJSBSim.so.1, libJSBSim.so.1.3.3 (symlinks kept)
+  # CMake/JSBSim installs the usual soname chain (libJSBSim.so -> .so.1 -> .so.1.3.3). Collect the
+  # whole chain here; package_port.sh collapses it to one regular file named for the SONAME
+  # (libJSBSim.so.1) so the PortMaster zip is FAT/exFAT safe.
   find "$BUILD/probe" -name 'libJSBSim.so*' \( -type f -o -type l \) -exec cp -a {} "$PROBE_LIBS/" \;
   [ -n "$(find "$PROBE_LIBS" -name "libJSBSim.so*" -print -quit)" ] || { echo "libJSBSim.so not found after the probe build" >&2; exit 1; }
 
@@ -74,6 +76,7 @@ if [ -f CMakeLists.txt ] && [ -f src/main.cpp ]; then
   [ -n "$MAIN_BIN" ] || { echo "flightsim binary not found in $BUILD/main" >&2; exit 1; }
   MAIN_LIBS="$BUILD/main-libs"
   rm -rf "$MAIN_LIBS"; mkdir -p "$MAIN_LIBS"
+  # Same soname chain as the probe; package_port.sh ships only libs.aarch64/libJSBSim.so.1.
   find "$BUILD/main" -name 'libJSBSim.so*' \( -type f -o -type l \) -exec cp -a {} "$MAIN_LIBS/" \;
   [ -n "$(find "$MAIN_LIBS" -name "libJSBSim.so*" -print -quit)" ] || { echo "libJSBSim.so not found after the main build" >&2; exit 1; }
   MAIN_PKG=(--port-dir port --script port/FlightSim.sh --name flightsim --binary "$MAIN_BIN" --libs-dir "$MAIN_LIBS"

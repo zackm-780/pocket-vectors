@@ -29,7 +29,8 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          # terrain/requirements.txt pins numpy==2.5.4, which needs Python >= 3.12.
+          python-version: "3.12"
 
       - name: Free disk space (the world layer downloads about 50 GB)
         if: ${{ inputs.include_world }}
@@ -66,11 +67,13 @@ jobs:
       - name: Build the data pack
         working-directory: flightsim
         run: |
+          set -euo pipefail
           args=(--out "$RUNNER_TEMP/pack" --preset "$PRESET" --jobs "$(nproc)")
           if [ "$INCLUDE_WORLD" = "true" ]; then args+=(--world); fi
           # world cache on the big temp disk when the workspace disk is small
           sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
           args+=(--world-cache /mnt/world-cache)
+          # pipefail: without it, a failing build still looks green when tee|tail both succeed.
           tools/datapack/build_datapack.sh "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/build.log" | tail -n 400
 
       - name: Zip the pack

@@ -6,6 +6,7 @@
 #     ld-linux-aarch64, libSDL2-2.0.so.0 and libraries shipped inside the package
 #   * no dependency on libstdc++/libgcc_s (they must be linked statically)
 #   * the launch script, port.json, gameinfo.xml, README.md, licenses/ are present and well formed
+#   * SD-card / FAT safety: no symlinks in the zip or tree, no FAT-illegal names, no case collisions
 #
 #   port/check_package.sh dist/flightsim-portmaster.zip [more zips or folders...]
 #
@@ -65,9 +66,66 @@ check_elf() {
   ok "$rel: NEEDED = $(echo $needed)"
 }
 
+# SD-card safety: FAT/exFAT cannot store symlinks; Windows/macOS unzip often drops them.
+check_fat_safe() {
+  local root="$1" rel base
+  if [ -n "$(find "$root" -type l -print -quit 2>/dev/null)" ]; then
+    fail "tree contains symlinks (not FAT/exFAT safe):"
+    find "$root" -type l -printf '        %P -> %l\n' | sed -n '1,20p'
+  else
+    ok "no symlinks in tree"
+  fi
+  while IFS= read -r -d '' p; do
+    rel="${p#"$root"/}"
+    [ "$rel" = "$p" ] && continue
+    base="${rel##*/}"
+    case "$base" in ""|.|..) continue ;; esac
+    if printf '%s' "$base" | grep -q $'[\t<>:"\\\\|?*\001-\037]'; then
+      fail "FAT-illegal character in path: $rel"
+    fi
+    case "$base" in
+      " "*|*" ") fail "FAT-unsafe leading/trailing space: $rel" ;;
+    esac
+    case "$base" in
+      *.) fail "FAT-unsafe trailing dot: $rel" ;;
+    esac
+  done < <(find "$root" -print0)
+  if ! find "$root" -mindepth 1 -printf '%P\n' | while IFS= read -r rel; do
+      printf '%s\t%s\n' "$(printf '%s' "$rel" | tr '[:upper:]' '[:lower:]')" "$rel"
+    done | LC_ALL=C sort | awk -F'\t' '
+      NR>1 && $1==prev_key && $2!=prev_path {
+        printf "        case collision: \"%s\" vs \"%s\"\n", prev_path, $2
+        err=1
+      }
+      { prev_key=$1; prev_path=$2 }
+      END { exit err+0 }'; then
+    fail "case-insensitive path collision (FAT/exFAT)"
+  else
+    ok "no FAT case collisions"
+  fi
+}
+
+# Zip central directory: fail if any entry is a stored symlink (zip -y).
+check_zip_no_symlinks() {
+  local zip="$1" hits
+  if ! command -v zipinfo >/dev/null 2>&1; then
+    warn "zipinfo not installed: skipping zip symlink attribute check"
+    return
+  fi
+  # zipinfo long listing: symlink entries start with 'l' in the Unix permissions column.
+  hits="$(zipinfo -l "$zip" 2>/dev/null | awk 'NR>1 && $1 ~ /^l/ { print }')"
+  if [ -n "$hits" ]; then
+    fail "zip contains symlink entries (zip -y / FAT-unsafe):"
+    printf '%s\n' "$hits" | sed 's/^/        /' | sed -n '1,20p'
+  else
+    ok "zip stores no symlink entries"
+  fi
+}
+
 check_tree() {
   local root="$1" label="$2" script port_dir portname f rel sonames
   echo "== $label"
+  check_fat_safe "$root"
   # Layout: <root>/<Script>.sh and <root>/<portname>/
   script=""; for f in "$root"/*.sh; do [ -f "$f" ] && script="$f"; done
   [ -n "$script" ] || { fail "no launch script (*.sh) at the zip root"; return; }
@@ -131,10 +189,14 @@ check_tree() {
   done < "$list"
   rm -f "$list"
   [ "$nelf" -ge 1 ] || fail "no ELF files found to check"
-  # Every NEEDED of the main binary that is shipped must really be present.
+  # Every NEEDED of the main binary that is shipped must really be present as a regular file
+  # (exact basename match — not a broken symlink left after a Windows unzip).
   for n in $($READELF -d "$port_dir/$portname.aarch64" 2>/dev/null | awk '/\(NEEDED\)/ {gsub(/[\[\]]/,"",$NF); print $NF}'); do
-    if [[ " $ALLOWED_BASE " != *" $n "* ]] && [ -z "$(find "$port_dir/libs.aarch64" -name "$n" -print -quit 2>/dev/null)" ]; then
-      fail "binary needs $n but it is not in libs.aarch64/"
+    if [[ " $ALLOWED_BASE " == *" $n "* ]]; then continue; fi
+    if [ -f "$port_dir/libs.aarch64/$n" ] && [ ! -L "$port_dir/libs.aarch64/$n" ]; then
+      ok "libs.aarch64/$n is a regular file (matches DT_NEEDED)"
+    else
+      fail "binary needs $n but libs.aarch64/$n is missing or not a regular file"
     fi
   done
 }
@@ -144,6 +206,7 @@ for input in "$@"; do
   if [ -d "$input" ]; then
     check_tree "$(cd "$input" && pwd)" "$input"
   elif [ -f "$input" ]; then
+    check_zip_no_symlinks "$input"
     tmp="$(mktemp -d "${TMPDIR:-/tmp}/portcheck.XXXXXX")"
     unzip -q -o "$input" -d "$tmp" || { fail "cannot unzip $input"; continue; }
     check_tree "$tmp" "$input"

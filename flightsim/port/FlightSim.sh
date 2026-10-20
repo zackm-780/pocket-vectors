@@ -95,7 +95,7 @@ if [ ! -f "$BIN" ]; then
 fi
 $ESUDO chmod +x "$BIN" 2>/dev/null
 
-# Shipped libraries (libJSBSim.so) live in libs.aarch64.
+# Shipped libraries (libJSBSim.so.1 as a regular file) live in libs.aarch64.
 export LD_LIBRARY_PATH="$GAMEDIR/libs.${DEVICE_ARCH}:$LD_LIBRARY_PATH"
 [ -n "$sdl_controllerconfig" ] && export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 # Tells the game to use the gamepad only and to ignore keyboard events.
