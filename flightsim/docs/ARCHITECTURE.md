@@ -430,10 +430,12 @@ struct ActionState {
   starts crab the IC heading so the ground track stays on the extended centerline.
 - **Weight on wheels:** `wowAny` and `wowAll` count wheel (bogey) contact points only. Contact by any
   non-wheel point is a structure strike, which sets `crashed`.
-- **Stock-model quirks:** the 737 binds input sockets 5137 and 5139, and the c310 opens output
-  sockets 1138 and 1139. F2 removes these through `assets/jsbsim-overlay/`.
+- **Stock-model quirks** (fixed by F2 in `assets/jsbsim-overlay/`): the 737 binds input sockets
+  5137 and 5139; the global5000 writes `global5000.csv` to the working directory; the c310's
+  constant-speed propeller cannot be trimmed, so it gets a fixed-pitch propeller. (The c310 output
+  sockets 1138/1139 are already commented out in v1.3.3.)
 - **Ground:** a custom `JSBSim::FGGroundCallback` (F3) answers from `TerrainQuery`, including
-  runway flattening. The default before F3 lands is flat ground at the scenario elevation.
+  runway flattening, with spawn gating on resident terrain detail.
 - **Start conditions** (F1): runway (on the threshold, brakes set), final (N NM out on the 3°
   path, in approach configuration and trimmed), cruise (trimmed at profile cruise). After JSBSim trim,
   move the trimmed elevator command into `elevTrimNorm` so a centered stick holds the trim.
