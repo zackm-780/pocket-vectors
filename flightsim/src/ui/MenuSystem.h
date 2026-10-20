@@ -109,7 +109,7 @@ public:
     // ---- opening -------------------------------------------------------------------------
     void openMain();   // startup menu
     void openPause();  // needs setFlight() first
-    // Canned screens for screenshots and tests (documented in docs/UI.md section 4):
+    // Canned screens for screenshots and tests (documented in src/ui/README.md):
     //   main | setup | aircraft | airport[:TEXT] | runway[:ICAO] | start | plan[:FILE] |
     //   approach[:FILE] | settings | pause | flightplan | confirm
     // Returns false (with `error`) for an unknown spec.
