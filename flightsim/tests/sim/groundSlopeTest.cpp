@@ -84,3 +84,30 @@ TEST_CASE("sim: ground the AGL the model reports equals the height above the ter
     CHECK(s.altAglFt == doctest::Approx(s.altMslFt - terrainFt).epsilon(1e-3));
     CHECK(s.terrainElevFt == doctest::Approx(terrainFt).epsilon(1e-3));
 }
+
+TEST_CASE("sim: ground the terrain callback adds little to the cost of a flight step") {
+    // 20 s of takeoff roll and climb: JSBSim's default flat ground against the TerrainService.
+    auto timeRun = [](TerrainQuery* terrain) {
+        Flight f;
+        REQUIRE_MESSAGE(f.resolve("c172p", "runway"), f.error);
+        if (terrain) {
+            f.model.setTerrain(terrain);
+            placeStartOnTerrain(f, *terrain);
+        }
+        REQUIRE_MESSAGE(f.begin(), f.error);
+        f.ctl.parkingBrake = false;
+        f.ctl.throttleNorm[0] = 1.0f;
+        const double t0 = nowS();
+        for (long i = 0; i < 20 * kSimHz; ++i) {
+            takeoffRollStep(f, 270.0, 55.0, 7.0);
+            f.step();
+        }
+        return (nowS() - t0) / (20 * kSimHz) * 1e6;  // microseconds per step
+    };
+    SynthWorld w(slopedPlane(0.0, 0.0));
+    const double flatUs = timeRun(nullptr);
+    const double terrainUs = timeRun(&w.terrain());
+    std::printf("[ground] step cost: default flat ground %.1f us, TerrainService %.1f us\n", flatUs,
+                terrainUs);
+    CHECK(terrainUs < flatUs + 300.0);  // far below the 4 ms/frame flight budget (about 4 steps)
+}
