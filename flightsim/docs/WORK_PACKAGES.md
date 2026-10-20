@@ -241,7 +241,7 @@ gradient, AGL, plus runway flatten areas honoured. Spawn gating (`isDetailReady`
 synthetic terrain rolls flat. The c172p can't sink through terrain at 120 Hz.
 
 ## F4: Extended fleet
-**Status:** done on wp/F4-extended-fleet (A320, 787-8, MD11, c182, pa28 added; DHC6 and J3Cub skipped, reasons in tests/fleet/README.md; needs device test: JSBSim frame cost of the airliners) · **Model / effort:** Sonnet / medium · **Depends:** F2, N6 · **Owns:** `assets/aircraft/` (extended ids), `tests/fleet/`, extended-fleet overlay and scenario files
+**Status:** done, merged (A320, 787-8, MD11, c182, pa28; DHC6 and J3Cub skipped: no trim / tail-dragger without flaps; needs device test: airliner frame cost and load time) · **Model / effort:** Sonnet / medium · **Depends:** F2, N6 · **Owns:** `assets/aircraft/` (extended ids), `tests/fleet/`, extended-fleet overlay and scenario files
 Profiles plus flyability tests and autopilot gains for `pa28`, `c182`, `J3Cub`, `DHC6`, `A320`, `787-8`, `MD11`.
 
 ## W1: Terrain runtime
