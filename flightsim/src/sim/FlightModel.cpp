@@ -14,6 +14,7 @@
 #include <input_output/FGPropertyManager.h>
 #include <models/FGAircraft.h>
 #include <models/FGGroundReactions.h>
+#include <models/FGInertial.h>
 #include <models/FGLGear.h>
 #include <models/FGMassBalance.h>
 #include <models/FGPropagate.h>
@@ -26,6 +27,7 @@
 #include "core/Log.h"
 #include "core/Units.h"
 #include "sim/CrashRules.h"
+#include "sim/GroundCallback.h"  // F3
 
 namespace fsim {
 namespace {
@@ -109,6 +111,7 @@ struct FlightModel::Impl {
     void bindProps();
     bool trim();
     float terrainSlopeAlongTrack(const AircraftState& s) const;
+    void installGroundCallback();  // F3
 
     std::string jsbsimRoot;
     AircraftProfile profile;
@@ -117,6 +120,7 @@ struct FlightModel::Impl {
     std::unique_ptr<JSBSim::FGFDMExec> fdm;
     double stepDtS = kSimDtS;
     const TerrainQuery* terrain = nullptr;
+    TerrainGroundCallback* groundCallback = nullptr;  // F3: owned by FGInertial, null = JSBSim's
 
     // cached nodes
     Prop pLat, pLon, pAlt, pAgl, pTerrain, pPhi, pTheta, pPsi, pP, pQ, pR;
@@ -304,6 +308,7 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
     JSBSim::SetLogger(std::make_shared<JsbsimLogger>());
 
     gears.clear();  // release gear units before the old executive goes away
+    groundCallback = nullptr;
     fdm.reset();
     fdm = std::make_unique<JSBSim::FGFDMExec>();
     fdm->SetDebugLevel(0);
@@ -322,6 +327,7 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
     }
     stepDtS = kSimDtS;
     fdm->Setdt(stepDtS);
+    installGroundCallback();  // F3: before the initial condition, which queries the ground
 
     // ---- initial condition (geodetic latitude, flat ground at the field elevation) ----
     auto ic = fdm->GetIC();
@@ -547,6 +553,28 @@ void FlightModel::Impl::applyControls(const ControlInputs& in, const AircraftSta
     cSteer.set(clampf(in.steeringNorm, -1.f, 1.f) * steerGain);
 }
 
+// F3: the JSBSim ground follows the TerrainQuery. Without a terrain JSBSim's default callback
+// stays: flat ground at the start condition's field elevation (set through the initial condition).
+void FlightModel::Impl::installGroundCallback() {
+    if (!fdm) return;
+    auto inertial = fdm->GetInertial();
+    if (terrain) {
+        if (groundCallback) {
+            groundCallback->setTerrain(terrain);
+            return;
+        }
+        groundCallback =
+            new TerrainGroundCallback(terrain, inertial->GetSemimajor(), inertial->GetSemiminor());
+        inertial->SetGroundCallback(groundCallback);  // FGInertial takes ownership
+    } else if (groundCallback) {
+        groundCallback = nullptr;
+        auto flat =
+            new JSBSim::FGDefaultGroundCallback(inertial->GetSemimajor(), inertial->GetSemiminor());
+        flat->SetTerrainElevation(startCondition.fieldElevFt);
+        inertial->SetGroundCallback(flat);
+    }
+}
+
 float FlightModel::Impl::terrainSlopeAlongTrack(const AircraftState& s) const {
     if (!terrain) return 0.f;
     double lat2 = 0, lon2 = 0;
@@ -735,6 +763,7 @@ void FlightModel::step(const ControlInputs& in, double dtS) {
 
 void FlightModel::setTerrain(const TerrainQuery* terrain) {
     impl_->terrain = terrain;
+    impl_->installGroundCallback();  // F3: a running model switches its ground right away
 }
 
 const AircraftProfile& FlightModel::profile() const {
