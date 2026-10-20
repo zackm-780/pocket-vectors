@@ -37,6 +37,8 @@ std::string cliUsage() {
            "  --window <WxH>          window size (default 1280x960)\n"
            "  --fullscreen            fullscreen at the desktop resolution\n"
            "  --show-fps              show the frame rate in the window title and log\n"
+           "  --hud-fake <name>       canned nav/autopilot HUD state for screenshots (see "
+           "NavHudFake.h)\n"
            "  --glyph-sheet           draw the HUD glyph sheet (stroke font, 2D renderer demo)\n"
            "  --data-dir <path>       terrain/nav data root (default <exe dir>/data)\n"
            "  --conf-dir <path>       settings/log directory (default ~/.config/flightsim)\n"
@@ -75,6 +77,8 @@ bool parseCli(const std::vector<std::string>& args, CliOptions& out, std::string
             if (!value(out.aircraftId)) return false;
         } else if (a == "--trace") {
             if (!value(out.tracePath)) return false;
+        } else if (a == "--hud-fake") {  // H3
+            if (!value(out.hudFake)) return false;
         } else if (a == "--screenshot") {
             if (!value(out.screenshotPath)) return false;
         } else if (a == "--data-dir") {

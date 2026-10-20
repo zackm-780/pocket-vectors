@@ -21,6 +21,8 @@
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
 #include "hud/Hud.h"                   // H2
+#include "hud/NavHud.h"                // H3
+#include "hud/NavHudFake.h"            // H3
 #include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "input/InputSystem.h"         // P2
@@ -149,6 +151,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
+    NavHud navHud;          // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
+    hud.setOverlay(&navHud);
     // H2: P3 settings give the starting HUD color and declutter level.
     switch (settings.hudColor) {
     case HudColor::White: hudOptions.color = HudPalette::White; break;
@@ -232,6 +236,18 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             hudOptions.paused = state == AppState::Paused;
             hudOptions.magVarDeg =
                 sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+            {  // H3: nav / autopilot state for the overlay (or a canned one with --hud-fake)
+                NavState hudNav = sim.navState();
+                AutopilotState hudAp = sim.autopilotState();
+                std::uint32_t fakeWarn = 0;
+                if (!opt.hudFake.empty() && hudFake(opt.hudFake, frame, sim.aircraft(),
+                                                    hudOptions.magVarDeg, hudNav, hudAp, fakeWarn))
+                    hudOptions.extraWarnings = fakeWarn;
+                else
+                    hudOptions.extraWarnings =
+                        hudAp.disconnectWarning ? warningBit(WarningId::ApOff) : 0;
+                navHud.setStates(hudNav, hudAp);
+            }
             hud2d.begin(w, h);
             if (opt.glyphSheet)
                 drawGlyphSheet(hud2d);  // H1
