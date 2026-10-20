@@ -32,6 +32,17 @@ volume and power keys are **reserved for the OS**. L3/R3 stick clicks and whethe
 | Start | Pause menu |
 | Select + Start | **Quit** (PortMaster gptokeyb hotkey) |
 
+### Map page (Select opens it; the sim keeps running)
+| Input | Action |
+|---|---|
+| D-pad ↑ / ↓ | Zoom in / out (2, 5, 10, 20, 40, 80, 160 NM) |
+| D-pad ← / → | Previous / next route waypoint (info panel) |
+| A | Direct-to the selected waypoint |
+| Y | North-up ↔ track-up |
+| B or Select | Close the map |
+
+While the map is open, trim, flaps and gear inputs are ignored.
+
 ### L1 held: autopilot layer
 | Input | Action |
 |---|---|

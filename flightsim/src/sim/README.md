@@ -95,7 +95,10 @@ Engine and gear counts: `engineCount` is `min(profile engines, model engines, kM
   nose as `BOGEY` contacts; list those names in `structure_contacts` so they count as structure
   rather than wheels. `c182` and `pa28` main wheels are castering (`max_steer 360`): steer with
   differential brakes. `global5000`, `B747`, `A320` use `direct` thrusters, so reversers work as for
-  the 737. `c310` opens output sockets 1138 and 1139 (F2).
+  the 737. The stock `c310` sockets 1138/1139 are commented out in v1.3.3; its constant-speed
+  propeller cannot be trimmed (JSBSim resets blade pitch at every initial condition), so the
+  overlay fits a fixed-pitch propeller (F2). The stock `global5000` writes `global5000.csv` to
+  the working directory; the overlay removes that output block (F2).
 - Turboprops reverse through `propulsion/engine[{n}]/reverser` (a bool), not an angle: set
   `reverser_cmd = propulsion/engine[{n}]/reverser`, `reverser_on = 1`, `reverser_off = 0`,
   `reverser_travel_s = 0`.

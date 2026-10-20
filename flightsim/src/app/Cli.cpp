@@ -37,7 +37,11 @@ std::string cliUsage() {
            "  --window <WxH>          window size (default 1280x960)\n"
            "  --fullscreen            fullscreen at the desktop resolution\n"
            "  --show-fps              show the frame rate in the window title and log\n"
+           "  --hud-fake <name>       canned nav/autopilot HUD state for screenshots (see "
+           "NavHudFake.h)\n"
            "  --glyph-sheet           draw the HUD glyph sheet (stroke font, 2D renderer demo)\n"
+           "  --map <nm>              start with the moving map open at 2/5/10/20/40/80/160 NM\n"
+           "  --map-track             map starts track-up (default north-up)\n"
            "  --data-dir <path>       terrain/nav data root (default <exe dir>/data)\n"
            "  --conf-dir <path>       settings/log directory (default ~/.config/flightsim)\n"
            "  --asset-dir <path>      asset root holding jsbsim/ and assets/ (default <exe dir>)\n"
@@ -67,7 +71,15 @@ bool parseCli(const std::vector<std::string>& args, CliOptions& out, std::string
             out.showFps = true;
         else if (a == "--glyph-sheet")  // H1
             out.glyphSheet = true;
-        else if (a == "--menu") {  // H5
+        else if (a == "--map-track")  // H4
+            out.mapTrackUp = true;
+        else if (a == "--map") {  // H4
+            if (!value(v)) return false;
+            if (!parseDouble(v, out.mapZoomNm) || out.mapZoomNm <= 0) {
+                error = "bad --map '" + v + "'";
+                return false;
+            }
+        } else if (a == "--menu") {  // H5
             if (!value(out.menuSpec)) return false;
         } else if (a == "--resume")  // P3
             out.resume = true;
@@ -79,6 +91,8 @@ bool parseCli(const std::vector<std::string>& args, CliOptions& out, std::string
             if (!value(out.aircraftId)) return false;
         } else if (a == "--trace") {
             if (!value(out.tracePath)) return false;
+        } else if (a == "--hud-fake") {  // H3
+            if (!value(out.hudFake)) return false;
         } else if (a == "--screenshot") {
             if (!value(out.screenshotPath)) return false;
         } else if (a == "--data-dir") {

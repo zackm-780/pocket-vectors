@@ -195,7 +195,7 @@ trim. (c) Reset 100 times with no growth in RSS. (d) Hard-impact scenario sets `
 cruise start holds altitude ±200 ft for 60 s.
 
 ## F2: Core fleet profiles and flyability tests
-**Status:** in progress (wp/F2-core-fleet) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
+**Status:** done, merged (needs device test: c310 fixed-pitch feel; follow-up: per-detent stall-warning alpha for the 747/737) · **Model / effort:** Sonnet / high · **Depends:** F1 · **Specs:** PLAN §5, ARCHITECTURE §5 (AircraftProfile)
 
 **Owns:** `assets/aircraft/{c172p,c310,global5000,737,B747}.ini`, `assets/jsbsim-overlay/` (only if
 a stock file needs a fix), `tests/fleet/`.
@@ -364,7 +364,7 @@ runway (NAVIGATION §3.2), and missed-approach sequencing.
 headless "perfect pilot" (ideal follower) flies a full XTST plan and approach.
 
 ## N6: Autopilot, flight director, autothrottle
-**Status:** queued (wp/N6-autopilot started, paused under the 3-agent cap) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+**Status:** in progress (wp/N6-autopilot) · **Model / effort:** Sonnet / high · **Depends:** F1, N5 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
 
 **Owns:** `src/autopilot/`, `tests/autopilot/`, `[autopilot]` keys in aircraft profiles (coordinate with F2/F4).
 
@@ -399,21 +399,21 @@ warnings, transient messages, and declutter levels.
 HUD.md. Every status field is visible in FULL declutter.
 
 ## H3: Nav and autopilot HUD
-**Status:** queued (wp/H3-nav-hud started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
+**Status:** done, merged (needs device test: S-size text legibility, FD cue and dot spacing; `--hud-fake <name>` shows canned modes) · **Model / effort:** Sonnet / medium · **Depends:** H2, N5/N6 (interface) · **Specs:** HUD §5–6
 
 **Owns:** `src/hud/NavHud*`, `tests/hud/navhud*`.
 FMA line, nav box, CDI, LOC/GS scales, bearing and DTK marks on the heading tape, bugs, FD guidance
 cue, and minimums. **Acceptance:** screenshot set with faked NavState/AutopilotState covering every mode.
 
 ## H4: Moving map page
-**Status:** queued (wp/H4-map started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
+**Status:** done, merged (needs device test: S text legibility, map frame cost; terrain shading and hold racetrack are follow-ups; `--map <nm>`) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
 
 **Owns:** `src/ui/MapPage*`, `tests/ui/map*`.
 North-up / track-up modes, zoom 2–160 NM, route legs and waypoints, airports and navaids, aircraft
 symbol, optional terrain shading from coarse tiles, and a waypoint info panel.
 
 ## H5: Menus and flight setup
-**Status:** queued (wp/H5-menus started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
+**Status:** in progress (wp/H5-menus) · **Model / effort:** Sonnet / medium · **Depends:** H1, P2, N2, N3 · **Specs:** CONTROLS §3, NAVIGATION §2.2
 
 **Owns:** `src/ui/` (except MapPage), `tests/ui/`.
 Menu framework (D-pad/A/B), pause menu, aircraft select, airport search (on-screen keyboard plus
@@ -431,7 +431,7 @@ Manual wind, gusts, visibility and QNH. Optional METAR fetch over Wi-Fi for the 
 destination airports (aviationweather.gov), applied to JSBSim atmosphere and wind and to fog.
 
 ## X2: Terrain and ground warnings
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** W1, H2 · **Owns:** `src/hud/Gpws*`
+**Status:** in progress (wp/X2-gpws) · **Model / effort:** Sonnet / medium · **Depends:** W1, H2 · **Owns:** `src/hud/Gpws*`
 GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain query, "too low gear/flaps"),
 radio altitude callouts (text plus tones), and "MINIMUMS".
 

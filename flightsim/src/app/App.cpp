@@ -23,12 +23,15 @@
 #include "gfx/DebugRenderer.h"
 #include "gfx/Screenshot.h"
 #include "hud/Hud.h"                   // H2
+#include "hud/NavHud.h"                // H3
+#include "hud/NavHudFake.h"            // H3
 #include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "input/InputSystem.h"         // P2
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
+#include "ui/MapPage.h"                    // H4
 #include "ui/MenuSystem.h"                 // H5
 #include "world/AirportGeometry.h"         // W5
 #include "world/AirportRenderer.h"         // W5
@@ -159,6 +162,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
+    MapPage mapPage;        // H4: moving map (MapToggle), replaces the HUD while shown
+    bool mapShown = opt.mapZoomNm > 0;
+    if (mapShown) mapPage.setZoomNm(static_cast<float>(opt.mapZoomNm));
+    if (opt.mapTrackUp) mapPage.setOrientation(MapOrientation::TrackUp);
+    NavHud navHud;  // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
+    hud.setOverlay(&navHud);
     // H2: P3 settings give the starting HUD color and declutter level.
     switch (settings.hudColor) {
     case HudColor::White: hudOptions.color = HudPalette::White; break;
@@ -258,6 +267,27 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         while (SDL_PollEvent(&event)) input.handleEvent(event);
         const ActionState& actions = input.update(dtS);  // P2
         messages.tick(dtS);
+        // H4: the map takes MapToggle; while shown it consumes the D-pad / A / B / Y actions.
+        ActionState flightActions = actions;
+        if (menu.active()) {
+            // H5: an open menu owns the input; the map page stays as it was
+        } else if (actions.pressed[static_cast<int>(Action::MapToggle)] && !mapShown) {
+            mapShown = true;
+            mapPage.resetSelection();
+        } else if (mapShown) {
+            const MapPageResult mr = mapPage.update(
+                actions, sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr);
+            if (mr.directToLeg >= 1 && sim.navigator().directToLeg(mr.directToLeg))
+                messages.post("DIRECT TO");
+            if (mr.close) mapShown = false;
+            for (Action a : {Action::MenuUp, Action::MenuDown, Action::MenuLeft, Action::MenuRight,
+                             Action::MenuAccept, Action::MenuBack, Action::HudDeclutter,
+                             Action::TrimNoseUp, Action::TrimNoseDown, Action::FlapsUp,
+                             Action::FlapsDown, Action::GearToggle, Action::MapToggle}) {
+                flightActions.pressed[static_cast<int>(a)] = false;
+                flightActions.down[static_cast<int>(a)] = false;
+            }
+        }
         if (input.quitRequested()) break;
         // H5: an open menu consumes the input (X/Y/Start are menu buttons there); otherwise the
         // Pause button opens the pause menu.
@@ -273,8 +303,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             case MenuAction::None: break;
             }
         } else {
-            Hud::applyActions(actions, hudOptions, &messages);  // H2: Action::HudDeclutter
+            Hud::applyActions(flightActions, hudOptions, &messages);  // H2: Action::HudDeclutter
             if (actions.pressed[static_cast<int>(Action::Pause)]) {
+                mapShown = false;
                 menu.openPause();
             }
         }
@@ -285,7 +316,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
 
         if (state == AppState::Flying) {
             if (interactive)
-                pilotControls.update(actions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
+                pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
             sim.advance(dtS);
         }
@@ -312,9 +343,25 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             hudOptions.paused = false;  // H5: the pause menu says PAUSED itself
             hudOptions.magVarDeg =
                 sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+            {  // H3: nav / autopilot state for the overlay (or a canned one with --hud-fake)
+                NavState hudNav = sim.navState();
+                AutopilotState hudAp = sim.autopilotState();
+                std::uint32_t fakeWarn = 0;
+                if (!opt.hudFake.empty() && hudFake(opt.hudFake, frame, sim.aircraft(),
+                                                    hudOptions.magVarDeg, hudNav, hudAp, fakeWarn))
+                    hudOptions.extraWarnings = fakeWarn;
+                else
+                    hudOptions.extraWarnings =
+                        hudAp.disconnectWarning ? warningBit(WarningId::ApOff) : 0;
+                navHud.setStates(hudNav, hudAp);
+            }
             hud2d.begin(w, h);
             if (opt.glyphSheet)
                 drawGlyphSheet(hud2d);  // H1
+            else if (mapShown)          // H4
+                mapPage.draw(hud2d, sim.aircraft(), sim.navState(),
+                             sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
+                             sim.navDb(), hudOptions.magVarDeg);
             else if (state != AppState::Menu)
                 hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
                          messages, hudOptions);
