@@ -27,6 +27,8 @@
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
+#include "world/AirportGeometry.h"         // W5
+#include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
 #include "world/Sky.h"                     // W4
 #include "world/terrain/TerrainService.h"  // W1
@@ -72,8 +74,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     gfx::DebugRenderer renderer(window.gl(), window.flavor());
     if (!renderer.init()) return 1;
     const Airport* airport = sim.navDb().findAirport(sim.scenario().airportIdent);
-    if (airport)
-        renderer.setWorld(*airport, static_cast<float>(ftToM(sim.startCondition().fieldElevFt)));
+    if (airport) {
+        // W5: AirportRenderer draws the runways; the debug ground grid sits at the lowest runway.
+        renderer.setDrawRunways(false);
+        renderer.setWorld(*airport, static_cast<float>(world::airportLowestFlatElevM(*airport)));
+    }
 
     // W4: shared atmosphere (time from the scenario, else local solar noon) and the sky pass.
     world::Atmosphere atmosphere;
@@ -87,6 +92,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     world::Sky sky(window.gl(), window.flavor());
     if (!sky.init()) return 1;
     renderer.setAtmosphere(&atmosphere, &sky);
+    // W5: airports near the camera (runways, markings, lights, PAPI); registers flatten areas.
+    world::AirportRenderer airports(window.gl(), window.flavor());
+    if (!airports.init()) return 1;
+    airports.setNavDatabase(&sim.navDb());
+    airports.setTerrain(&sim.terrain());
+    airports.setAtmosphere(&atmosphere);
     // H1: 2D HUD renderer (one batched draw call per frame). The glyph sheet is a debug view.
     Renderer2D hud2d(window.gl(), window.flavor());
     if (!hud2d.init()) return 1;
@@ -168,6 +179,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(sim.aircraft().altAglFt));
         renderer.render(camera, w, h);
+        airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
             hudOptions.paused = state == AppState::Paused;
             hudOptions.magVarDeg =
@@ -259,8 +271,8 @@ int App::run() {
     if (!navDbOwner) navDbOwner = std::make_unique<SyntheticNavDb>();
     const NavDatabase& navDb = *navDbOwner;
     FlatTerrain terrain;
-    if (const Airport* airport = navDb.findAirport(scenario.airportIdent))
-        terrain.setElevationM(static_cast<float>(ftToM(airport->elevFt)));
+    const Airport* startAirport = navDb.findAirport(scenario.airportIdent);
+    if (startAirport) terrain.setElevationM(static_cast<float>(ftToM(startAirport->elevFt)));
 
     // W1: with a terrain pack at <data root>/terrain (pack.ini present) use TerrainService, else
     // keep FlatTerrain. The flight model's ground stays flat at the scenario elevation until F3.
@@ -274,6 +286,9 @@ int App::run() {
             LOG_ERROR("terrain pack: %s; using flat terrain", svc->error().c_str());
     }
     TerrainQuery& terrainQuery = terrainSvc ? static_cast<TerrainQuery&>(*terrainSvc) : terrain;
+    // W5: the start airport's runway pads exist with or without a window (AirportRenderer keeps
+    // them in sync with the active airport set afterwards).
+    if (startAirport) world::registerAirportFlatten(*startAirport, terrainQuery);
 
     Simulation sim(paths, navDb, terrainQuery);
     if (!sim.init(scenario, aircraftId, error)) {

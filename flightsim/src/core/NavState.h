@@ -15,12 +15,12 @@ struct NavState {
     float distToWptNm = 0, eteToWptS = 0, distToDestNm = 0, eteToDestS = 0;
     float bearingToWptTrueDeg = 0, desiredTrackTrueDeg = 0;
     float crossTrackNm = 0;    // + = aircraft is right of course
-    float cdiDeflection = 0;   // -1..1 = full scale (2 dots); + = course is to the RIGHT
+    float cdiDeflection = 0;   // ±1 = full scale (2 dots), clamped to ±1.25; + = course is RIGHT
     float cdiFullScaleNm = 0;  // GPS scaling in use (0 when angular)
     bool toFlag = true;
     // vertical
     bool gsValid = false;
-    float gsDeflection = 0;  // -1..1 full scale; + = glidepath is ABOVE aircraft
+    float gsDeflection = 0;  // ±1 full scale, clamped to ±1.25; + = glidepath is ABOVE aircraft
     float targetAltFt = 0;
     float requiredVsFpm = 0;  // advisory VNAV
     // approach

@@ -270,7 +270,7 @@ parameters (visibility setting, haze color), and a sun direction for terrain sha
 **Acceptance:** screenshots at ground level and 35,000 ft. The fog matches between sky and ground.
 
 ## W5: Airports and runways rendering
-**Status:** in progress (wp/W5-airports) · **Model / effort:** Sonnet / high · **Depends:** WP-00; W1 interface (flatten); N2 for real data · **Specs:** NAVIGATION §3 (lights/PAPI), DATA §5
+**Status:** done, merged (needs device test: GLES2 point sprites, frame time) · **Model / effort:** Sonnet / high · **Depends:** WP-00; W1 interface (flatten); N2 for real data · **Specs:** NAVIGATION §3 (lights/PAPI), DATA §5
 
 **Owns:** `src/world/Airport*`, `tests/world/airport*`.
 
@@ -281,6 +281,15 @@ or MALSR for ILS runways), **functional PAPI** (4 units, per-unit transition ang
 generic apron and building blocks. Registers flatten areas with `TerrainQuery`.
 **Acceptance:** XTST screenshots from 10 NM, 2 NM, threshold and on the runway. A PAPI unit test
 shows 2 red / 2 white on the glidepath, all white when high, all red when low.
+
+**Notes (W5):** `world/AirportGeometry.*` is GL-free (markings, lights, PAPI logic, flatten quads,
+mesh builders); `world/AirportRenderer.*` draws it. Pavement and markings use the flat mean of the
+two runway-end elevations, the same value registered with `addFlattenArea` (one area per runway
+pair). The renderer clears ALL flatten areas whenever the active airport set changes and
+re-registers the whole set. Terrain must draw with polygon offset >= 0; airports use (-1,-1) for
+pavement/apron and (-2,-2) for markings. Lights are additive point sprites with a clip-space depth
+bias, fogged over half the distance of surfaces. Runways with an ILS (real or synthesized, not
+`approx`) get the MALSR; hard runways >= 3,000 ft (not `approx`) get the PAPI.
 
 ## N1: Nav data pipeline (Python)
 **Status:** done (merged wp/N1-nav-pipeline) · **Model / effort:** Sonnet / medium · **Depends:** none · **Specs:** DATA §5–6
@@ -332,7 +341,7 @@ altitudes and missed approach (checked against the published charts).
 Unsupported legs are counted in a report across all US airports.
 
 ## N5: Navigator and approach builder
-**Status:** done, ready for review (wp/N5-navigator; additive NavState fields, see NAVIGATION 4.1) · **Model / effort:** Sonnet / high · **Depends:** N2, N3 · **Specs:** NAVIGATION §3–4
+**Status:** done, merged (additive NavState fields, see NAVIGATION 4.1; needs device test: per-step cost) · **Model / effort:** Sonnet / high · **Depends:** N2, N3 · **Specs:** NAVIGATION §3–4
 
 **Owns:** `src/nav/Navigator*`, `src/nav/ApproachBuilder*`, `tests/nav/navigator*`.
 
@@ -367,7 +376,7 @@ rects, clipping rects, color and alpha, the virtual 640×480 transform, and a st
 HUD batch.
 
 ## H2: Flight HUD
-**Status:** implemented on wp/H2-flight-hud, awaiting review (needs device test) · **Model / effort:** Sonnet / high · **Depends:** H1 · **Specs:** HUD (all except §6 nav details)
+**Status:** done, merged (needs device test: S/M text legibility at 640×480, frame cost) · **Model / effort:** Sonnet / high · **Depends:** H1 · **Specs:** HUD (all except §6 nav details)
 
 **Owns:** `src/hud/Hud*`, `tests/hud/hud*`.
 
