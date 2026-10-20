@@ -346,7 +346,7 @@ class CifpDb:
                     except ValueError:
                         pass
                 continue
-            if line[0] not in "ST" or line[1:4] != "USA":
+            if line[0] not in "ST":  # any customer/area code: Alaska is CAN, Hawaii and Guam are PAC
                 continue
             sec = line[4]
             if sec == "P":
