@@ -4,6 +4,8 @@
 # Re-runs only when something under assets/ changes (or on first build).
 
 set(FSIM_CORE_FLEET c172p c310 global5000 737 B747)
+# WP F4: extended fleet (additive; same copy rule as the core fleet).
+set(FSIM_EXTENDED_FLEET pa28 c182 J3Cub DHC6 A320 787-8 MD11)
 
 function(fsim_add_runtime_layout main_target)
   set(src_assets ${CMAKE_CURRENT_SOURCE_DIR}/assets)
@@ -16,7 +18,7 @@ function(fsim_add_runtime_layout main_target)
     COMMAND ${CMAKE_COMMAND} -E make_directory ${dst_jsbsim}/aircraft
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${FSIM_JSBSIM_SOURCE_DIR}/engine  ${dst_jsbsim}/engine
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${FSIM_JSBSIM_SOURCE_DIR}/systems ${dst_jsbsim}/systems)
-  foreach(ac IN LISTS FSIM_CORE_FLEET)
+  foreach(ac IN LISTS FSIM_CORE_FLEET FSIM_EXTENDED_FLEET)
     list(APPEND cmds COMMAND ${CMAKE_COMMAND} -E copy_directory
          ${FSIM_JSBSIM_SOURCE_DIR}/aircraft/${ac} ${dst_jsbsim}/aircraft/${ac})
   endforeach()

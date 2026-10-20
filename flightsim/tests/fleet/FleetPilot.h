@@ -311,6 +311,9 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
             if (f.profile.hasReversers && s.gsKt > sp.reverseOffKt && sinceS > sp.reverseDelayS) {
                 f.ctl.reverseThrust = true;
                 reverseThr = std::min(sp.reverseThrottle, reverseThr + 0.5 * kDt);
+                // The reverser latches only at idle: if it was lost (a wheel bounce), bring the
+                // throttles back to idle and select reverse again.
+                if (reverseThr > 0.45 && !s.engines[0].reverserDeployed) reverseThr = 0;
                 setAllThrottles(f, reverseThr);
             } else {
                 reverseThr = 0;
@@ -343,11 +346,11 @@ inline LandingLog flyApproachLanding(Flight& f, const FleetSpec& sp, double stop
         }
         if (std::getenv("FLEET_TRACE") && i % kSimHz == 0)
             std::printf("  t %.0f wow %d h %.1f along %.0f ias %.1f gs %.1f vs %.0f pitch %.1f thr "
-                        "%.2f brk %.2f cross %.1f hdg %.1f flap %.2f spd %.2f rev %d\n",
+                        "%.2f brk %.2f cross %.1f hdg %.1f flap %.2f spd %.2f rev %d/%d thrust %.0f\n",
                         s.simTimeS, s.wowAny, hFt, alongFt, s.iasKt, s.gsKt, s.vsFpm,
                         radToDeg(s.pitchRad), f.ctl.throttleNorm[0], f.ctl.brakeLeftNorm, crossFt,
                         radToDeg(s.headingTrueRad), s.flapPosNorm, s.speedbrakePosNorm,
-                        s.engines[0].reverserDeployed);
+                        s.engines[0].reverserDeployed, f.ctl.reverseThrust, s.engines[0].thrustLbf);
         const float vsBefore = s.vsFpm;
         wasAir = !s.wowAny;
         f.step();
