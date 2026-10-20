@@ -406,7 +406,7 @@ FMA line, nav box, CDI, LOC/GS scales, bearing and DTK marks on the heading tape
 cue, and minimums. **Acceptance:** screenshot set with faked NavState/AutopilotState covering every mode.
 
 ## H4: Moving map page
-**Status:** queued (wp/H4-map started, paused under the 3-agent cap) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
+**Status:** done, merged (needs device test: S text legibility, map frame cost; terrain shading and hold racetrack are follow-ups; `--map <nm>`) · **Model / effort:** Sonnet / medium · **Depends:** H1, N2, N3 · **Specs:** HUD §7
 
 **Owns:** `src/ui/MapPage*`, `tests/ui/map*`.
 North-up / track-up modes, zoom 2–160 NM, route legs and waypoints, airports and navaids, aircraft
