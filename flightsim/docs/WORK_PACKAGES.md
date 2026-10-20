@@ -209,7 +209,7 @@ reversers if present).
 **Acceptance:** all 5 aircraft pass, or a documented exception approved by the supervisor.
 
 ## F3: Terrain ground contact
-**Status:** in progress (wp/F3-ground-contact) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
+**Status:** done, merged (needs device test: step cost with terrain; follow-up: DEM vs runway elevation step at KPDX pads) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
 
 **Owns:** `src/sim/GroundCallback*`, `tests/sim/ground*`.
 
