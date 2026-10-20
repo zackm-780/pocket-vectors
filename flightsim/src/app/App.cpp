@@ -12,6 +12,8 @@
 
 #include "app/Settings.h"  // P3
 #include "app/Simulation.h"
+#include "audio/AudioControl.h"  // S1
+#include "audio/AudioEngine.h"   // S1
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
 #include "core/MessageQueue.h"  // P2
@@ -207,6 +209,15 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (!opt.screenshotPath.empty() && frames == 0) frames = kDefaultScreenshotFrames;
     const bool interactive = frames == 0;  // --frames runs are scripted and deterministic
 
+    // S1: procedural audio. No device is never an error (init just returns false); scripted
+    // --frames runs stay silent.
+    audio::AudioEngine audioEngine;
+    audio::AudioControl audioControl;
+    audio::AudioParams audioParams;
+    std::vector<audio::AudioEvent> audioEvents;
+    audioEvents.reserve(16);
+    if (interactive) audioEngine.init();
+
     AppState state = AppState::Flying;
     bool quitRequested = false;
     // H5: applies edited settings to the running game (HUD color, sticks, FOV, FPS display).
@@ -319,6 +330,24 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
             sim.advance(dtS);
+        }
+        if (audioEngine.deviceOpen()) {  // S1: sim state -> audio params and one-shot events
+            const AircraftState& as = sim.aircraft();
+            audio::AudioFrameInput ain;
+            ain.state = &as;
+            ain.profile = &sim.profile();
+            const AutopilotState& apState = sim.autopilotState();
+            ain.ap = &apState;
+            ain.stallWarning = (activeWarnings(as, sim.finalControls(), sim.profile(), hudOptions) &
+                                warningBit(WarningId::Stall)) != 0;
+            ain.minimumsAlert = navHud.consumeMinimumsAlert();
+            ain.paused = state != AppState::Flying;
+            ain.volumePct = settings.volumePct;  // live: H5's settings menu edits it
+            ain.dtS = static_cast<float>(dtS);
+            audioEvents.clear();
+            audioControl.update(ain, audioParams, audioEvents);
+            // X2 HOOK: append GPWS callout tones (audio::makeTone) to audioEvents here.
+            audioEngine.update(audioParams, audioEvents);
         }
         // W1: once per frame (also while paused, so tiles keep arriving).
         const AircraftState view = viewState();  // W2
