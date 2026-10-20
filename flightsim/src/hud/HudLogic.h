@@ -21,11 +21,11 @@ namespace fsim {
 // ---------------------------------------------------------------------------------------------
 
 enum class Declutter { Full, Std, Min };
-enum class HudColor { Green, White, Amber };
+enum class HudPalette { Green, White, Amber };
 
 Declutter nextDeclutter(Declutter d);  // FULL -> STD -> MIN -> FULL
 const char* declutterName(Declutter d);
-Color hudBaseColor(HudColor c);
+Color hudBaseColor(HudPalette c);
 
 // Bits for HudOptions::extraWarnings: warnings produced outside H2 (X2 ground proximity, H3 AP).
 enum class WarningId : int {
@@ -47,7 +47,7 @@ constexpr std::uint32_t warningBit(WarningId id) {
 
 struct HudOptions {
     Declutter declutter = Declutter::Full;
-    HudColor color = HudColor::Green;
+    HudPalette color = HudPalette::Green;
     bool paused = false;
     float magVarDeg = 0;  // + = east; heading and wind are shown magnetic (true - magVar)
     // OR of warningBit() values raised by other modules: PullUp, Terrain, SinkRate (X2), ApOff (H3).
@@ -195,6 +195,9 @@ void formatThrottle(char* out, int n, const ControlInputs& c, int engineCount);
 void formatFlapLabel(char* out, int n, const AircraftProfile& p, int detent);  // "FLAP 15"
 bool flapsMoving(const AircraftState& s, const AircraftProfile& p);
 bool flapsOverVfe(const AircraftState& s, const AircraftProfile& p);
+// Vfe (kt) that applies to the flaps as they are now: per-detent FlapDetent::vfeKt of the highest
+// of the selected detent and the detent the surface has reached, else the profile vfeKt; 0 = none.
+float flapVfeLimitKt(const AircraftState& s, const AircraftProfile& p);
 // "TRIM ^ +0.12" (arrow glyphs): up arrow = nose-up trim.
 void formatTrim(char* out, int n, float elevTrimNorm);
 // "L0.05" / "R0.05"; empty string when |value| below the display threshold.

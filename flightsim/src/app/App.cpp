@@ -104,6 +104,17 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     MessageQueue messages;
     Hud hud;               // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
+    // H2: P3 settings give the starting HUD color and declutter level.
+    switch (settings.hudColor) {
+    case HudColor::White: hudOptions.color = HudPalette::White; break;
+    case HudColor::Amber: hudOptions.color = HudPalette::Amber; break;
+    case HudColor::Green: hudOptions.color = HudPalette::Green; break;
+    }
+    switch (settings.hudDeclutterDefault) {
+    case HudDeclutter::Full: hudOptions.declutter = Declutter::Full; break;
+    case HudDeclutter::Std: hudOptions.declutter = Declutter::Std; break;
+    case HudDeclutter::Min: hudOptions.declutter = Declutter::Min; break;
+    }
     unsigned long shownMessages = 0;
 
     int frames = opt.frames;

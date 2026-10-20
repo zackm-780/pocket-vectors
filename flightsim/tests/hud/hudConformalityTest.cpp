@@ -3,6 +3,7 @@
 #include <doctest/doctest.h>
 
 #include <cmath>
+#include <initializer_list>
 
 #include "core/AircraftState.h"
 #include "core/Units.h"

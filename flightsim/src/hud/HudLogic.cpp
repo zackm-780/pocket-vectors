@@ -75,11 +75,11 @@ const char* declutterName(Declutter d) {
     return "FULL";
 }
 
-Color hudBaseColor(HudColor c) {
+Color hudBaseColor(HudPalette c) {
     switch (c) {
-    case HudColor::White: return colors::kWhite;
-    case HudColor::Amber: return colors::kAmber;
-    case HudColor::Green: break;
+    case HudPalette::White: return colors::kWhite;
+    case HudPalette::Amber: return colors::kAmber;
+    case HudPalette::Green: break;
     }
     return colors::kHudGreen;
 }
@@ -163,9 +163,18 @@ SpeedBands computeSpeedBands(const AircraftProfile& p, int flapDetent) {
     SpeedBands b;
     const float vsClean = p.vs1Kt > 0 ? p.vs1Kt : p.vs0Kt;
     b.redBelowKt = (flapDetent > 0 && p.vs0Kt > 0) ? p.vs0Kt : vsClean;
-    if (p.vfeKt > 0 && p.flapDetents.size() > 1) {
+    float vfeKt = p.vfeKt;
+    const int count = static_cast<int>(p.flapDetents.size());
+    if (flapDetent > 0 && flapDetent < count && p.flapDetents[flapDetent].vfeKt > 0) {
+        vfeKt = p.flapDetents[flapDetent].vfeKt;  // limit with the selected flaps
+    } else {
+        float maxKt = 0;
+        for (const FlapDetent& d : p.flapDetents) maxKt = std::max(maxKt, d.vfeKt);
+        if (maxKt > 0) vfeKt = maxKt;  // first flap notch allows the highest speed
+    }
+    if (vfeKt > 0 && count > 1) {
         b.whiteLowKt = std::max(p.vs0Kt, b.redBelowKt);
-        b.whiteHighKt = p.vfeKt;
+        b.whiteHighKt = vfeKt;
         if (b.whiteHighKt <= b.whiteLowKt) b.whiteLowKt = b.whiteHighKt = 0;
     }
     if (p.vnoKt > 0 && p.vneKt > p.vnoKt) {
@@ -302,8 +311,22 @@ bool flapsMoving(const AircraftState& s, const AircraftProfile& p) {
     return std::fabs(s.flapPosNorm - p.flapDetents[s.flapDetent].cmdNorm) > kFlapMovingToleranceNorm;
 }
 
+float flapVfeLimitKt(const AircraftState& s, const AircraftProfile& p) {
+    const int count = static_cast<int>(p.flapDetents.size());
+    int idx = std::max(0, std::min(s.flapDetent, count - 1));
+    for (int i = count - 1; i > idx; --i) {  // the surface may still be further out than selected
+        if (p.flapDetents[i].cmdNorm <= s.flapPosNorm + kFlapMovingToleranceNorm) {
+            idx = i;
+            break;
+        }
+    }
+    if (idx > 0 && p.flapDetents[idx].vfeKt > 0) return p.flapDetents[idx].vfeKt;
+    return p.vfeKt;
+}
+
 bool flapsOverVfe(const AircraftState& s, const AircraftProfile& p) {
-    return p.vfeKt > 0 && s.iasKt > p.vfeKt && (s.flapDetent > 0 || s.flapPosNorm > 0.02f);
+    const float limitKt = flapVfeLimitKt(s, p);
+    return limitKt > 0 && s.iasKt > limitKt && (s.flapDetent > 0 || s.flapPosNorm > 0.02f);
 }
 
 void formatTrim(char* out, int n, float elevTrimNorm) {

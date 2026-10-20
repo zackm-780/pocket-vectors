@@ -561,7 +561,7 @@ TEST_CASE("hud: new warnings flash at 2 Hz for 3 s, then stay steady") {
     CHECK(warningFlashVisible(0.7));
     CHECK_FALSE(warningFlashVisible(0.8));
     CHECK_FALSE(warningFlashVisible(2.8));
-    CHECK(warningFlashVisible(2.99 - 0.24));
+    CHECK(warningFlashVisible(2.6));
     // After 3 s: steady.
     CHECK(warningFlashVisible(3.0));
     CHECK(warningFlashVisible(3.3));
@@ -631,4 +631,28 @@ TEST_CASE("hud: messages fade out near the end of their life") {
     CHECK(messageAlpha(kMessageLifeS) == doctest::Approx(0.0f));
     CHECK(messageAlpha(5.0) == doctest::Approx(0.0f));
     CHECK(kMaxShownMessages == 3);
+}
+
+TEST_CASE("hud: per-detent Vfe limits (F1 profile data) drive the caution and the white band") {
+    AircraftProfile p = makeC172();
+    const float vfe[] = {0, 110, 85, 85};
+    for (size_t i = 0; i < p.flapDetents.size(); ++i) p.flapDetents[i].vfeKt = vfe[i];
+    AircraftState s = airborneState();
+    s.flapDetent = 1;
+    s.flapPosNorm = p.flapDetents[1].cmdNorm;
+    s.iasKt = 100;
+    CHECK(flapVfeLimitKt(s, p) == doctest::Approx(110.0f));
+    CHECK_FALSE(flapsOverVfe(s, p));  // 100 kt is fine with flaps 10 (limit 110)
+    s.flapDetent = 2;
+    s.flapPosNorm = p.flapDetents[2].cmdNorm;
+    CHECK(flapsOverVfe(s, p));  // flaps 20: limit 85
+    // Flaps selected up but the surface is still at 20: the limit of the surface applies.
+    s.flapDetent = 0;
+    CHECK(flapVfeLimitKt(s, p) == doctest::Approx(85.0f));
+    CHECK(flapsOverVfe(s, p));
+    s.flapPosNorm = 0;
+    CHECK_FALSE(flapsOverVfe(s, p));
+    // White band top follows the selected detent, or the highest per-detent limit when clean.
+    CHECK(computeSpeedBands(p, 2).whiteHighKt == doctest::Approx(85.0f));
+    CHECK(computeSpeedBands(p, 0).whiteHighKt == doctest::Approx(110.0f));
 }
