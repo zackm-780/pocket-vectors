@@ -66,7 +66,8 @@ public:
 private:
     struct Locations {
         gfx::GLint mvp = -1, eyeOffset = -1, morph = -1, noiseA = -1, noiseB = -1, sun = -1,
-                   ambient = -1, diffuse = -1, water = -1, detail = -1;
+                   ambient = -1, diffuse = -1, water = -1, detail = -1, moon = -1,
+                   night = -1;  // X4
     };
 
     ViewParams makeView(const gfx::Camera& camera) const;

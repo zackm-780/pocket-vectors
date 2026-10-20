@@ -1,5 +1,7 @@
 #include "world/Atmosphere.h"
 
+#include "world/NightLights.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -176,6 +178,10 @@ void Atmosphere::update() {
     float lit[3];
     mix3(kDayHaze, kWarmHaze, warm * 0.65f, lit);
     mix3(kNightHaze, lit, dayF, fog_.colorRgb);
+    // X4: dusk/dawn horizon glow, so the fog and sky horizon stay warm after sunset.
+    const float twilight = twilightGlow(elevDeg);
+    static const float kTwilightHaze[3] = {0.20f, 0.09f, 0.05f};
+    for (int i = 0; i < 3; ++i) fog_.colorRgb[i] += kTwilightHaze[i] * twilight;
     fog_.visibilityM = visibilityM_;
     fog_.densityPerM = fogDensityPerM(visibilityM_);
 
@@ -206,6 +212,13 @@ void Atmosphere::update() {
     static const float kNightAmbient[3] = {0.035f, 0.045f, 0.085f};
     static const float kDayAmbient[3] = {0.34f, 0.40f, 0.50f};
     mix3(kNightAmbient, kDayAmbient, dayF, light_.ambientRgb);
+    // X4: moonlight-ish minimum ambient plus a faint directional moon term.
+    for (int i = 0; i < 3; ++i)
+        light_.ambientRgb[i] = std::max(light_.ambientRgb[i], kMinAmbientRgb[i]);
+    static const float kMoonRgb[3] = {0.10f, 0.12f, 0.19f};
+    const float moon = moonStrength(elevDeg);
+    for (int i = 0; i < 3; ++i) light_.moonRgb[i] = kMoonRgb[i] * moon;
+    light_.nightFactor = nightFactor(elevDeg);
     const Vec3d ecef = sunDirEcef(solar_);
     const Vec3d ned = sunDirNed(solar_, latDeg_, lonDeg_);
     light_.sunDirEcef[0] = static_cast<float>(ecef.x);
