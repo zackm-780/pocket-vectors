@@ -127,13 +127,14 @@ bool horizonVisible(const Ecef& eye, double occluderRadiusM, const NodeBox& box)
     const double cR = std::sqrt(box.centre.x * box.centre.x + box.centre.y * box.centre.y +
                                 box.centre.z * box.centre.z);
     if (cR <= 1.0) return true;
-    const double rho = box.boundRadiusM;
+    const double lateral = std::sqrt(box.half[0] * box.half[0] + box.half[1] * box.half[1]);
+    const double topR = std::sqrt((cR + box.half[2]) * (cR + box.half[2]) + lateral * lateral);
     double cosT = (eye.x * box.centre.x + eye.y * box.centre.y + eye.z * box.centre.z) / (eyeR * cR);
     cosT = std::max(-1.0, std::min(1.0, cosT));
     const double theta = std::acos(cosT);
-    const double alpha = std::asin(std::min(1.0, rho / cR));
+    const double alpha = std::asin(std::min(1.0, (lateral + box.half[2]) / cR));
     const double limit = std::acos(std::min(1.0, occluderRadiusM / eyeR)) +
-                         std::acos(std::min(1.0, occluderRadiusM / (cR + rho)));
+                         std::acos(std::min(1.0, occluderRadiusM / topR));
     return theta - alpha <= limit;
 }
 
@@ -301,7 +302,7 @@ void TerrainSelector::select(const ViewParams& view, std::vector<DrawNode>& draw
     sub.latDeg = view.eyeGeo.latDeg;
     sub.lonDeg = view.eyeGeo.lonDeg;
     const Ecef s = geodeticToEcef(sub);
-    occluderRadiusM_ = std::sqrt(s.x * s.x + s.y * s.y + s.z * s.z) - 500.0;
+    occluderRadiusM_ = std::sqrt(s.x * s.x + s.y * s.y + s.z * s.z) - 150.0;
     focalPx_ = 0.5 * cfg_.virtualHeightPx / std::tan(0.5 * view.vFovRad);
     fwdEcef_ = {-view.ecefToEye.m[2][0], -view.ecefToEye.m[2][1], -view.ecefToEye.m[2][2]};
 
