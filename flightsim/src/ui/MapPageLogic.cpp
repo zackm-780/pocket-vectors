@@ -27,7 +27,9 @@ int mapZoomIndexForNm(float nm) {
     return best;
 }
 
-int mapZoomStep(int index, int delta) { return std::clamp(index + delta, 0, kMapZoomCount - 1); }
+int mapZoomStep(int index, int delta) {
+    return std::clamp(index + delta, 0, kMapZoomCount - 1);
+}
 
 void MapProjection::offsetsNm(double latDeg, double lonDeg, float& eastNm, float& northNm) const {
     const double midLat = degToRad(0.5 * (latDeg + centerLatDeg));
@@ -135,7 +137,9 @@ bool mapShowNavaidLabel(NavaidType type, float zoomNm) {
     }
 }
 
-bool mapShowConstraints(float zoomNm) { return zoomNm <= 40; }
+bool mapShowConstraints(float zoomNm) {
+    return zoomNm <= 40;
+}
 
 // ---- leg styling -------------------------------------------------------------------------------
 
