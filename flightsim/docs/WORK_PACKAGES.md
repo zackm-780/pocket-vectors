@@ -60,6 +60,7 @@ graph LR
 | P1 | Device toolchain, PortMaster package, device probe | Sonnet / high | WP-00 for final packaging only | M0 |
 | P2 | Input system and control mapping | Sonnet / medium | WP-00 | M1 |
 | P3 | Settings, persistence, paths | Sonnet / medium | WP-00, P2 | M6 |
+| P4 | Downloadable data pack (CI) | Sonnet / medium | W3, N1, N4 | M6 |
 | F1 | JSBSim flight model wrapper | Sonnet / high | WP-00 | M1 |
 | F2 | Core fleet profiles and flyability tests | Sonnet / high | F1 | M5 |
 | F3 | Terrain ground contact | Sonnet / high | F1, W1 | M2 |
@@ -177,6 +178,18 @@ playable with keyboard and any gamepad. Default mapping matches CONTROLS.md exac
 data dir, graphics quality), persisted control remaps, "resume last flight" (aircraft, position,
 config, plan), and safe writes (write temp, then rename).
 **Acceptance:** round-trip tests. Corrupt or missing files fall back to defaults.
+
+## P4: Downloadable data pack (CI)
+**Status:** in review (wp/P4-datapack; needs a first full CI run) · **Model / effort:** Sonnet / medium · **Depends:** W3, N1, N4 · **Specs:** DATA §2-3, §8, BUILD_AND_DEPLOY §7
+
+**Owns:** `.github/workflows/datapack.yml`, `tools/datapack/`, BUILD_AND_DEPLOY §7 data steps.
+
+**Deliverables:** `tools/datapack/build_datapack.sh` (venv, terrain region + optional world layer,
+nav with NASR and CIFP, validation, `ATTRIBUTION.txt`, `README.txt`, size and per-directory file
+counts), and a manual `datapack` workflow that caches downloads, zips the pack and uploads it as an
+artifact (30 days). No generated data is committed.
+**Acceptance:** a small-bbox run produces a pack the game loads (`--data-dir`); script passes
+shellcheck; workflow YAML parses.
 
 ## F1: JSBSim flight model wrapper
 **Status:** done (merged wp/F1-flight-model) · **Model / effort:** Sonnet / high · **Depends:** WP-00 · **Specs:** ARCHITECTURE §5, §7
