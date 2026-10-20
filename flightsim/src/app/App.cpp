@@ -76,6 +76,14 @@ int runHeadless(Simulation& sim, const CliOptions& opt, terrain::TerrainService*
                      sim.aircraft().altAglFt);
         // W1: integrate finished tiles and keep the load ring on the aircraft.
         if (terrainSvc) terrainSvc->update(sim.aircraft().latDeg, sim.aircraft().lonDeg);
+        // I1: [scenario] end_agl_ft: stop on the way down (a coupled-approach demo ends before the
+        // AP disconnect hands the landing to nobody).
+        const float endAglFt = sim.scenario().endAglFt;
+        if (endAglFt > 0 && sim.aircraft().altAglFt <= endAglFt && sim.aircraft().vsFpm < 0 &&
+            !sim.aircraft().wowAny) {
+            LOG_INFO("scenario end: descended through %.0f ft AGL", endAglFt);
+            break;
+        }
     }
     printSummary(sim, sim.aircraft().simTimeS);
     return 0;

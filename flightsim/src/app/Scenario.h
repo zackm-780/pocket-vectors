@@ -41,7 +41,10 @@ struct Scenario {
     std::string startKind = "runway";  // runway | final | cruise
     double distanceNm = 6;             // final only
     double altitudeFt = 0;             // cruise only (0 = profile cruise altitude)
-    std::string timeUtc;               // ISO "YYYY-MM-DDTHH:MM:SS" UTC; drives the sun (W4)
+    // Headless runs stop when the aircraft descends through this height (ft AGL), 0 = never. Keeps
+    // coupled-approach demos from flying the hands-off landing after the AP disconnect (I1).
+    float endAglFt = 0;
+    std::string timeUtc;  // ISO "YYYY-MM-DDTHH:MM:SS" UTC; drives the sun (W4)
     float windFromTrueDeg = 0, windSpeedKt = 0;
     // X1: [weather] keys plus the [wind] keys when present (unset = METAR file, then default).
     world::WeatherSetup weather;

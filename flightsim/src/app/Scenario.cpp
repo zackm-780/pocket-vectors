@@ -50,6 +50,7 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.runwayIdent = ini.getString("scenario", "runway", s.runwayIdent);
     s.startKind = toLower(ini.getString("scenario", "start", s.startKind));
     s.distanceNm = ini.getDouble("scenario", "distance_nm", s.distanceNm);
+    s.endAglFt = ini.getFloat("scenario", "end_agl_ft", 0.f);  // I1
     s.altitudeFt = ini.getDouble("scenario", "altitude_ft", s.altitudeFt);
     s.timeUtc = ini.getString("scenario", "time_utc");
     s.planPath = ini.getString("scenario", "plan");        // N5
