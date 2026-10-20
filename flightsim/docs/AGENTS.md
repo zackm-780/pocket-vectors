@@ -49,6 +49,9 @@ Supervisor (Opus xhigh)                     Implementer (Sonnet medium/high)
 ### Review checklist (supervisor)
 - [ ] Only owned paths touched. `core/` changes are additive and mirrored in ARCHITECTURE §5.
 - [ ] Builds clean with warnings as errors. All tests pass, including other WPs' tests.
+- [ ] The **device** build passes too: GCC 10 (Debian 11, aarch64) reports warnings the desktop
+  compiler does not (e.g. `maybe-uninitialized`). Check the `device` workflow on every push, or run
+  `tools/build_device.sh --chroot <dir>` locally before merging C++ changes.
 - [ ] Every acceptance criterion is demonstrated (test names, trace excerpts, screenshots).
 - [ ] Unit suffixes and True/Mag naming are respected (CONVENTIONS §2).
 - [ ] No per-frame allocations or blocking IO on the main thread in hot paths. Budgets respected.

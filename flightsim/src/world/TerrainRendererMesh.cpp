@@ -100,7 +100,7 @@ private:
         const float fr = static_cast<float>(std::min(1.0, std::max(0.0, row - r0)));
         const int16_t s[4] = {t.heightAtM(r0, c0), t.heightAtM(r0, c0 + 1), t.heightAtM(r0 + 1, c0),
                               t.heightAtM(r0 + 1, c0 + 1)};
-        float v[4];
+        float v[4] = {0, 0, 0, 0};  // every corner is set below (GCC 10 cannot prove it)
         float sum = 0;
         int valid = 0;
         for (int i = 0; i < 4; ++i) {
