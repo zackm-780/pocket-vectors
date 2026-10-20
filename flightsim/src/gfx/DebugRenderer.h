@@ -69,7 +69,7 @@ private:
 
     Airport airport_;
     bool haveWorld_ = false;
-    bool drawRunways_ = true;  // W5
+    bool drawRunways_ = true;     // W5
     float shade_[3] = {1, 1, 1};  // W5: ground brightness from the sun (1 by day)
     float groundElevM_ = 0;
     Mesh ground_;

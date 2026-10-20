@@ -96,8 +96,8 @@ void appendText(std::vector<Poly>& out, const std::string& text, double baseline
     const double totalW = (4.0 * n + 2.0 * (n - 1)) * unitM;
     const double lat0 = centerLateralM - totalW * 0.5;
     for (int i = 0; i < n; ++i) {
-        const Glyph& g = StrokeFont::glyph(static_cast<std::uint32_t>(
-            static_cast<unsigned char>(text[static_cast<size_t>(i)])));
+        const Glyph& g = StrokeFont::glyph(
+            static_cast<std::uint32_t>(static_cast<unsigned char>(text[static_cast<size_t>(i)])));
         const double x0 = lat0 + i * advance;
         for (int s = 0; s < g.strokeCount; ++s) {
             const GlyphStroke& st = g.strokes[s];
@@ -132,14 +132,12 @@ RunwayInfo makeRunwayInfo(const Airport& airport, const Runway& r) {
     info.ident = r.ident;
     info.oppositeIdent = r.oppositeIdent;
     info.thr = {r.thrLatDeg, r.thrLonDeg};
-    const double chordM =
-        greatCircleDistM(r.startLatDeg, r.startLonDeg, r.endLatDeg, r.endLonDeg);
+    const double chordM = greatCircleDistM(r.startLatDeg, r.startLonDeg, r.endLatDeg, r.endLonDeg);
     const double lengthM = chordM >= 1.0 ? chordM : ftToM(r.lengthFt);
     info.lengthM = lengthM;
-    info.headingTrueRad =
-        chordM >= 1.0
-            ? initialBearingTrueRad(r.startLatDeg, r.startLonDeg, r.endLatDeg, r.endLonDeg)
-            : degToRad(r.headingTrueDeg);
+    info.headingTrueRad = chordM >= 1.0 ? initialBearingTrueRad(r.startLatDeg, r.startLonDeg,
+                                                                r.endLatDeg, r.endLonDeg)
+                                        : degToRad(r.headingTrueDeg);
     info.displacedM = greatCircleDistM(r.startLatDeg, r.startLonDeg, r.thrLatDeg, r.thrLonDeg);
     if (info.displacedM > lengthM * 0.5) info.displacedM = 0;  // bad data: ignore
     info.widthM = ftToM(r.widthFt > 0 ? r.widthFt : (r.hard ? 75.0 : 100.0));
@@ -148,8 +146,8 @@ RunwayInfo makeRunwayInfo(const Airport& airport, const Runway& r) {
     info.approx = r.approxGeometry;
     info.instrument = r.ils.has_value() && !r.approxGeometry && r.hard;
     const Runway* opposite = findOpposite(airport, r);
-    info.oppositeInstrument = opposite && opposite->ils.has_value() && !opposite->approxGeometry &&
-                              opposite->hard;
+    info.oppositeInstrument =
+        opposite && opposite->ils.has_value() && !opposite->approxGeometry && opposite->hard;
     info.primary = !opposite || r.ident < opposite->ident;
     info.elevM = runwayFlatElevM(airport, r);
     info.papi = r.hard && !r.approxGeometry && mToFt(lengthM) >= kPapiMinRunwayFt;
@@ -203,11 +201,11 @@ int RunwayMarkings::count(MarkingKind kind) const {
 }
 
 int thresholdStripeCount(double widthFt) {
-    if (widthFt < 70.0) return 4;     // 60 ft and narrower
-    if (widthFt < 90.0) return 6;     // 75 ft
-    if (widthFt < 125.0) return 8;    // 100 ft
-    if (widthFt < 175.0) return 12;   // 150 ft
-    return 16;                        // 200 ft
+    if (widthFt < 70.0) return 4;    // 60 ft and narrower
+    if (widthFt < 90.0) return 6;    // 75 ft
+    if (widthFt < 125.0) return 8;   // 100 ft
+    if (widthFt < 175.0) return 12;  // 150 ft
+    return 16;                       // 200 ft
 }
 
 void splitDesignator(const std::string& ident, std::string& number, std::string& suffix) {
@@ -270,8 +268,8 @@ RunwayMarkings buildMarkings(const RunwayInfo& r) {
     {
         const double on = ftToM(120.0), period = ftToM(200.0);
         for (double a = designatorEnd + kDesignatorGapM; a + on <= halfMid; a += period)
-            m.polys.push_back(makeRect(a, a + on, -kCenterlineWidthM * 0.5,
-                                       kCenterlineWidthM * 0.5, MarkingKind::Centerline));
+            m.polys.push_back(makeRect(a, a + on, -kCenterlineWidthM * 0.5, kCenterlineWidthM * 0.5,
+                                       MarkingKind::Centerline));
     }
 
     // Displaced threshold: arrows along the centerline.
@@ -381,8 +379,8 @@ std::vector<LightSpec> buildRunwayLights(const RunwayInfo& r) {
                 rgb = kYellow;
             }
             for (int side = -1; side <= 1; side += 2)
-                out.push_back(makeLight(kind, s - r.displacedM, side * (w * 0.5 + 1.0), 0.45, rgb,
-                                        0.9f));
+                out.push_back(
+                    makeLight(kind, s - r.displacedM, side * (w * 0.5 + 1.0), 0.45, rgb, 0.9f));
         }
         // Threshold (green) and end (red) rows across the full width.
         const int rows = std::max(4, static_cast<int>(std::lround(w / 3.0)));
@@ -491,12 +489,14 @@ double airportLowestFlatElevM(const Airport& airport) {
 
 // ---- airport selection ------------------------------------------------------------------------
 
-std::vector<const Airport*> selectAirportsNear(const NavDatabase& nav, double latDeg,
-                                               double lonDeg, double radiusM, int maxCount) {
+std::vector<const Airport*> selectAirportsNear(const NavDatabase& nav, double latDeg, double lonDeg,
+                                               double radiusM, int maxCount) {
     const double dLat = radiusM / (kEarthRadiusM * kRadPerDeg);
     const double cosLat = std::max(0.05, std::cos(degToRad(latDeg)));
     const double dLon = std::min(179.0, dLat / cosLat);
-    auto wrapLon = [](double lon) { return lon < -180.0 ? lon + 360.0 : lon > 180.0 ? lon - 360.0 : lon; };
+    auto wrapLon = [](double lon) {
+        return lon < -180.0 ? lon + 360.0 : lon > 180.0 ? lon - 360.0 : lon;
+    };
     std::vector<const Airport*> found =
         nav.airportsInBox(std::max(-90.0, latDeg - dLat), wrapLon(lonDeg - dLon),
                           std::min(90.0, latDeg + dLat), wrapLon(lonDeg + dLon));
@@ -563,8 +563,7 @@ void SurfaceMeshBuilder::addPoly(const RunwayFrame& frame, const Poly& poly, dou
 }
 
 void SurfaceMeshBuilder::addStrip(const RunwayFrame& frame, double a0, double a1, double l0,
-                                  double l1, double liftM, const float rgb[3],
-                                  double maxSegmentM) {
+                                  double l1, double liftM, const float rgb[3], double maxSegmentM) {
     const int segments = std::max(1, static_cast<int>(std::ceil((a1 - a0) / maxSegmentM)));
     SurfaceMesh& mesh = current(2 * (segments + 1));
     const uint16_t base = static_cast<uint16_t>(mesh.verts.size());
@@ -616,20 +615,21 @@ void SurfaceMeshBuilder::addBox(const RunwayFrame& frame, double a0, double a1, 
         pushVertex(p1, normal, rgb);
         pushVertex(p2, normal, rgb);
         pushVertex(p3, normal, rgb);
-        const uint16_t idx[6] = {base, static_cast<uint16_t>(base + 1), static_cast<uint16_t>(base + 2),
-                                 base, static_cast<uint16_t>(base + 2), static_cast<uint16_t>(base + 3)};
+        const uint16_t idx[6] = {
+            base, static_cast<uint16_t>(base + 1), static_cast<uint16_t>(base + 2),
+            base, static_cast<uint16_t>(base + 2), static_cast<uint16_t>(base + 3)};
         mesh.indices.insert(mesh.indices.end(), idx, idx + 6);
     };
     quad(corner(a0, l0, top), corner(a1, l0, top), corner(a1, l1, top), corner(a0, l1, top), nU,
          roofRgb);
-    quad(corner(a1, l0, bottomM), corner(a1, l1, bottomM), corner(a1, l1, top),
-         corner(a1, l0, top), nA, wallRgb);  // far wall
-    quad(corner(a0, l0, bottomM), corner(a0, l1, bottomM), corner(a0, l1, top),
-         corner(a0, l0, top), nAneg, wallRgb);  // near wall
-    quad(corner(a0, l1, bottomM), corner(a1, l1, bottomM), corner(a1, l1, top),
-         corner(a0, l1, top), nR, wallRgb);  // right wall
-    quad(corner(a0, l0, bottomM), corner(a1, l0, bottomM), corner(a1, l0, top),
-         corner(a0, l0, top), nRneg, wallRgb);  // left wall
+    quad(corner(a1, l0, bottomM), corner(a1, l1, bottomM), corner(a1, l1, top), corner(a1, l0, top),
+         nA, wallRgb);  // far wall
+    quad(corner(a0, l0, bottomM), corner(a0, l1, bottomM), corner(a0, l1, top), corner(a0, l0, top),
+         nAneg, wallRgb);  // near wall
+    quad(corner(a0, l1, bottomM), corner(a1, l1, bottomM), corner(a1, l1, top), corner(a0, l1, top),
+         nR, wallRgb);  // right wall
+    quad(corner(a0, l0, bottomM), corner(a1, l0, bottomM), corner(a1, l0, top), corner(a0, l0, top),
+         nRneg, wallRgb);  // left wall
 }
 
 std::vector<SurfaceMesh> SurfaceMeshBuilder::finish() {
@@ -764,7 +764,8 @@ AirportExtras buildAirportExtras(const Airport& airport) {
             for (int i = 0; i < 4; ++i) {
                 const LatLon p = frame.latLon(along[i], lateral[i]);
                 const double mPerDegLat = kEarthRadiusM * kRadPerDeg;
-                cand[i] = {(p.lonDeg - airport.lonDeg) * mPerDegLat * std::cos(degToRad(airport.latDeg)),
+                cand[i] = {(p.lonDeg - airport.lonDeg) * mPerDegLat *
+                               std::cos(degToRad(airport.latDeg)),
                            (p.latDeg - airport.latDeg) * mPerDegLat};
             }
             bool clear = true;
@@ -784,9 +785,12 @@ AirportExtras buildAirportExtras(const Airport& airport) {
             SurfaceMeshBuilder flat(anchor), solid(anchor);
             const double sNear = w * 0.5, sApronNear = w * 0.5 + kApronNear;
             const double sApronFar = sApronNear + kApronDepth;
-            auto span = [&](double a, double b) { return side > 0 ? std::make_pair(a, b) : std::make_pair(-b, -a); };
+            auto span = [&](double a, double b) {
+                return side > 0 ? std::make_pair(a, b) : std::make_pair(-b, -a);
+            };
             const auto stub = span(sNear, sApronNear);
-            flat.addStrip(frame, ac - 8.0, ac + 8.0, stub.first, stub.second, 0.08, kApronRgb, 60.0);
+            flat.addStrip(frame, ac - 8.0, ac + 8.0, stub.first, stub.second, 0.08, kApronRgb,
+                          60.0);
             const auto apron = span(sApronNear, sApronFar);
             flat.addStrip(frame, ac - kApronLen * 0.5, ac + kApronLen * 0.5, apron.first,
                           apron.second, 0.08, kApronRgb, 60.0);
@@ -796,17 +800,23 @@ AirportExtras buildAirportExtras(const Airport& airport) {
             const float wallA[3] = {0.74f, 0.72f, 0.68f}, roofA[3] = {0.40f, 0.18f, 0.16f};
             const float wallB[3] = {0.62f, 0.66f, 0.70f}, roofB[3] = {0.50f, 0.52f, 0.55f};
             const double rowNear = sApronFar + 8.0;
-            const bool big = airport.type == AirportType::Large || airport.type == AirportType::Medium;
+            const bool big =
+                airport.type == AirportType::Large || airport.type == AirportType::Medium;
             if (big) {
                 const auto t = span(rowNear, rowNear + 24.0);
-                solid.addBox(frame, ac - 45.0, ac + 25.0, t.first, t.second, -2.0, 13.0, wallB, roofB);
+                solid.addBox(frame, ac - 45.0, ac + 25.0, t.first, t.second, -2.0, 13.0, wallB,
+                             roofB);
                 const auto h = span(rowNear, rowNear + 20.0);
-                solid.addBox(frame, ac + 40.0, ac + 60.0, h.first, h.second, -2.0, 9.0, wallA, roofA);
+                solid.addBox(frame, ac + 40.0, ac + 60.0, h.first, h.second, -2.0, 9.0, wallA,
+                             roofA);
             } else {
                 const auto h1 = span(rowNear, rowNear + 18.0);
-                solid.addBox(frame, ac - 40.0, ac - 16.0, h1.first, h1.second, -2.0, 7.0, wallA, roofA);
-                solid.addBox(frame, ac - 8.0, ac + 16.0, h1.first, h1.second, -2.0, 7.0, wallB, roofA);
-                solid.addBox(frame, ac + 24.0, ac + 44.0, h1.first, h1.second, -2.0, 6.0, wallA, roofB);
+                solid.addBox(frame, ac - 40.0, ac - 16.0, h1.first, h1.second, -2.0, 7.0, wallA,
+                             roofA);
+                solid.addBox(frame, ac - 8.0, ac + 16.0, h1.first, h1.second, -2.0, 7.0, wallB,
+                             roofA);
+                solid.addBox(frame, ac + 24.0, ac + 44.0, h1.first, h1.second, -2.0, 6.0, wallA,
+                             roofB);
             }
             out.solid = solid.finish();
             return out;

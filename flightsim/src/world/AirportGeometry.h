@@ -28,11 +28,11 @@
 namespace fsim::world {
 
 // ---- constants --------------------------------------------------------------------------------
-constexpr double kPapiTchFt = 50.0;            // threshold crossing height the PAPI is set for
-constexpr double kPapiGlidepathDeg = 3.0;      // on-path angle
+constexpr double kPapiTchFt = 50.0;        // threshold crossing height the PAPI is set for
+constexpr double kPapiGlidepathDeg = 3.0;  // on-path angle
 constexpr double kPapiFirstUnitFromEdgeFt = 50.0;
 constexpr double kPapiUnitSpacingFt = 30.0;
-constexpr double kPapiMinRunwayFt = 3000.0;    // hard runways at least this long get a PAPI
+constexpr double kPapiMinRunwayFt = 3000.0;  // hard runways at least this long get a PAPI
 constexpr int kPapiUnitCount = 4;
 // Transition angles from the unit nearest the runway outward (NAVIGATION 3.6).
 constexpr double kPapiTransitionDeg[kPapiUnitCount] = {3.50, 3.17, 2.83, 2.50};
@@ -42,11 +42,11 @@ constexpr double kEdgeLightSpacingFt = 200.0;
 constexpr double kEdgeCautionZoneFt = 2000.0;  // yellow edge lights on instrument runways
 constexpr double kApproachBarSpacingFt = 200.0;
 constexpr double kApproachLengthFt = 2400.0;
-constexpr int kApproachBarCount = 12;          // 200 ft .. 2400 ft
+constexpr int kApproachBarCount = 12;  // 200 ft .. 2400 ft
 constexpr int kApproachLightsPerBar = 5;
 constexpr double kApproachLightSpacingM = 1.5;
-constexpr double kFlasherInnerFt = 1400.0;     // sequenced flashers on the outer 1,000 ft
-constexpr int kFlasherCount = 6;               // 1400, 1600, ... 2400 ft
+constexpr double kFlasherInnerFt = 1400.0;  // sequenced flashers on the outer 1,000 ft
+constexpr int kFlasherCount = 6;            // 1400, 1600, ... 2400 ft
 constexpr double kFlasherHz = 2.0;
 
 constexpr double kThresholdStripeStartM = 6.0;
@@ -56,12 +56,12 @@ constexpr double kDesignatorGapM = 12.0;
 // ---- runway info ------------------------------------------------------------------------------
 struct RunwayInfo {
     std::string airportIdent, ident, oppositeIdent;
-    LatLon thr;                // landing threshold
-    double headingTrueRad = 0; // landing direction (bearing pavement start -> end)
-    double lengthM = 0;        // whole pavement, start to end
-    double displacedM = 0;     // start -> threshold
+    LatLon thr;                 // landing threshold
+    double headingTrueRad = 0;  // landing direction (bearing pavement start -> end)
+    double lengthM = 0;         // whole pavement, start to end
+    double displacedM = 0;      // start -> threshold
     double widthM = 0;
-    double elevM = 0;          // flat elevation of the whole pavement (mean of the two ends)
+    double elevM = 0;  // flat elevation of the whole pavement (mean of the two ends)
     bool hard = true, lighted = false, approx = false;
     bool instrument = false;          // this direction has an ILS and a trustworthy geometry
     bool oppositeInstrument = false;  // the other direction does
@@ -150,9 +150,9 @@ struct LightSpec {
     LightKind kind = LightKind::Edge;
     double alongM = 0, lateralM = 0, heightM = 0;
     float rgb[3] = {1, 1, 1};
-    float sizeM = 1;   // apparent diameter used for the point sprite size
-    int facing = -1;   // -1: visible from before the threshold (the approach side); 0: all around
-    int seq = -1;      // flashers: 0 = outermost (fires first); PAPI: 100 + unit; else -1
+    float sizeM = 1;  // apparent diameter used for the point sprite size
+    int facing = -1;  // -1: visible from before the threshold (the approach side); 0: all around
+    int seq = -1;     // flashers: 0 = outermost (fires first); PAPI: 100 + unit; else -1
 };
 
 // Edge/threshold/end lights need `lighted`; approach lights and PAPI follow the runway flags.
@@ -186,8 +186,8 @@ double airportLowestFlatElevM(const Airport& airport);
 
 // ---- airport selection ------------------------------------------------------------------------
 // Airports within radiusM of the point (nearest first, at most maxCount), through airportsInBox.
-std::vector<const Airport*> selectAirportsNear(const NavDatabase& nav, double latDeg,
-                                               double lonDeg, double radiusM, int maxCount);
+std::vector<const Airport*> selectAirportsNear(const NavDatabase& nav, double latDeg, double lonDeg,
+                                               double radiusM, int maxCount);
 
 // ---- meshes (RTC: double anchor + float offsets) ----------------------------------------------
 struct SurfaceVertex {

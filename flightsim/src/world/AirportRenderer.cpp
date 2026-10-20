@@ -18,28 +18,27 @@ constexpr GLenum kGlOne = 1;
 constexpr GLenum kGlProgramPointSize = 0x8642;  // desktop only; always on in ES2
 constexpr GLenum kGlPointSprite = 0x8861;       // desktop only; always on in ES2
 
-constexpr float kPointDepthBias = 3e-6f;   // clip-space z bias for light sprites
+constexpr float kPointDepthBias = 3e-6f;  // clip-space z bias for light sprites
 constexpr float kMaxPointPx = 28.0f;
 
 // Surface pass: per-vertex lighting and fog (fogGlsl() is used in the vertex stage only, so the
 // shared uniforms never appear in both stages with different default precisions).
-constexpr char kSurfaceVertexBody[] =
-    "attribute vec3 aPos;\n"
-    "attribute vec3 aNormal;\n"
-    "attribute vec3 aColor;\n"
-    "uniform mat4 uMvp;\n"
-    "uniform mat4 uMv;\n"
-    "uniform vec3 uSunEcef;\n"
-    "uniform vec3 uAmbient;\n"
-    "uniform vec3 uDiffuse;\n"
-    "varying vec3 vColor;\n"
-    "void main() {\n"
-    "  vec4 e = uMv * vec4(aPos, 1.0);\n"
-    "  float ndl = max(dot(aNormal, uSunEcef), 0.0);\n"
-    "  vec3 lit = aColor * (uAmbient + uDiffuse * ndl);\n"
-    "  vColor = fsimApplyFog(lit, length(e.xyz));\n"
-    "  gl_Position = uMvp * vec4(aPos, 1.0);\n"
-    "}\n";
+constexpr char kSurfaceVertexBody[] = "attribute vec3 aPos;\n"
+                                      "attribute vec3 aNormal;\n"
+                                      "attribute vec3 aColor;\n"
+                                      "uniform mat4 uMvp;\n"
+                                      "uniform mat4 uMv;\n"
+                                      "uniform vec3 uSunEcef;\n"
+                                      "uniform vec3 uAmbient;\n"
+                                      "uniform vec3 uDiffuse;\n"
+                                      "varying vec3 vColor;\n"
+                                      "void main() {\n"
+                                      "  vec4 e = uMv * vec4(aPos, 1.0);\n"
+                                      "  float ndl = max(dot(aNormal, uSunEcef), 0.0);\n"
+                                      "  vec3 lit = aColor * (uAmbient + uDiffuse * ndl);\n"
+                                      "  vColor = fsimApplyFog(lit, length(e.xyz));\n"
+                                      "  gl_Position = uMvp * vec4(aPos, 1.0);\n"
+                                      "}\n";
 
 constexpr char kSurfaceFragmentBody[] = "varying vec3 vColor;\n"
                                         "void main() { gl_FragColor = vec4(vColor, 1.0); }\n";
@@ -89,15 +88,14 @@ constexpr char kLightVertexBody[] =
     "  gl_Position = p;\n"
     "}\n";
 
-constexpr char kLightFragmentBody[] =
-    "varying vec4 vColor;\n"
-    "void main() {\n"
-    "  vec2 d = gl_PointCoord * 2.0 - 1.0;\n"
-    "  float r = length(d);\n"
-    "  if (r > 1.0) discard;\n"
-    "  float a = 1.0 - smoothstep(0.45, 1.0, r);\n"
-    "  gl_FragColor = vec4(vColor.rgb, vColor.a * a);\n"
-    "}\n";
+constexpr char kLightFragmentBody[] = "varying vec4 vColor;\n"
+                                      "void main() {\n"
+                                      "  vec2 d = gl_PointCoord * 2.0 - 1.0;\n"
+                                      "  float r = length(d);\n"
+                                      "  if (r > 1.0) discard;\n"
+                                      "  float a = 1.0 - smoothstep(0.45, 1.0, r);\n"
+                                      "  gl_FragColor = vec4(vColor.rgb, vColor.a * a);\n"
+                                      "}\n";
 
 void toEyeUniform(const Camera& camera, const Ecef& anchor, Mat4& mv, Mat4& mvp) {
     mv = camera.modelView(anchor);
@@ -212,9 +210,10 @@ void AirportRenderer::buildAirport(const Airport& airport) {
             for (int i = 0; i < 3; ++i) r.lights.axisEcef[i] = meshes.lights.axisEcef[i];
             gl_.GenBuffers(1, &r.lights.vbo);
             gl_.BindBuffer(GL_ARRAY_BUFFER, r.lights.vbo);
-            gl_.BufferData(GL_ARRAY_BUFFER,
-                           static_cast<GLsizeiptr>(meshes.lights.verts.size() * sizeof(LightVertex)),
-                           meshes.lights.verts.data(), GL_STATIC_DRAW);
+            gl_.BufferData(
+                GL_ARRAY_BUFFER,
+                static_cast<GLsizeiptr>(meshes.lights.verts.size() * sizeof(LightVertex)),
+                meshes.lights.verts.data(), GL_STATIC_DRAW);
         }
         gpu->runways.push_back(std::move(r));
     }
@@ -298,8 +297,7 @@ void AirportRenderer::drawSurfaces(const Camera& camera, const std::vector<GpuSu
     for (const GpuSurface& s : list) drawSurface(camera, s);
 }
 
-void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewportH,
-                             double timeS) {
+void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewportH, double timeS) {
     stats_.runwaysDrawn = 0;
     stats_.lightsDrawn = 0;
     if (!surfaceProgram_.valid() || !lightProgram_.valid()) return;

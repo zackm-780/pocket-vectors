@@ -58,8 +58,7 @@ public:
     void update(const gfx::Camera& camera);
     // Draws into the bound framebuffer; call after the ground, before the HUD. timeS drives the
     // sequenced flashers.
-    void render(const gfx::Camera& camera, int viewportWidthPx, int viewportHeightPx,
-                double timeS);
+    void render(const gfx::Camera& camera, int viewportWidthPx, int viewportHeightPx, double timeS);
 
     const Stats& stats() const { return stats_; }
 

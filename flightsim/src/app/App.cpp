@@ -26,8 +26,8 @@
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
-#include "world/AirportGeometry.h"          // W5
-#include "world/AirportRenderer.h"          // W5
+#include "world/AirportGeometry.h"         // W5
+#include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
 #include "world/Sky.h"                     // W4
 #include "world/terrain/TerrainService.h"  // W1
@@ -165,7 +165,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                ftToM(sim.aircraft().altAglFt));
         renderer.render(camera, w, h);
         airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
-        if (opt.glyphSheet) {  // H1
+        if (opt.glyphSheet) {                                    // H1
             hud2d.begin(w, h);
             drawGlyphSheet(hud2d);
             hud2d.end();

@@ -280,7 +280,8 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
     // dusk and night screenshots read correctly; full brightness by day.
     if (atmosphere_) {
         const world::LightParams& light = atmosphere_->light();
-        const float sunUp = static_cast<float>(std::max(0.0, std::sin(atmosphere_->sun().elevationRad)));
+        const float sunUp =
+            static_cast<float>(std::max(0.0, std::sin(atmosphere_->sun().elevationRad)));
         for (int i = 0; i < 3; ++i)
             shade_[i] = std::min(1.0f, light.ambientRgb[i] + light.diffuseRgb[i] * sunUp);
     }
