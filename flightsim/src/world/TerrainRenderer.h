@@ -107,10 +107,12 @@ private:
 // Developer hooks for screenshots (no CLI flags exist yet): read from the environment.
 //   FSIM_W2_CAMERA = "lat,lon,altMslFt,headingTrueDeg[,pitchDeg]"  overrides the view pose
 //   FSIM_W2_VISIBILITY_KM = "<km>"                                 overrides fog visibility
+//   FSIM_W2_PX_PER_CELL = "<px>"                                   overrides LodConfig::pixelsPerCell
 struct TerrainDebugOverrides {
     bool hasCamera = false;
     double latDeg = 0, lonDeg = 0, altMslFt = 0, headingTrueDeg = 0, pitchDeg = 0;
     float visibilityKm = 0;
+    float pixelsPerCell = 0;
 };
 TerrainDebugOverrides readTerrainDebugEnv();
 

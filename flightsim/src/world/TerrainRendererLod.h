@@ -47,9 +47,12 @@ bool horizonVisible(const Ecef& eye, double occluderRadiusM, const NodeBox& box)
 
 // ---- LOD ---------------------------------------------------------------------------------------
 struct LodConfig {
-    float pixelsPerCell = 9.0f;      // target projected size of one cell (virtual 480-line screen)
+    float pixelsPerCell = 10.0f;     // target projected size of one cell (virtual 480-line screen)
     float virtualHeightPx = 480.0f;  // LOD is independent of the real window size
     float morphStartFrac = 0.7f;     // geomorph begins at this fraction of the parent's range
+    // Grazing views foreshorten cells in depth, so the range shrinks by sqrt(sin(grazing angle)),
+    // never below sqrt(foreshortenMin) (1 disables). Saves most triangles near the ground.
+    float foreshortenMin = 0.16f;
     size_t maxRecords = 1600;        // node cache cap (records with or without meshes)
     uint64_t keepFrames = 300;       // unused records older than this are dropped
     int requestRepeatFrames = 45;    // re-request a still missing tile at most this often
@@ -57,6 +60,9 @@ struct LodConfig {
 
 // Split range in metres for a node with the given mean cell size.
 double splitRangeM(double cellMeanM, float vFovRad, const LodConfig& cfg);
+// Multiplier (<= 1) on the range for a node seen at the given grazing angle: sinGrazing is the
+// absolute cosine between the view ray to the node and the local vertical.
+double foreshortenFactor(double sinGrazing, const LodConfig& cfg);
 
 struct ViewParams {
     Ecef eye;

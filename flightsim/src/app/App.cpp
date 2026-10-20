@@ -95,8 +95,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (terrainSvc) {
         terrainRenderer = std::make_unique<world::TerrainRenderer>(window.gl(), window.flavor(),
                                                                    *terrainSvc);
-        if (terrainRenderer->init())
+        if (terrainRenderer->init()) {
             renderer.setTerrain(terrainRenderer.get());
+            if (dbg.pixelsPerCell > 0) {
+                world::TerrainRenderConfig tc = terrainRenderer->config();
+                tc.lod.pixelsPerCell = dbg.pixelsPerCell;
+                terrainRenderer->setConfig(tc);
+            }
+        }
         else
             terrainRenderer.reset();
     }

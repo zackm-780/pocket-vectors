@@ -453,6 +453,7 @@ TerrainDebugOverrides readTerrainDebugEnv() {
     if (const char* vis = std::getenv("FSIM_W2_VISIBILITY_KM")) {
         o.visibilityKm = static_cast<float>(std::atof(vis));
     }
+    if (const char* px = std::getenv("FSIM_W2_PX_PER_CELL")) o.pixelsPerCell = static_cast<float>(std::atof(px));
     return o;
 }
 

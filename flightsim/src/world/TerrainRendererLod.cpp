@@ -142,6 +142,11 @@ double splitRangeM(double cellMeanM, float vFovRad, const LodConfig& cfg) {
     return cellMeanM * focal / cfg.pixelsPerCell;
 }
 
+double foreshortenFactor(double sinGrazing, const LodConfig& cfg) {
+    const double s = std::min(1.0, std::max<double>(cfg.foreshortenMin, sinGrazing));
+    return std::sqrt(s);
+}
+
 // ---- TerrainSelector ----------------------------------------------------------------------------
 namespace {
 
@@ -344,7 +349,16 @@ void TerrainSelector::visit(const NodeId& id) {
         ++stats_.seaSkipped;
         return;
     }
-    const double range = splitRangeM(rec.cellMeanM, view_.vFovRad, cfg_);
+    double range = splitRangeM(rec.cellMeanM, view_.vFovRad, cfg_);
+    {
+        const Vec3d rel{rec.box.centre.x - view_.eye.x, rec.box.centre.y - view_.eye.y,
+                        rec.box.centre.z - view_.eye.z};
+        const double dc = std::sqrt(rel.x * rel.x + rel.y * rel.y + rel.z * rel.z);
+        if (dc > 2.0 * rec.box.boundRadiusM) {
+            const Vec3d& up = rec.box.axis[2];
+            range *= foreshortenFactor(std::fabs(rel.x * up.x + rel.y * up.y + rel.z * up.z) / dc, cfg_);
+        }
+    }
     const int maxLevel = svc_.finestLevel() + kPatchShift;
     if (id.k < maxLevel && d < range && tryExpand(rec, range)) return;
 
