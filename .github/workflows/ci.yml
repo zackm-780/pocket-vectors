@@ -26,8 +26,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: flightsim/build
-          key: build-${{ runner.os }}-${{ hashFiles('flightsim/CMakeLists.txt', 'flightsim/cmake/**') }}
-          restore-keys: build-${{ runner.os }}-
+          # The cache embeds absolute paths (the checkout dir includes the repo name). After the
+          # rename from retro-games, restoring the old cache makes CMake reject CMakeCache.txt.
+          key: build-${{ github.event.repository.name }}-${{ runner.os }}-${{ hashFiles('flightsim/CMakeLists.txt', 'flightsim/cmake/**') }}
+          restore-keys: build-${{ github.event.repository.name }}-${{ runner.os }}-
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFSIM_WERROR=ON
