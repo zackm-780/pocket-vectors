@@ -1,8 +1,10 @@
-# Agent guide: retro-games
+# Agent guide: Pocket Vectors
 
-This repo holds games for the **Anbernic RG40XXH** handheld running its **stock OS**, which runs
-them through **PortMaster**. The active project is **`flightsim/`**, a first-person flight simulator
-with a full HUD, real terrain, real airports, flight plans and instrument approaches, built on JSBSim.
+This repo is **Pocket Vectors**, a first-person flight simulator for the **Anbernic RG40XXH**
+handheld running its **stock OS**, which runs it through **PortMaster**. The source and the
+on-device port live in **`flightsim/`** (that folder name, `FlightSim.sh` and `flightsim.aarch64`
+stay stable so a card update keeps `conf/` and `data/`). The game has a full HUD, real terrain,
+real airports, flight plans and instrument approaches, built on JSBSim.
 
 Several agents build it in parallel, one **work package (WP)** per agent. This file is the entry
 point. Read it fully before touching anything.
@@ -35,6 +37,9 @@ point. Read it fully before touching anything.
 - **You cannot test on the device.** Prove behaviour on desktop with unit tests, headless scenario
   runs, traces and screenshots, and mark the PR "needs device test" when on-device behaviour matters.
 - Never commit secrets. Never push to `main` directly.
+- **Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md).** Fork the repo, open a pull request,
+  and wait for CI, including the device workflow. The owner reviews and approves before merge.
+  Do not merge the pull request yourself.
 
 ## Build and test (available once WP-00 has landed)
 

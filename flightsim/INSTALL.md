@@ -8,7 +8,7 @@ The ports folder on the card is `Roms/PORTS` (the stock OS shows it as `/mnt/sdc
 ## 1. One zip (start here)
 
 Download **`pocket-vectors-1.0.0-Roms-PORTS.zip`** from the GitHub release
-[Pocket Vectors 1.0](https://github.com/zackm-780/retro-games/releases/tag/v1.0.0).
+[Pocket Vectors 1.0](https://github.com/zackm-780/pocket-vectors/releases/tag/v1.0.0).
 
 That zip is the game and the Pacific Northwest data pack (`pdx_oth`) together. It is about 125 MB.
 Unzip it **into** `Roms/PORTS`. The zip has no extra folder around the game: its contents are

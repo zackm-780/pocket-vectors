@@ -56,7 +56,7 @@ Suggested order: D1, then H6 and R1, then H7 and W6 (at most 3 agents in paralle
     copying over the folder on Windows merges and keeps them; on a Mac, Finder "Replace" deletes
     them. When only a few files changed, say which ones.
   - Data: artifact `flightsim-data-pdx_oth-20261021` of
-    [datapack run 39525169093](https://github.com/zackm-780/retro-games/actions/runs/39525169093)
+    [datapack run 39525169093](https://github.com/zackm-780/pocket-vectors/actions/runs/39525169093)
     (expires 2026-11-20; rerun the workflow after that). It holds `data/`; copy it into
     `Roms/PORTS/flightsim/`.
   - The user prefers **one zip**. If your environment can send files, assemble it: unzip the ports

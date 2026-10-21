@@ -9,7 +9,7 @@
   "attr": {
     "title": "Pocket Vectors Probe",
     "porter": [
-      "retro-games contributors"
+      "Zack Martin"
     ],
     "desc": "Measures the handheld for the Pocket Vectors project: libc, SDL and OpenGL ES details, controller buttons and sticks, GPU and CPU speed. Writes probe_report.txt.",
     "desc_md": null,
