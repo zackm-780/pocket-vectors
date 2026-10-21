@@ -48,25 +48,29 @@ Read `flightsim_launch_log.txt` next to `FlightSim.sh`. Its `candidate` lines li
 the script checked for `flightsim.aarch64`, and `GAMEDIR=` shows the folder it used. The game
 also writes `flightsim/conf/log.txt`.
 
-## Buttons in the wrong place?
+## Buttons
 
-On the RG40XXH stock OS, **A and B are swapped** in this 1.0 build (X and Y may be too). Until
-that default is fixed, create `flightsim/conf/controls.ini` (plain text; the game reads it and
-does not overwrite it) with:
+On the RG40XXH the defaults match the printed labels: A is gear, B is brakes (double-tap for the
+parking brake), X cycles the speedbrake, Y cycles the HUD, Select opens the map, Start pauses, and
+Select+Start quits. The Menu key also acts as Select. R3 is not used in flight (the click jolts
+the rudder).
+
+**Other devices:** if A and B (or X and Y) come out swapped, or Select does nothing, create
+`flightsim/conf/controls.ini` (plain text; the game reads it and does not overwrite it). A label
+may list several SDL buttons, separated by commas. Example for a layout where the face buttons are
+swapped and Select is `back`:
 
 ```ini
 [device_labels]
-a = a
-b = b
-x = x
-y = y
-select = guide
+a = b
+b = a
+x = y
+y = x
+select = back, guide
 ```
 
-**Other devices:** if A and B (or X and Y) are swapped, swap the right-hand sides of those lines.
-If Select does nothing, try `select = back` or `select = guide`. You can also rebind one action,
-for example a `[pad.base]` section with `GearToggle = a`. See the comments in
-`flightsim/assets/controls_default.ini` and `docs/CONTROLS.md`.
+You can also rebind one action, for example a `[pad.base]` section with `GearToggle = a`. See the
+comments in `flightsim/assets/controls_default.ini` and `docs/CONTROLS.md`.
 
 Frame rate on the device has not been measured yet. To see it, set `show_fps = true` under
 `[video]` in `flightsim/conf/settings.ini` (or use the Settings menu) and look at

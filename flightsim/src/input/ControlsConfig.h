@@ -36,6 +36,8 @@ enum class PadInput {
     Count
 };
 constexpr int kPadInputCount = static_cast<int>(PadInput::Count);
+// One printed label can be several SDL buttons (Select is both `back` and `guide`).
+constexpr int kMaxSdlButtonsPerLabel = 4;
 
 // Shift layers. Priority when several modifiers are held: L2 > L1 > R1.
 enum class PadLayer { Base, L1, R1, L2, Count };
@@ -71,8 +73,12 @@ struct KeyAxisBinding {
 };
 
 struct ControlsConfig {
-    // Device-label table: SDL_GameControllerButton for each printed label (-1 = no button).
+    // Device-label table. `sdlButtonForLabel` is the first SDL_GameControllerButton for each
+    // printed label, or -1 when the label has no button (triggers, or an empty list). The full
+    // list is `sdlButtonsForLabel` / `sdlButtonCountForLabel` (a comma-separated value in the ini).
     int sdlButtonForLabel[kPadInputCount];
+    int sdlButtonCountForLabel[kPadInputCount];
+    int sdlButtonsForLabel[kPadInputCount][kMaxSdlButtonsPerLabel];
 
     std::vector<PadButtonBinding> padButtons[kPadLayerCount];
     std::vector<PadAxisBinding> padAxes[kPadLayerCount];

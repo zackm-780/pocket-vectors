@@ -4,14 +4,25 @@ Owners: P2 (input system and defaults), P3 (persisted remaps), H5 (menu navigati
 are bound to **semantic actions** (`core/Actions.h`). Gameplay code never reads buttons directly.
 
 ## 1. RG40XXH physical inputs
-D-pad, A, B, X, Y, L1, R1, L2, R2, Select, Start, left stick, right stick. The Menu/function key,
-volume and power keys are **reserved for the OS**. L3/R3 stick clicks and whether L2/R2 are analog are
-**unverified**: design so nothing essential depends on them, and update after the P1 probe.
+D-pad, A, B, X, Y, L1, R1, L2, R2, Select, Start, left stick, right stick, and the Menu key. Volume
+and power stay with the OS. This document always means the **label printed on the device**. Bindings
+use those labels. SDL names live only in `[device_labels]` in `assets/controls_default.ini`.
 
-> Face-button naming: Anbernic prints a Nintendo-style layout (A on the right, B at the bottom). SDL's
-> GameController API names buttons by **position** in an Xbox layout (SDL `A` = bottom). PortMaster
-> supplies `SDL_GAMECONTROLLERCONFIG` for the device. P2 must confirm from the probe log which SDL
-> name each **printed** label produces. This doc always means the **label printed on the device**.
+Measured on the RG40XXH stock OS (PortMaster gamecontroller mapping, 2026-10-20):
+
+- Printed face labels match SDL GameController names: A = `a`, B = `b`, X = `x`, Y = `y`.
+- Select is SDL `guide` (button 6). The Menu key is SDL `back` (button 8).
+- L2 and R2 are digital triggers (`lefttrigger` / `righttrigger` jump from 0 to full).
+- L3 (left-stick click) is clean. R3 (right-stick click) jolts right stick X by about −0.32, so no
+  in-flight layer binds R3 (rudder is on that axis).
+
+The default table is `select = back, guide`. Both the stock-OS Select button and the Menu key
+produce Select (map, and Select+Start to quit). Firmwares that report Select as `back` work the
+same way.
+
+**Other devices.** If A/B or X/Y come out swapped, or Select does nothing, override `[device_labels]`
+in `flightsim/conf/controls.ini`. A label may list several SDL buttons, separated by commas. See
+INSTALL.md.
 
 ## 2. Flight controls (default)
 

@@ -25,7 +25,7 @@
 | Max texture size | probe | 8192 (cube maps 4096) |
 | L2/R2 analog or digital? | probe input log | **Digital**: SDL `lefttrigger`/`righttrigger` axes jump 0 → 32767 (raw buttons 10/11) |
 | L3/R3 (stick clicks) present? | probe input log | Both present (SDL `leftstick` b9, `rightstick` b12). L3 is clean. **R3 jolts the right stick X axis to about −0.32** while clicking, so do not bind R3 to anything used in flight (rudder is on right stick X). |
-| Face-button names as SDL reports them (A/B swap?) | probe input log | PortMaster mapping `a:b0,b:b1,x:b3,y:b2`. The probe's A/B/X/Y prompts got no presses (missed), but in the game A and B were swapped with the old label table (printed A = SDL `b`), so **printed labels equal SDL names** for A/B; X/Y very likely the same (PortMaster swaps raw b2/b3 to make the names match), to be confirmed. **Select produces SDL `guide`** (b6), not `back`. See WORK_PACKAGES D1. |
+| Face-button names as SDL reports them (A/B swap?) | probe input log | PortMaster mapping `a:b0,b:b1,x:b3,y:b2`. The probe's A/B/X/Y prompts got no presses (missed), but in the game A and B were swapped with the old label table (printed A = SDL `b`), so **printed labels equal SDL names** for A/B; X/Y very likely the same (PortMaster swaps raw b2/b3 to make the names match), to be confirmed in game. **Select produces SDL `guide`** (b6), not `back`. The default label table now uses `a = a` … `y = y` and `select = back, guide`. |
 | Menu key usable by ports? | probe input log | Yes, it reaches the app as SDL `back` (b8) plus raw button 13. Volume keys arrive as raw buttons 15/16 and SDL VolumeUp/Down keys. |
 | Free RAM at idle in a port | probe | MemAvailable 857 MB of 973 MB (no swap). Probe peak RSS 101 MB. |
 | GPU: triangles/frame at 30 fps (fog shader) | probe benchmark | 40k tris = 2.5 ms GPU, 80k = 4.2 ms (fit: 1.23 ms + 0.035 ms per 1k tris). **Draw calls cost more than triangles**: the same 40k in 150 draw calls = 5.7 ms. Fill: 2086 Mpix/s opaque, 1205 blended, 311 blended + fog shader (about 17 full-screen layers per 16.7 ms). Vsync on works (16.76 ms frames). |
@@ -62,8 +62,9 @@ Add observations from device tests here (date, build, what was seen).
   run. The probe completed every section (results in section 2). The game loaded the nav database
   (49,374 airports, 1,509 real + 20,341 synthesized ILS, 1.9 s) and terrain levels 5–10, opened the
   menus, and a test flight in the Global 5000 at KPDX covered a runway start and two cruise starts.
-  **A and B were swapped**, and other buttons may be too (see ROADMAP D1; the probe shows Select =
-  SDL `guide`). Frame rate was not measured (`show_fps = true` in `flightsim/conf/settings.ini`).
+  **A and B were swapped** with that build's label table (printed labels equal SDL names; Select is
+  SDL `guide`). The default table was updated afterwards. Frame rate was not measured
+  (`show_fps = true` in `flightsim/conf/settings.ini`).
   The probe was SIGKILLed by gptokeyb (`-sudokill`, exit 137) when it was quit with Select+Start.
 
 ## 4. How to run the probe
