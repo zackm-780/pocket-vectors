@@ -17,6 +17,10 @@ on:
         description: "Also build the world coarse layer, levels 0-6 (about 50 GB of downloads, hours, ~3 GB pack)"
         type: boolean
         default: false
+      bbox:
+        description: "Optional west,south,east,north box instead of the preset (example -123.4,43.1,-123.0,43.4)"
+        type: string
+        default: ""
 
 jobs:
   datapack:
@@ -25,6 +29,7 @@ jobs:
     env:
       PRESET: ${{ inputs.preset }}
       INCLUDE_WORLD: ${{ inputs.include_world }}
+      BBOX: ${{ inputs.bbox }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +50,11 @@ jobs:
         run: |
           echo "cycle=$(date -u +%Y-%m)-$(( $(date -u +%s) / 86400 / 28 ))" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          if [ -n "$BBOX" ]; then
+            echo "region=bbox-$(printf '%s' "$BBOX" | tr ', ' '__')" >> "$GITHUB_OUTPUT"
+          else
+            echo "region=$PRESET" >> "$GITHUB_OUTPUT"
+          fi
 
       # Region sources (GLO-30 + WorldCover) are the same for a preset across cycles; the world
       # layer cache (GLO-90, ~50 GB) is deliberately NOT cached (10 GB repository cache limit).
@@ -52,13 +62,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: flightsim/tools/terrain/cache
-          key: terrain-${{ inputs.preset }}-v1
+          key: terrain-${{ steps.keys.outputs.region }}-v1
       - name: Cache nav downloads
         uses: actions/cache@v4
         with:
           path: flightsim/tools/nav/cache
-          key: nav-${{ inputs.preset }}-${{ steps.keys.outputs.cycle }}
-          restore-keys: nav-${{ inputs.preset }}-
+          key: nav-${{ steps.keys.outputs.region }}-${{ steps.keys.outputs.cycle }}
+          restore-keys: nav-${{ steps.keys.outputs.region }}-
 
       - name: Shell syntax and lint
         run: |
@@ -69,7 +79,8 @@ jobs:
         working-directory: flightsim
         run: |
           set -euo pipefail
-          args=(--out "$RUNNER_TEMP/upload/data" --preset "$PRESET" --jobs "$(nproc)")
+          args=(--out "$RUNNER_TEMP/upload/data" --jobs "$(nproc)")
+          if [ -n "$BBOX" ]; then args+=(--bbox "$BBOX"); else args+=(--preset "$PRESET"); fi
           if [ "$INCLUDE_WORLD" = "true" ]; then args+=(--world); fi
           # world cache on the big temp disk when the workspace disk is small
           sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
@@ -81,7 +92,7 @@ jobs:
       # upload-artifact deflates it; terrain tiles shrink to about 20-50 percent, CSVs to about 25.
       - uses: actions/upload-artifact@v4
         with:
-          name: flightsim-data-${{ inputs.preset }}-${{ steps.keys.outputs.date }}
+          name: flightsim-data-${{ steps.keys.outputs.region }}-${{ steps.keys.outputs.date }}
           path: ${{ runner.temp }}/upload/
           retention-days: 30
           compression-level: 6
@@ -92,7 +103,7 @@ jobs:
         run: |
           {
             echo "## Data pack"
-            echo "Preset \`$PRESET\`, world layer: \`$INCLUDE_WORLD\`."
+            echo "Preset \`$PRESET\`, bbox \`${BBOX:-none}\`, world layer: \`$INCLUDE_WORLD\`."
             echo "Download the artifact, unzip it once and copy its \`data\` folder into \`Roms/PORTS/flightsim/\` on the SD card."
             echo '```'
             tail -n 25 "$RUNNER_TEMP/build.log" 2>/dev/null || true

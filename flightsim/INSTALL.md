@@ -42,7 +42,52 @@ Two smaller zips are on the same release, for when you do not want to copy every
 To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/settings.ini`
 (created on first launch).
 
-## 3. If something goes wrong
+## 3. Assembling a ports zip
+
+Tagged releases after 1.0 attach a **game-only** zip: `FlightSim.sh` and `flightsim/`, no probe
+and no terrain. `flightsim/tools/sdcard/make_sdcard_zip.py` (Python 3.8 or newer, standard
+library only) merges that zip with one or more data packs and optional `.fms` files:
+
+```bash
+python3 flightsim/tools/sdcard/make_sdcard_zip.py \
+  --game pocket-vectors-vX.Y.Z-game.zip \
+  --data pdx_oth.zip \
+  --plan KPDX-KOTH.fms \
+  --out ports.zip
+```
+
+`--game` and `--data` accept a zip or a folder. A single wrapper folder around the game is
+unwrapped. Repeat `--data` to merge packs (later packs replace earlier files) and `--plan` for
+each flight plan. The script refuses a symlink `libJSBSim.so.1`, a missing binary, or a pack
+without `data/terrain` and `data/nav/nav.ini`, and it writes `.sh` files with LF line endings.
+Unzip `ports.zip` into `Roms/PORTS` the same way as the 1.0 zip. The probe is not copied.
+
+## 4. Flight plans
+
+X-Plane `.fms` version 1100 files belong in `flightsim/data/plans/` (the script's `--plan`
+flag puts them there). SimBrief and Little Navmap export this format. List every waypoint in
+the file: the game reads an airway name but flies direct between the points that are written.
+An approach uses the ARINC name without `RW`, for example `I28L` for the ILS to 28L. Sample
+plans in the game: `assets/plans/KPDX-KOTH.fms`, `KOTH-KPDX.fms`, and `XTST-pattern.fms`.
+
+In the game, New flight then Flight plan loads a file or builds a quick plan from the departure
+airport to a destination runway (direct, or via navaids along the great circle) and can attach
+an approach. Format notes: `src/nav/README_FMS.md`.
+
+## 5. More regions
+
+A tagged release does not include terrain or the nav database. Build a pack and keep its
+`ATTRIBUTION.txt`. Copernicus DEM is free for worldwide use with the notice in that file. ESA
+WorldCover is CC BY 4.0.
+
+- From the Actions tab, run the **datapack** workflow. Presets: `pdx_oth` (Portland to the
+  coast), `bayarea`, `mthood`, `tam_diablo`. Set **bbox** to `west,south,east,north` for a
+  custom box (that replaces the preset). The artifact is kept 30 days. Unzip it once and pass
+  the folder, or a zip of it, to `--data`.
+- Locally: `tools/datapack/build_datapack.sh --out /path/to/pack --preset bayarea`, or
+  `--bbox -122.5,37.2,-121.5,38.2`. See `tools/datapack/README.md`.
+
+## 6. If something goes wrong
 
 Read `flightsim_launch_log.txt` next to `FlightSim.sh`. Its `candidate` lines list every folder
 the script checked for `flightsim.aarch64`, and `GAMEDIR=` shows the folder it used. The game

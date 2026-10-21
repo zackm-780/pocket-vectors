@@ -6,6 +6,14 @@ on:
   pull_request:
 
 jobs:
+  sdcard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: SD-card zip script
+        working-directory: flightsim
+        run: python3 tools/sdcard/test_make_sdcard_zip.py
+
   desktop:
     runs-on: ubuntu-24.04
     defaults:

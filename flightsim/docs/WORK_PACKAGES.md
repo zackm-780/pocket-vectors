@@ -591,7 +591,7 @@ label placement, distance culling and the nearest-airport selection; measured fr
 Needs device test.
 
 ## R1: Public release and install guide
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** none (D1 before the first release) · **Specs:** BUILD_AND_DEPLOY §6–7, DATA.md
+**Status:** done (needs device test: run `make_sdcard_zip.py` on a game zip, a data pack and one `.fms`, unzip into `Roms/PORTS`, and boot to the main menu; the release asset is game-only, with no probe, and `libJSBSim.so.1` stays a regular file) · **Model / effort:** Sonnet / medium · **Depends:** none (D1 before the first release) · **Specs:** BUILD_AND_DEPLOY §6–7, DATA.md
 
 **Owns:** `README.md` (root), `flightsim/INSTALL.md`, `flightsim/tools/sdcard/` (new),
 `.github/workflows/release.yml` (new).

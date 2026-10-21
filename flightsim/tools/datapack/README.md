@@ -20,10 +20,12 @@ tiles are skipped). At the end it prints pack size, file counts and the largest 
 
 ## GitHub Actions: workflow `datapack`
 
-Actions tab, "datapack", "Run workflow". Inputs: `preset` (default `pdx_oth`), `include_world`
-(default off). It uploads the artifact `flightsim-data-<preset>-<date>`, kept 30 days. The artifact
-holds one `data/` folder (`terrain/`, `nav/`, `ATTRIBUTION.txt`, `README.txt`), not a zip inside
-the download: unzip the download once and copy `data/` into `flightsim/` on the SD card.
+Actions tab, "datapack", "Run workflow". Inputs: `preset` (default `pdx_oth`; also `bayarea`,
+`mthood`, `tam_diablo`), `include_world` (default off), and optional `bbox`
+(`west,south,east,north`). A non-empty bbox is used instead of the preset. It uploads the artifact
+`flightsim-data-<region>-<date>`, kept 30 days. The artifact holds one `data/` folder (`terrain/`,
+`nav/`, `ATTRIBUTION.txt`, `README.txt`), not a zip inside the download: unzip the download once
+and copy `data/` into `flightsim/` on the SD card, or pass it to `tools/sdcard/make_sdcard_zip.py`.
 
 * Caches: terrain downloads (key by preset) and nav downloads (key by preset and 28-day cycle).
   The world layer's GLO-90 downloads (about 50 GB) are not cached (the repository cache limit is

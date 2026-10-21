@@ -1,0 +1,62 @@
+name: release
+
+# On a v* tag, build the RG40XXH game (no probe, no data pack) and attach it to the GitHub
+# Release. Data packs stay off the release: build one with the datapack workflow or
+# tools/datapack/build_datapack.sh, then combine it with tools/sdcard/make_sdcard_zip.py.
+# Copernicus DEM and ESA WorldCover may be redistributed with the attribution in ATTRIBUTION.txt
+# (DATA.md section 2). This workflow does not upload a pack.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the device package
+        working-directory: flightsim
+        env:
+          REQUIRE_MAIN: "1"
+        run: tools/build_device.sh --docker --skip-probe
+
+      - name: Check the game zip
+        working-directory: flightsim
+        run: port/check_package.sh dist/flightsim-portmaster.zip
+
+      - name: Publish the game zip
+        working-directory: flightsim
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          asset="${RUNNER_TEMP}/pocket-vectors-${tag}-game.zip"
+          cp dist/flightsim-portmaster.zip "$asset"
+          notes="${RUNNER_TEMP}/notes.md"
+          cat > "$notes" <<EOF
+          Pocket Vectors ${tag} for the Anbernic RG40XXH (stock OS, 64-bit, SDL2).
+
+          This asset is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
+          Unzip it into \`Roms/PORTS\`. To fly somewhere other than the built-in synthetic field, add a data
+          pack with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).
+
+          Build a pack from the Actions tab (workflow \`datapack\`, presets \`pdx_oth\`, \`bayarea\`,
+          \`mthood\`, \`tam_diablo\`, or a \`bbox\`) or with \`tools/datapack/build_datapack.sh\`.
+          Keep the pack's \`ATTRIBUTION.txt\`.
+
+          Code: Apache-2.0. JSBSim is LGPL-2.1. Zack Martin, https://github.com/zackm-780.
+          EOF
+          # The heredoc above is indented; strip the leading spaces.
+          sed -i 's/^          //' "$notes"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$asset" --clobber
+          else
+            gh release create "$tag" "$asset" --title "Pocket Vectors ${tag}" --notes-file "$notes"
+          fi
