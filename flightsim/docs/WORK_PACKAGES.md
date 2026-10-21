@@ -548,7 +548,7 @@ that the Controls page lists every bound action of the default config; a test th
 `controls.ini` changes what the page shows.
 
 ## H7: HUD mini nav display
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H3, H4 · **Specs:** HUD §3, §7
+**Status:** done (needs device test: the 140 px inset is legible at 640x480 on a straight leg, in a turn, and on approach legs; it stays off until enabled; HUD MIN and the map page hide it) · **Model / effort:** Sonnet / medium · **Depends:** H3, H4 · **Specs:** HUD §3, §7
 
 **Owns:** `src/hud/MiniNav*`, `tests/hud/mininav*`; a settings key (`hud_mini_nav`, default off) and
 a pause-menu toggle (integration).

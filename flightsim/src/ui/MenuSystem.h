@@ -6,7 +6,7 @@
 //   Startup (no --scenario):  Main -> New flight (hub) -> Aircraft / Airport / Runway / Start type /
 //                             Flight plan -> Approach -> START FLIGHT -> MenuAction::StartFlight
 //   In flight (Pause button): Pause menu -> Resume / Flight plan / Restart / New flight / Settings /
-//                             Quit to menu / Quit
+//                             Quit to menu / Quit / Help / Mini nav
 //
 // Screens (internal, see MenuScreens.cpp) are pushed and popped through deferred commands, so a
 // screen may request navigation from inside its own update().

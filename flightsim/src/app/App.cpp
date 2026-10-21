@@ -28,6 +28,7 @@
 #include "hud/GpwsMonitor.h"           // X2
 #include "hud/Hud.h"                   // H2
 #include "hud/HudLogic.h"              // X1
+#include "hud/MiniNav.h"               // H7
 #include "hud/NavHud.h"                // H3
 #include "hud/NavHudFake.h"            // H3
 #include "hud/Renderer2D.h"            // H1
@@ -194,7 +195,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     bool mapShown = opt.mapZoomNm > 0;
     if (mapShown) mapPage.setZoomNm(static_cast<float>(opt.mapZoomNm));
     if (opt.mapTrackUp) mapPage.setOrientation(MapOrientation::TrackUp);
-    NavHud navHud;  // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
+    NavHud navHud;    // H3: FMA, nav box, CDI/LOC/GS, marks, bugs, FD, minimums
+    MiniNav miniNav;  // H7: track-up route inset, off unless settings.hudMiniNav
     hud.setOverlay(&navHud);
     // H2: P3 settings give the starting HUD color and declutter level.
     hudOptions.baroInHg = settings.pressureUnits == PressureUnits::InHg;
@@ -476,9 +478,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 mapPage.draw(hud2d, sim.aircraft(), sim.navState(),
                              sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
                              sim.navDb(), hudOptions.magVarDeg);
-            else if (state != AppState::Menu)
+            else if (state != AppState::Menu) {
                 hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
                          messages, hudOptions);
+                if (miniNavShown(settings.hudMiniNav, hudOptions.declutter, false))
+                    miniNav.draw(hud2d, sim.aircraft(), sim.navState(),
+                                 sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
+                                 settings.hudMiniNavRangeNm);
+            }
             hud2d.end();
             if (menu.active()) {  // H5: own batch, so its panels cover the HUD strokes beneath
                 hud2d.begin(w, h);

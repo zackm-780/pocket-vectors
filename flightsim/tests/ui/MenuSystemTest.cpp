@@ -287,6 +287,18 @@ TEST_CASE("ui: pause menu resumes, restarts and leaves") {
     tap(m, &MenuInput::accept);
     tap(m, &MenuInput::left);
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::Quit);
+
+    // Mini nav is the last row and writes the setting without leaving the pause menu.
+    m.openPause();
+    CHECK_FALSE(mf.settings.hudMiniNav);
+    tap(m, &MenuInput::down, 8);
+    CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);
+    CHECK(m.top() == ScreenId::Pause);
+    CHECK(mf.settings.hudMiniNav);
+    CHECK(std::filesystem::exists(mf.env.settingsPath));
+    Settings saved;
+    saved.load("", mf.env.settingsPath);
+    CHECK(saved.hudMiniNav);
 }
 
 TEST_CASE("ui: in-flight plan screen: direct-to a leg, re-enter the approach, direct-to an ident") {
@@ -369,7 +381,10 @@ TEST_CASE("ui: settings are edited and saved when leaving the screen") {
     tap(m, &MenuInput::down, 3);  // SHOW FPS
     tap(m, &MenuInput::accept);   // A toggles
     CHECK(mf.settings.showFps);
-    tap(m, &MenuInput::down);  // FIELD OF VIEW: numbers change with Left/Right only
+    tap(m, &MenuInput::down);  // MINI NAV
+    tap(m, &MenuInput::accept);
+    CHECK(mf.settings.hudMiniNav);
+    tap(m, &MenuInput::down, 2);  // MINI NAV RANGE, then FIELD OF VIEW
     tap(m, &MenuInput::accept);
     CHECK(mf.settings.fovVerticalDeg == doctest::Approx(55.0f));
     tap(m, &MenuInput::right, 100);  // clamps at 110
@@ -384,6 +399,7 @@ TEST_CASE("ui: settings are edited and saved when leaving the screen") {
     reloaded.load("", mf.env.settingsPath);
     CHECK(reloaded.hudColor == HudColor::White);
     CHECK(reloaded.showFps);
+    CHECK(reloaded.hudMiniNav);
     CHECK(reloaded.fovVerticalDeg == doctest::Approx(110.0f));
 
     // Leaving without a change reports nothing.
