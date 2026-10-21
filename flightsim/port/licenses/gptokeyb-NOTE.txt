@@ -1,7 +1,7 @@
 gptokeyb
 ========
 
-This package does not contain gptokeyb. The launch script starts the copy that the user's PortMaster
+This package does not contain gptokeyb. The launch script starts the copy that the device's PortMaster
 installation provides ($GPTOKEYB, in the PortMaster control folder), without a mapping file, and only
 so that its Select+Start hotkey can close the game. gptokeyb is part of PortMaster:
 https://portmaster.games/gptokeyb-documentation.html . Its licence is determined by the PortMaster

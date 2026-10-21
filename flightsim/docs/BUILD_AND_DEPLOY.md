@@ -87,7 +87,7 @@ launch scripts also work without it. Either way they use the port folder next to
 it holds the binary. Without PortMaster the game handles Select+Start itself.
 
 ### 7.1 Copy the ports (SD-card safe)
-The step-by-step version for the user is `flightsim/INSTALL.md`.
+Player install steps are in `flightsim/INSTALL.md`.
 1. From the `device` workflow run, download the artifact `flightsim-sdcard-PORTS`: both ports
    already unpacked (`FlightSim.sh`, `flightsim/`, `FlightSimProbe.sh`, `flightsimprobe/`). Unzip
    it once and copy the four items into the ports folder (`Roms/PORTS` on the stock OS). The
@@ -118,7 +118,7 @@ The step-by-step version for the user is `flightsim/INSTALL.md`.
    the game never starts. It records PortMaster detection, the folder used, the libraries found, and the
    game's own output and exit status, and whether the OS userspace is 64-bit (the build needs it;
    some Anbernic stock OS releases are 32-bit). The game also keeps `flightsim/conf/log.txt`.
-4. Run the probe port ("Flight Sim Probe") once and send back `flightsimprobe/probe_report.txt` and
+4. Run the probe port ("Flight Sim Probe") once. The results are `flightsimprobe/probe_report.txt` and
    `flightsimprobe_launch_log.txt`.
 
 ### 7.3 Linux / handheld notes (stock Anbernic)

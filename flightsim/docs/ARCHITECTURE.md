@@ -33,7 +33,7 @@ flightsim/
   CMakeLists.txt, cmake/            build, deps (FetchContent), toolchains        WP-00, P1
   src/
     main.cpp                        entry point                                     WP-00
-    core/                           SHARED CONTRACTS (additive changes only)        WP-00 (+supervisor)
+    core/                           SHARED CONTRACTS (additive changes only)        WP-00 (+maintainer)
     app/                            App, game state machine, CLI, scenarios         WP-00, P3
     platform/                       SDL window, GL context, timing, platform detect WP-00, P1
     gfx/                            GL loader, shaders, buffers, textures, camera,   WP-00 base;
@@ -58,7 +58,7 @@ flightsim/
   tools/nav/                        nav pipeline (Python)                           N1, N4
   tools/probe/                      device probe program                            P1
   port/                             PortMaster launch script and metadata          P1
-  docs/                             these documents                                 supervisor; WPs update their sections
+  docs/                             these documents                                 maintainer; WPs update their sections
 ```
 
 ## 3. Frame loop and threading
@@ -121,7 +121,7 @@ below show names, units and semantics. WP-00 also added `core/SimTime.h` (`kSimH
 `ActionState::repeatCount[]` (auto-repeats fired in the current hold, for accelerated bug steps)
 and `core/MessageQueue.h` (fixed ring of short HUD feedback messages, ticked once per frame). N2
 documented `Ils::locWidthDeg` as the total course width and `freqMhz = 0` as untuned. The
-supervisor added `Approach` / `ApproachTransition` to `NavTypes.h` (the one approach type that N4's
+maintainer added `Approach` / `ApproachTransition` to `NavTypes.h` (the one approach type that N4's
 real CIFP procedures and N5's synthesized approaches both produce) and
 `NavDatabase::navaidsNear()` (default empty). F1 added `FlapDetent::vfeKt` (per-detent flap limit; 0 = use the profile `vfeKt`)
 and stores extra profile sections `[crash]`/`[ground]` as `crash.*`/`ground.*` keys in

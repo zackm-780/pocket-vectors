@@ -18,7 +18,7 @@ markings and lights, and PAPIs that work. Flight physics and navigation matter m
   aircraft model. JSBSim ships no visual models.
 - JSBSim flight model with stock aircraft (fleet in section 5).
 - Real terrain from an offline-built tile pyramid: the whole world at coarse resolution plus
-  high-detail regions chosen by the user. Land-cover coloring and water.
+  high-detail regions chosen when the data pack is built. Land-cover coloring and water.
 - Real airports and runways worldwide. Runway markings, edge, threshold and approach lights, PAPI.
 - Start positions: on a runway, on final at N NM, airborne at cruise.
 - Flight plans: build in-game (quick plan, direct-to, edit) or import X-Plane 11 `.fms`.
@@ -66,8 +66,8 @@ Append new decisions at the bottom. Don't rewrite old ones; supersede them with 
 | D2 | **C++17, SDL2, OpenGL ES 2.0** (desktop GL 2.1 fallback through one function loader and a shader preamble). | Fastest option on an A53/Mali-G31. Same code builds on desktop and device. GLES2 is the safe baseline on Mali drivers. |
 | D3 | **JSBSim v1.3.3**, fetched by CMake and built as a **shared library** shipped with the port. | Proven open-source 6-DOF model with stock aircraft. Shared linking keeps LGPL-2.1 compliance simple. |
 | D4 | **Delivered as a PortMaster port** on the stock OS. No custom firmware needed. | The stock OS is 64-bit Linux and runs PortMaster ports. |
-| D5 | **First person + HUD only**, no cockpit or exterior model in v1. | User preference. JSBSim has no visual models. Saves GPU and memory. |
-| D6 | **Stock JSBSim fleet.** Bizjet = Global 5000, heavy = 747 (no A380 in JSBSim). | User approved stock aircraft. |
+| D5 | **First person + HUD only**, no cockpit or exterior model in v1. | JSBSim has no visual models. Keeps the GPU and memory budget on terrain and the HUD. |
+| D6 | **Stock JSBSim fleet.** Bizjet = Global 5000, heavy = 747 (no A380 in JSBSim). | Use the aircraft JSBSim already ships. |
 | D7 | **Rendering in ECEF, camera-relative (RTC).** Every mesh has a double-precision ECEF anchor and float local vertices. | Correct earth curvature and horizon at any altitude, no float jitter, no origin shifting. |
 | D8 | **Terrain = geographic quadtree tile pyramid**, 257×257 int16 tiles (format in [DATA.md](DATA.md)). | Simple, streamable, works for the whole world at coarse resolution plus detailed regions. |
 | D9 | **Nav data from OurAirports (public domain) plus FAA NASR/CIFP (US public domain)**, preprocessed into compact CSVs. | Free and legal. Real approach procedures are only free for the US. Other regions get synthesized approaches. |
@@ -79,10 +79,10 @@ Append new decisions at the bottom. Don't rewrite old ones; supersede them with 
 | D15 | **aarch64 builds target Debian 11 (glibc 2.31)**, with `-static-libstdc++ -static-libgcc`. SDL2 comes from the device or PortMaster. | Older glibc maximises device compatibility. Revisit after the probe reports the device's glibc. |
 | D16 | **Treat JSBSim geodetic altitude as MSL** and ignore geoid undulation everywhere. | Terrain (EGM2008 heights) and airport elevations are MSL. Using one consistent datum keeps runways on the ground. |
 | D17 | **Dependencies allowed:** SDL2 (zlib), JSBSim (LGPL-2.1, shared), doctest (MIT, tests only), stb_image_write (public domain/MIT, screenshots). | Minimal set. Anything else needs a new decision entry. |
-| D18 | **Implementers are Sonnet agents at medium or high effort, supervised by Opus at extra-high effort** (see [AGENTS.md](AGENTS.md)). | User direction. Cheap, fast parallel implementation with strong review and planning. |
-| D19 | **First detailed region = PDX–OTH corridor**, terrain preset `pdx_oth` = bbox lon −124.7..−121.4, lat 43.0..46.3, levels 7–10 (≈ 0.4 GB with land class). It covers KPDX, KOTH, the Oregon coast, the Coast Range, Willamette Valley, Mt Hood and Mt St Helens. **Primary test route: KPDX ⇄ KOTH** (~160 NM via UBG–CVO–EUG–OTH; sample plans in `assets/plans/`). Real-data scenarios, sample plans and acceptance tests use these airports. XTST stays the synthetic test airport for data-free unit tests. | User's home area and most-flown route. Good mix of mountains, coast, valley, ILS and RNAV approaches. |
-| D20 | **Licence: Apache-2.0** for the project's own code, with a `NOTICE` file that credits Zack Martin. | User direction: anyone may fork, modify and redistribute, but copies must keep the copyright and the NOTICE (credit). Compatible with JSBSim (LGPL-2.1, linked as a shared library) and SDL2 (zlib). Data packs keep their sources' terms (ATTRIBUTION.txt). `LICENSE` and `NOTICE` ship in `port/licenses/`. |
-| D21 | **Name: Pocket Vectors**, subtitle "Retro Flight Sim with Modern Data". Display name only: folders, scripts and binaries stay `flightsim/`, `FlightSim.sh`, `flightsim.aarch64` so updates keep `conf/` and `data/`. | User choice, 2026-10-21. |
+| D18 | **Work is split into packages** with a separate review pass (see [AGENTS.md](AGENTS.md)). | One package per pull request, with review before merge. |
+| D19 | **First detailed region = PDX–OTH corridor**, terrain preset `pdx_oth` = bbox lon −124.7..−121.4, lat 43.0..46.3, levels 7–10 (≈ 0.4 GB with land class). It covers KPDX, KOTH, the Oregon coast, the Coast Range, Willamette Valley, Mt Hood and Mt St Helens. **Primary test route: KPDX ⇄ KOTH** (~160 NM via UBG–CVO–EUG–OTH; sample plans in `assets/plans/`). Real-data scenarios, sample plans and acceptance tests use these airports. XTST stays the synthetic test airport for data-free unit tests. | Mountains, coast, valley, ILS and RNAV approaches in one corridor. |
+| D20 | **Licence: Apache-2.0** for the project's own code, with a `NOTICE` file that credits Zack Martin. | Forks may modify and redistribute the code if they keep the copyright and the NOTICE. Compatible with JSBSim (LGPL-2.1, linked as a shared library) and SDL2 (zlib). Data packs keep their sources' terms (ATTRIBUTION.txt). `LICENSE` and `NOTICE` ship in `port/licenses/`. |
+| D21 | **Name: Pocket Vectors**, subtitle "Retro Flight Sim with Modern Data". Display name only: folders, scripts and binaries stay `flightsim/`, `FlightSim.sh`, `flightsim.aarch64` so updates keep `conf/` and `data/`. | Display name set 2026-10-21. The on-card folder name stays stable across updates. |
 
 ## 5. Fleet
 
@@ -112,12 +112,14 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 | **M5 Fleet** | F2, F4 | All core aircraft pass the flyability tests and are selectable. Then the extended fleet. |
 | **M6 Polish** | P3, S1, X1–X4 | Settings persistence, audio, manual and METAR weather, terrain warnings, device performance pass, night lighting (stretch). |
 
-## 7. Open questions (for the user)
+## 7. Open questions
 
-| # | Question | Default until answered |
+| # | Question | Status |
 |---|---|---|
-| Q1 | Final project/port name? | Working title "Flight Sim", port name `flightsim` |
-| Q2 | ~~Which region gets high-detail terrain first?~~ **Answered:** the PDX–OTH corridor (D19). | Preset `pdx_oth` |
-| Q3 | ~~Fly mostly in the US?~~ **Answered:** yes. The main route is Portland (KPDX) ⇄ Southwest Oregon Regional, North Bend (KOTH), both covered by FAA CIFP. | US first |
-| Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the P1 probe and recorded in DEVICE.md |
-| Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg as a setting later. |
+| Q1 | Project name? | **Answered (D21):** Pocket Vectors. The on-card folder stays `flightsim`. |
+| Q2 | Which region gets high-detail terrain first? | **Answered (D19):** the PDX–OTH corridor, preset `pdx_oth`. |
+| Q3 | Is the main route in the US? | **Answered:** Portland (KPDX) ⇄ Southwest Oregon Regional, North Bend (KOTH), both covered by FAA CIFP. |
+| Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the probe and recorded in DEVICE.md. |
+| Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg is a setting. |
+| Q6 | Do printed X and Y match SDL names on the RG40XXH, the same way A and B do? | Likely yes (DEVICE.md §2). Needs one more on-device check (ROADMAP, D1). |
+| Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured. `show_fps` in settings writes it to the launch log. |

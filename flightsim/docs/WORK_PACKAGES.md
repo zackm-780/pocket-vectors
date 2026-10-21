@@ -1,7 +1,8 @@
 # Work packages
 
-Each work package (WP) is sized for **one implementer agent**. The **Model / effort** line says which
-model and effort to run it with (policy in [AGENTS.md](AGENTS.md)). **Owns** lists the paths the WP
+Each work package (WP) is sized for one contributor or one AI coding tool. The **Model / effort**
+line is a hint for how careful the change is (medium for a well-specified package, high where the
+math or the renderer is easy to get wrong). **Owns** lists the paths the WP
 may create or edit. **Depends** lists WPs that must be merged first. "(interface)" means only the
 `core/` contract is needed, so the WP can start with stubs or fakes.
 
@@ -192,7 +193,7 @@ artifact (30 days). No generated data is committed.
 shellcheck; workflow YAML parses.
 
 ## I1: Integration follow-ups
-**Status:** done, merged (needs device test: R1 baro keys, altimeter line placement) · **Model / effort:** Sonnet / medium · **Depends:** N4, N5, N6, H2, H3, X1, P3 · **Owns:** small fixes across merged modules (assigned by the supervisor)
+**Status:** done, merged (needs device test: R1 baro keys, altimeter line placement) · **Model / effort:** Sonnet / medium · **Depends:** N4, N5, N6, H2, H3, X1, P3 · **Owns:** small fixes across merged modules (assigned by the maintainer)
 1. **Late-joining transitions:** `Navigator::loadApproach` builds real approaches with N4's `assembleApproachLegs()` (skips the final legs before the join, e.g. KOTH I05-Y via OTH3 is OTH, EMIRE, EMIRE, RW05); the FAF comes from `Approach::fafFinalLeg` (additive core field, set by N4) instead of the distance heuristic. Tests: `procedures_navigator_test.cpp`. The perfect-pilot flight test no longer flies I05-Y/OTH3 (the fixture has no procedure turn, the 200 degree turn at EMIRE overshoots).
 2. **Short ids:** `findApproach(aps, "I05")` skips helicopter procedures (`Approach::helicopterOnly`, from a COPTER title), then takes the last suffix letter (I05-Z). H5's list shows "ILS Y RWY 05 (COPTER)". The KOTH fixture title for I05-Y now says COPTER.
 3. **Baro:** altitude line under the tape (`STD`, `29.92` or `1013`, per pressure units); R1 + D-pad up/down steps 0.01 inHg or 1 hPa, R1 + Select sets STD (keys 8, 7, 6 on the keyboard; actions BaroInc/BaroDec/BaroStd, additive); N6 bug, capture, hold, ALT mode and the minimums disconnect use indicated altitude. Not changed: N5 VNAV and altitude constraints still compare true altitude.
@@ -228,7 +229,7 @@ speedbrakes). A parameterised headless test suite run per aircraft: takeoff, cli
 configuration changes, stabilized 3° approach from 8 NM, landing rollout to stop with brakes (and
 reversers if present).
 
-**Acceptance:** all 5 aircraft pass, or a documented exception approved by the supervisor.
+**Acceptance:** all 5 aircraft pass, or a documented exception approved by the maintainer.
 
 ## F3: Terrain ground contact
 **Status:** done, merged (needs device test: step cost with terrain; follow-up: DEM vs runway elevation step at KPDX pads) · **Model / effort:** Sonnet / high · **Depends:** F1, W1 · **Specs:** ARCHITECTURE §5 (TerrainQuery), §7
@@ -405,7 +406,7 @@ XTK < 0.3 NM after the intercept.
 **Deliverables:** batched thick lines (quads, round-ish joins, dark outline pass), arcs, filled
 rects, clipping rects, color and alpha, the virtual 640×480 transform, and a stroke font (A–Z, 0–9,
 `. , : / - + ° % < > [ ] ( ) * # ' "` and arrows) with sizes S, M and L, alignment and measurement.
-**Acceptance:** glyph sheet screenshot reviewed by the supervisor. One draw call per frame for the
+**Acceptance:** glyph sheet screenshot reviewed by the maintainer. One draw call per frame for the
 HUD batch.
 
 ## H2: Flight HUD
@@ -443,7 +444,7 @@ nearest list), runway select, start type, flight plan screen (load `.fms`, quick
 approach select), settings screen, and confirmation dialogs.
 
 ## S1: Procedural audio
-**Status:** done, merged (needs device test: underruns at 512 samples, callback CPU, speaker balance; GPWS tones wired by the supervisor) · **Model / effort:** Sonnet / medium · **Depends:** F1 · **Owns:** `src/audio/`
+**Status:** done, merged (needs device test: underruns at 512 samples, callback CPU, speaker balance; GPWS tones wired by the maintainer) · **Model / effort:** Sonnet / medium · **Depends:** F1 · **Owns:** `src/audio/`
 SDL audio. Engine sound by type and RPM/N1, wind by IAS, gear and flap motor sounds, touchdown,
 stall horn, AP disconnect tone, and altitude/minimums alert tones. Volume setting.
 
@@ -458,7 +459,7 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the supervisor
+**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
 
@@ -470,9 +471,10 @@ Time of day, dark terrain with lit runways and approach lights, and city light s
 
 # Wave 5: after the first device run (2026-10-21)
 
-The game runs on the RG40XXH since 2026-10-20 (DEVICE.md §3). These packages come from the
-user's first flights and requests. Start with [HANDOFF.md](HANDOFF.md). Suggested order: D1 first
-(small, fixes what the user hits on every flight), then H6 and R1, then H7 and W6 in parallel.
+The game runs on the RG40XXH (DEVICE.md §3, first successful flight 2026-10-20). These packages
+are the follow-ups from that run. A short public list is in [ROADMAP.md](../../ROADMAP.md).
+Suggested order: D1 first (button labels, every flight), then H6 and R1, then H7 and W6 in
+parallel.
 
 | WP | Title | Model / effort | Depends | Owns (summary) |
 |---|---|---|---|---|
@@ -493,9 +495,10 @@ default unless noted**.
 
 **Evidence (2026-10-20 device run):** PortMaster's mapping on the stock OS is
 `a:b0,b:b1,x:b3,y:b2,back:b8,guide:b6,start:b7,leftshoulder:b4,rightshoulder:b5,lefttrigger:b10,righttrigger:b11`.
-The user reports A and B swapped in flight with the current table (`a = b`, `b = a`, `x = y`,
-`y = x`), so the printed labels equal the SDL names; X/Y are very likely swapped too (confirm with
-the user). The probe shows **Select → SDL `guide`** and the **Menu key → SDL `back`**, so with
+A test flight on 2026-10-20 found A and B swapped with the current table (`a = b`, `b = a`,
+`x = y`, `y = x`), so the printed labels equal the SDL names. X/Y are very likely the same; that
+still needs a second on-device check. The probe shows **Select → SDL `guide`** and the **Menu
+key → SDL `back`**, so with
 `select = back` the physical Select does nothing and Menu acts as Select (map, Select+Start quit).
 
 **Deliverables:**
@@ -507,12 +510,12 @@ the user). The probe shows **Select → SDL `guide`** and the **Menu key → SDL
 3. Do not bind R3 in any layer used in flight: clicking it jolts right stick X by about −0.32
    (rudder). L3 is clean and free.
 4. CONTROLS.md §1: replace the "assumption" text with the measured facts and a short "other
-   devices" note pointing at `conf/controls.ini` (INSTALL.md has the user-facing version).
+   devices" note pointing at `conf/controls.ini` (INSTALL.md is the player-facing version).
 5. Optional: make the probe's input prompts wait up to 8 s for the first press (the A/B/X/Y/L1
    prompts timed out unanswered on the first run). That file is P1's (`tools/probe/`).
 
 **Acceptance:** unit tests for the new default table and for multi-button labels (both `guide`
-and `back` produce Select; `select+start` fires Quit from either). Device check by the user:
+and `back` produce Select; `select+start` fires Quit from either). On-device check:
 A = gear, B = brakes, X = speedbrake, Y = HUD declutter, Select = map, Select+Start = quit.
 
 ## H6: Help menu
@@ -529,7 +532,7 @@ B back), all legible at 640×480:
 2. **Button test**: shows the device label (and SDL name) of the last button or axis pressed, and
    which action it would fire in the base layer. Helps users of other devices fix
    `conf/controls.ini`. Optional: "Swap A/B" and "Swap X/Y" toggles that write `[device_labels]`
-   to `conf/controls.ini` (keep the user's other lines).
+   to `conf/controls.ini` (keep every other line in that file).
 3. **How to**: short pages from plain-text files in `assets/help/` (one file per page, so they can
    be edited without code): first flight (runway start, parking brake, throttle, rotate), using
    the autopilot, flying a flight plan, flying an ILS approach, the map page, loading `.fms`
@@ -550,7 +553,7 @@ that the Controls page lists every bound action of the default config; a test th
 **Owns:** `src/hud/MiniNav*`, `tests/hud/mininav*`; a settings key (`hud_mini_nav`, default off) and
 a pause-menu toggle (integration).
 
-A small track-up moving-map inset in a HUD corner so the user can hand-fly "the pink line":
+A small track-up moving-map inset in a HUD corner for hand-flying "the pink line":
 aircraft symbol, active leg in magenta, other legs white, next waypoint name, distance and ETE,
 cross-track error, current ground track line, optional range ring. Range follows the next
 waypoint (2–20 NM, auto) or a fixed setting. Reuse `MapPageLogic` projection; no terrain
