@@ -10,15 +10,15 @@
 | Controls | D-pad, A/B/X/Y, L1/R1, L2/R2, Select, Start, Menu/function key, volume ±, power, **two analog sticks** |
 | Connectivity | Wi-Fi, Bluetooth, mini-HDMI out, USB-C |
 | Storage | microSD (TF) card(s) |
-| OS | Anbernic stock Linux (64-bit). Runs PortMaster ports. |
+| OS | Anbernic stock Linux (64-bit userspace, Ubuntu 22.04 base). Ships PortMaster. |
 
 ## 2. Unknowns: measure with the P1 probe, then fill in
 | Fact | How | Value |
 |---|---|---|
-| glibc version | `ldd --version` / probe | _tbd_ |
-| Kernel | probe | _tbd_ |
-| PortMaster install path (`controlfolder`) | probe / launch script log | _tbd_ |
-| Ports folder path on the SD card | user | _tbd_ |
+| glibc version | `ldd --version` / probe | 2.35 (Ubuntu GLIBC 2.35-0ubuntu3), launch log 2026-10-20 |
+| Kernel | probe | Linux 4.9.170 aarch64 (`#6 SMP PREEMPT Sat Dec 21 16:10:36 CST 2024`), launch log |
+| PortMaster install path (`controlfolder`) | probe / launch script log | `/roms/ports/PortMaster` (ships with the stock OS; `directory=roms`, `CFW_NAME` empty), launch log |
+| Ports folder path on the SD card | user | `/mnt/sdcard/Roms/PORTS` (SD card in slot 2). PortMaster's own ports folder `/roms/ports` is a different, internal folder. |
 | SDL2 version and video driver | probe | _tbd_ |
 | GL_VERSION / GL_RENDERER / extensions | probe | _tbd_ |
 | Depth bits / MSAA available | probe | _tbd_ |
@@ -36,9 +36,9 @@
 Add observations from device tests here (date, build, what was seen).
 
 - **2026-10-19, first sideload (stock OS):** both the probe and the game opened and exited
-  immediately. Likely cause: the stock OS has no PortMaster, so the PortMaster-template launch
-  scripts failed before writing any log. The scripts now run without PortMaster (and under a
-  plain `sh`) and always write `<port>_launch_log.txt` next to the script. They were also renamed
+  immediately. The guess at the time was that the stock OS has no PortMaster; the 2026-10-20 logs
+  show it does (see below), so the real cause was the wrong port folder. The scripts now run without
+  PortMaster (and under a plain `sh`) and always write `<port>_launch_log.txt` next to the script. They were also renamed
   to `FlightSim.sh` / `FlightSimProbe.sh` (no spaces, in case the launcher does not quote paths),
   and the log now records whether the userspace is 64-bit (some stock OS releases are 32-bit,
   which the aarch64 build cannot run on). Awaiting a retest.
@@ -48,6 +48,16 @@ Add observations from device tests here (date, build, what was seen).
   `DT_NEEDED: libJSBSim.so.1` fails to load. Packaging now ships one regular file
   `libs.aarch64/libJSBSim.so.1`, and `check_package.sh` fails the build if any symlink remains in
   the zip. Re-copy ports from a zip built after that fix.
+- **2026-10-20, second sideload (build with the fixes above):** both ports exited again, but this
+  time wrote launch logs. They show a 64-bit Ubuntu 22.04 userspace (glibc 2.35, kernel 4.9.170),
+  `libSDL2-2.0.so.0` in `/usr/lib` and `/usr/lib/aarch64-linux-gnu`, and PortMaster at
+  `/roms/ports/PortMaster` with `directory=roms`. The scripts were run from
+  `/mnt/sdcard/Roms/PORTS`, but they used PortMaster's ports folder `/roms/ports/<port>`. That
+  folder existed but was empty apart from `conf/` and `log.txt`, which the first sideload's script
+  had created there, so the scripts stopped with "flightsim.aarch64 is missing". The launch scripts
+  now use the folder that holds the binary, preferring the one next to the script, and log every
+  folder they tried. `port/test_launch_scripts.sh` (run in the device workflow) recreates this layout.
+  The leftover `/roms/ports/flightsim*` folders are harmless. Awaiting a retest.
 
 ## 4. How to run the probe
 The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in

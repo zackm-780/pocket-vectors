@@ -69,7 +69,11 @@ flightsim/
 Launch script requirements (P1). Follow the official template at
 <https://portmaster.games/packaging.html>:
 - Locate `controlfolder`, `source control.txt`, source `mod_${CFW_NAME}.txt` if present, call `get_controls`.
-- `GAMEDIR="/$directory/ports/flightsim"`, `cd "$GAMEDIR"`, tee the log to `$GAMEDIR/log.txt`.
+- `GAMEDIR` is the `flightsim/` folder next to the script if it holds the binary, else PortMaster's
+  `/$directory/ports/flightsim`. The template uses only the second, but on the RG40XXH stock OS
+  PortMaster's ports folder (`/roms/ports`) is internal storage, and ports copied to the SD card
+  run from `/mnt/sdcard/Roms/PORTS`. Then `cd "$GAMEDIR"`, and log to `<port>_launch_log.txt` next
+  to the script. `port/test_launch_scripts.sh` checks the folder choice on fake layouts.
 - `export LD_LIBRARY_PATH="$GAMEDIR/libs.${DEVICE_ARCH}:$LD_LIBRARY_PATH"`,
   `export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"`, `export FLIGHTSIM_PLATFORM=portmaster`.
 - `$GPTOKEYB "flightsim.${DEVICE_ARCH}" &`: used **only** for the Select+Start exit hotkey. The game
@@ -78,8 +82,9 @@ Launch script requirements (P1). Follow the official template at
   `--fullscreen --conf-dir "$GAMEDIR/conf"`, then `pm_finish`.
 
 ## 7. Installing on the RG40XXH (human steps)
-PortMaster is **optional**. The Anbernic stock OS does not ship it, and the launch scripts work
-without it: they then use the folder next to the script and the game handles Select+Start itself.
+PortMaster is **optional**. The RG40XXH stock OS ships it (`/roms/ports/PortMaster`), but the
+launch scripts also work without it. Either way they use the port folder next to the script when
+it holds the binary. Without PortMaster the game handles Select+Start itself.
 
 ### 7.1 Extract the port zip (SD-card safe)
 1. Download `flightsim-portmaster.zip` (and optionally `flightsim-probe-portmaster.zip`) from the

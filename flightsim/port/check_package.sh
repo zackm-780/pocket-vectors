@@ -151,7 +151,9 @@ check_tree() {
     && ok "launch script has the PortMaster template calls" || fail "launch script lacks template calls (control.txt/get_controls/pm_platform_helper/pm_finish/LD_LIBRARY_PATH/SDL_GAMECONTROLLERCONFIG/GPTOKEYB)"
   if grep -E '\$GPTOKEYB[^&]*-c ' "$script" >/dev/null; then fail "gptokeyb started with -c: it must be the exit hotkey only"; fi
   [ -x "$script" ] && ok "launch script is executable" || fail "launch script not executable"
-  grep -q "GAMEDIR=/\$directory/ports/$portname" "$script" && ok "GAMEDIR matches port folder" || fail "GAMEDIR in the launch script does not point at ports/$portname"
+  grep -q "PORTNAME=$portname\$" "$script" && grep -q "/\$directory/ports/$portname\"" "$script" \
+    && ok "launch script looks for the port folder '$portname' (next to it, then PortMaster's ports/)" \
+    || fail "launch script PORTNAME or /\$directory/ports/ path does not match the port folder '$portname'"
   grep -q "\.\${DEVICE_ARCH}" "$script" && ok "binary referenced as \${DEVICE_ARCH}" || fail "launch script does not use \${DEVICE_ARCH}"
 
   [ -x "$port_dir/$portname.aarch64" ] && ok "binary $portname.aarch64 present and executable" || fail "binary $portname.aarch64 missing or not executable"

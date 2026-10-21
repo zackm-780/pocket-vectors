@@ -36,7 +36,9 @@ set `data_dir` in `flightsim/conf/settings.ini` (created on first launch).
    `FlightSimProbe.sh`. When it finishes, copy **`flightsimprobe/probe_report.txt`** off
    the card (that is the file to keep).
 2. Run **Flight Sim**. Exit with **Select + Start**.
-3. If something goes wrong, read `flightsim_launch_log.txt` next to `FlightSim.sh`.
+3. If something goes wrong, read `flightsim_launch_log.txt` next to `FlightSim.sh`. Its
+   `candidate` lines list every folder the script checked for `flightsim.aarch64`, and
+   `GAMEDIR=` shows the folder it used.
 
 ## Linux / SD-card notes
 

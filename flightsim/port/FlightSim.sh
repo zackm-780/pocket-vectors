@@ -1,10 +1,10 @@
 #!/bin/bash
 # Flight Sim - launch script (aarch64).
 #
-# Works with PortMaster (official template: https://portmaster.games/packaging.html) and WITHOUT it
-# (e.g. the Anbernic stock OS, which does not ship PortMaster): the port folder is then the
-# "flightsim" folder next to this script. Kept POSIX-sh compatible on purpose, because some
-# launchers run scripts with sh instead of bash.
+# Works with PortMaster (official template: https://portmaster.games/packaging.html) and without it.
+# The port folder is the "flightsim" folder next to this script when it holds the binary, else
+# PortMaster's ports folder (/$directory/ports/flightsim). Kept POSIX-sh compatible on purpose, because
+# some launchers run scripts with sh instead of bash.
 #
 # Always writes flightsim_launch_log.txt NEXT TO THIS SCRIPT (and flightsim/log.txt), so a launch
 # that fails before the game starts can still be diagnosed.
@@ -36,29 +36,41 @@ for d in "/opt/system/Tools/PortMaster" "/opt/tools/PortMaster" "$XDG_DATA_HOME/
   if [ -f "$d/control.txt" ]; then controlfolder="$d"; break; fi
 done
 
-GAMEDIR=""
+PM_PORTDIR=""
 if [ -n "$controlfolder" ]; then
   . "$controlfolder/control.txt"
   [ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && . "${controlfolder}/mod_${CFW_NAME}.txt"
   get_controls
-  GAMEDIR=/$directory/ports/flightsim
+  PM_PORTDIR="/$directory/ports/flightsim"
 fi
-# No PortMaster, or its ports folder is elsewhere: use the folder that sits next to this script.
-if [ -z "$GAMEDIR" ] || [ ! -d "$GAMEDIR" ]; then
-  GAMEDIR="$SCRIPT_DIR/$PORTNAME"
-fi
+DEVICE_ARCH="${DEVICE_ARCH:-aarch64}"
+# Use the folder that holds the binary, preferring the one next to this script. PortMaster's ports
+# folder is not always where the launcher reads scripts from: on the RG40XXH stock OS PortMaster
+# lives in /roms/ports (internal storage) while the Ports menu also runs scripts from the SD card
+# (/mnt/sdcard/Roms/PORTS). A folder without the binary (e.g. one an older script created) is skipped.
+GAMEDIR=""
+for d in "$SCRIPT_DIR/$PORTNAME" "$PM_PORTDIR"; do
+  if [ -n "$d" ] && [ -f "$d/$PORTNAME.${DEVICE_ARCH}" ]; then GAMEDIR="$d"; break; fi
+done
+# Neither holds it: report the folder next to this script, where the install note puts it.
+[ -n "$GAMEDIR" ] || GAMEDIR="$SCRIPT_DIR/$PORTNAME"
 
 # PortMaster helpers become no-ops when PortMaster is not installed.
 command -v pm_message >/dev/null 2>&1 || pm_message() { echo "$*"; }
 command -v pm_platform_helper >/dev/null 2>&1 || pm_platform_helper() { :; }
 command -v pm_finish >/dev/null 2>&1 || pm_finish() { :; }
 
-DEVICE_ARCH="${DEVICE_ARCH:-aarch64}"
 BIN="$GAMEDIR/flightsim.${DEVICE_ARCH}"
 CONFDIR="$GAMEDIR/conf"
 {
   echo "controlfolder=${controlfolder:-<none: PortMaster not found>}"
   echo "CFW_NAME=${CFW_NAME:-} DEVICE_NAME=${DEVICE_NAME:-} directory=${directory:-}"
+  for d in "$SCRIPT_DIR/$PORTNAME" "$PM_PORTDIR"; do
+    [ -n "$d" ] || continue
+    if [ -f "$d/$PORTNAME.${DEVICE_ARCH}" ]; then echo "candidate $d: has $PORTNAME.${DEVICE_ARCH}"
+    elif [ -d "$d" ]; then echo "candidate $d: exists, no $PORTNAME.${DEVICE_ARCH}"
+    else echo "candidate $d: absent"; fi
+  done
   echo "GAMEDIR=$GAMEDIR"
   ls -la "$GAMEDIR" 2>&1 | sed -n '1,30p'
   echo "--- loader / libraries ---"

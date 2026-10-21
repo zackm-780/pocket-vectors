@@ -46,7 +46,12 @@ jobs:
           for f in tools/build_device.sh tools/docker/*.sh port/*.sh; do bash -n "$f"; done
           bash -n port/FlightSim.sh
           bash -n tools/probe/port/FlightSimProbe.sh
-          shellcheck -S warning tools/build_device.sh tools/docker/*.sh port/package_port.sh port/check_package.sh
+          shellcheck -S warning tools/build_device.sh tools/docker/*.sh port/package_port.sh port/check_package.sh \
+            port/test_launch_scripts.sh
+
+      - name: Launch scripts pick the right port folder
+        working-directory: flightsim
+        run: port/test_launch_scripts.sh
 
       - name: Build and check the device packages (Docker, Debian 11)
         working-directory: flightsim
