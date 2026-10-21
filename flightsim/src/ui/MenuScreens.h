@@ -31,6 +31,8 @@ std::unique_ptr<Screen> makeFlightPlanScreen(const MenuSystem& menu);
 // `onYes` empty = information box with a single OK button.
 std::unique_ptr<Screen> makeConfirmScreen(const std::string& message,
                                           std::function<void(MenuSystem&)> onYes);
+// `spec` is the text after "help:" (empty, "controls[:page]", "buttons", "howto[:id]", "about").
+std::unique_ptr<Screen> makeHelpScreen(const MenuSystem& menu, const std::string& spec);
 
 // "5.2 NM" / "143 NM".
 std::string formatDistNm(double nm);

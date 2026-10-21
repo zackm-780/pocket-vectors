@@ -17,6 +17,15 @@
 
 namespace fsim {
 
+// Last gamepad button or axis seen. The Help button test reads this; it stays until the next event.
+struct PadProbe {
+    bool valid = false;
+    bool axis = false;
+    int sdlCode = -1;
+    float axisValue = 0;
+    unsigned serial = 0;  // increments on each recorded event
+};
+
 class InputSystem {
 public:
     static constexpr int kMaxControllers = 4;
@@ -48,6 +57,7 @@ public:
     bool keyboardEnabled() const { return keyboardEnabled_; }
     int controllerCount() const { return controllerCount_; }
     const ControlsConfig& config() const { return cfg_; }
+    const PadProbe& padProbe() const { return probe_; }
 
 private:
     static constexpr int kMaxHeldActions = 4;
@@ -110,6 +120,7 @@ private:
     double clockS_ = 0;
     double lastTapS_ = -1e9;
     bool quit_ = false;
+    PadProbe probe_;
 };
 
 }  // namespace fsim

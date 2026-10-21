@@ -1,0 +1,6 @@
+ILS APPROACH
+Load a plan that names an approach, or pick one from the approach list.
+On the map or the plan screen, the localizer id is shown when the runway has an ILS.
+Hold L1 and press Y so NAV/APR is in approach. The HUD shows LOC and GS when the signal is alive.
+Fly the needles, or let the autopilot capture. The glideslope is the vertical needle.
+Start types of 2, 6 and 10 NM final place you on a 3 degree path already.

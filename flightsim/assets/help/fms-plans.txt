@@ -1,0 +1,6 @@
+FMS PLANS
+Put .fms files in flightsim/data/plans/ on the SD card. The new-flight plan list shows them.
+The format is X-Plane FMS version 1100. SimBrief and Little Navmap can export it.
+A plan can name a departure, an airway route and an approach.
+Files shipped with the game live in assets/plans/ and are listed too.
+The game writes a menu-built plan to flightsim/conf/menu_plan.fms so resume can find it.

@@ -46,7 +46,25 @@ endfunction()
 
 find_package(Threads REQUIRED)
 add_library(fsim_lib STATIC ${FSIM_SOURCES})
-target_include_directories(fsim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# About page: project version plus the git commit at configure time.
+find_package(Git QUIET)
+set(FSIM_GIT_COMMIT "unknown")
+if(GIT_FOUND)
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short=12 HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE FSIM_GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+endif()
+if(FSIM_GIT_COMMIT STREQUAL "")
+  set(FSIM_GIT_COMMIT "unknown")
+endif()
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/ui/BuildInfo.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/generated/BuildInfo.h @ONLY)
+target_include_directories(fsim_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                           ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(fsim_lib PUBLIC fsim_jsbsim fsim_stb SDL2::SDL2 Threads::Threads
                                       ${CMAKE_DL_LIBS})
 fsim_set_warnings(fsim_lib)

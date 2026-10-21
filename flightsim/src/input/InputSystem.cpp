@@ -1,6 +1,7 @@
 #include "input/InputSystem.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -289,6 +290,13 @@ void InputSystem::handleEvent(const SDL_Event& e) {
         break;
     case SDL_CONTROLLERBUTTONDOWN:
     case SDL_CONTROLLERBUTTONUP: {
+        if (e.type == SDL_CONTROLLERBUTTONDOWN) {
+            probe_.valid = true;
+            probe_.axis = false;
+            probe_.sdlCode = e.cbutton.button;
+            probe_.axisValue = 0;
+            ++probe_.serial;
+        }
         const PadInput in = cfg_.padInputForSdlButton(e.cbutton.button);
         if (in == PadInput::Count) break;
         if (e.type == SDL_CONTROLLERBUTTONDOWN) {
@@ -298,7 +306,16 @@ void InputSystem::handleEvent(const SDL_Event& e) {
         }
         break;
     }
-    case SDL_CONTROLLERAXISMOTION: padAxisMotion(e.caxis.axis, e.caxis.value); break;
+    case SDL_CONTROLLERAXISMOTION:
+        if (std::fabs(input::normalizeSdlAxis(e.caxis.value)) >= 0.30f) {
+            probe_.valid = true;
+            probe_.axis = true;
+            probe_.sdlCode = e.caxis.axis;
+            probe_.axisValue = input::normalizeSdlAxis(e.caxis.value);
+            ++probe_.serial;
+        }
+        padAxisMotion(e.caxis.axis, e.caxis.value);
+        break;
     case SDL_CONTROLLERDEVICEADDED: addController(e.cdevice.which); break;
     case SDL_CONTROLLERDEVICEREMOVED: removeController(e.cdevice.which); break;
     default: break;

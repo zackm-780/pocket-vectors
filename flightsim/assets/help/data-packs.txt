@@ -1,0 +1,6 @@
+DATA PACKS
+Terrain and the navigation database live in flightsim/data/.
+A pack needs data/nav/nav.ini and, for terrain, data/terrain/pack.ini.
+Build one with tools/datapack/build_datapack.sh. Presets include pdx_oth, bayarea, mthood and tam_diablo, or pass a bounding box.
+Copy the pack into flightsim/data/ and restart. ATTRIBUTION.txt from the pack is shown on the About page.
+Without a pack the game still flies the synthetic airport XTST.

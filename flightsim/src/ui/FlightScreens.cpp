@@ -143,7 +143,7 @@ private:
 
 class PauseScreen : public Screen {
 public:
-    PauseScreen() : nav_(7, 7) {}
+    PauseScreen() : nav_(8, 8) {}
     ScreenId id() const override { return ScreenId::Pause; }
 
     void update(const MenuInput& in, MenuSystem& m) override {
@@ -178,13 +178,14 @@ public:
                 mm.post(std::move(res));
             });
             break;
+        case 7: m.push(makeHelpScreen(m, "")); break;
         }
     }
 
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
         float px = 0, py = 0;
-        drawPanelFrame(r, t, 320, 300, "PAUSED", px, py);
-        std::vector<ListRow> rows(7);
+        drawPanelFrame(r, t, 340, 360, "PAUSED", px, py);
+        std::vector<ListRow> rows(8);
         rows[0].label = "RESUME";
         rows[1].label = "FLIGHT PLAN";
         rows[2].label = "RESTART FLIGHT";
@@ -192,8 +193,9 @@ public:
         rows[4].label = "SETTINGS";
         rows[5].label = "QUIT TO MENU";
         rows[6].label = "QUIT";
-        drawList(r, t, px + 16, py + 48, 288, 30, nav_, rows);
-        r.text(r.centerX(), py + 292 - 8, "A SELECT   START RESUME", TextSize::S, t.dim,
+        rows[7].label = "HELP";
+        drawList(r, t, px + 16, py + 48, 308, 32, nav_, rows);
+        r.text(r.centerX(), py + 48 + 8 * 32 + 8, "A SELECT   START RESUME", TextSize::S, t.dim,
                HAlign::Center);
     }
 

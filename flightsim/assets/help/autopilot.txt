@@ -1,0 +1,7 @@
+AUTOPILOT
+Hold L1. A toggles the autopilot, B toggles autothrottle.
+X selects heading mode. Y switches NAV and approach.
+D-pad left and right move the heading bug. D-pad up and down move the altitude bug.
+R2 holds the current altitude. The right stick sets vertical speed or the speed bug.
+Select jumps direct to the next waypoint in the plan.
+The flight mode annunciator on the HUD shows what is armed and what is active.

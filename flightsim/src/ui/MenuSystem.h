@@ -45,7 +45,8 @@ enum class ScreenId {
     Settings,
     Pause,
     FlightPlan,
-    Confirm
+    Confirm,
+    Help
 };
 const char* screenName(ScreenId id);
 
@@ -75,6 +76,10 @@ struct MenuEnv {
     std::string lastFlightPath;         // conf/last_flight.ini; empty or missing = no "resume"
     std::string menuPlanPath;           // where a menu-built plan is written (conf/menu_plan.fms)
     std::string navDir;                 // <data>/nav, for real approach procedures
+    std::string controlsDefaultsPath;   // assets/controls_default.ini (Help, H6)
+    std::string controlsUserPath;       // conf/controls.ini, written by the button-test swaps
+    std::string helpDir;                // assets/help
+    std::string attributionPath;        // data/ATTRIBUTION.txt, optional
     double refLatDeg = 0, refLonDeg = 0;  // nearest-airport reference when no flight is active
     bool hasRef = false;
 };
@@ -155,6 +160,16 @@ public:
     void referencePosition(double& latDeg, double& lonDeg) const;
     bool lastFlightAvailable() const;
 
+    // Last gamepad event, copied in by the app each frame for the Help button test.
+    struct PadProbeView {
+        bool valid = false;
+        bool axis = false;
+        int sdlCode = -1;
+        unsigned serial = 0;
+    };
+    void setPadProbe(const PadProbeView& probe) { probe_ = probe; }
+    const PadProbeView& padProbe() const { return probe_; }
+
     // Deferred navigation (applied after the current update() returns).
     void push(std::unique_ptr<Screen> screen);
     void pop();
@@ -187,6 +202,7 @@ private:
     FlightContext flight_;
     bool hasFlight_ = false;
     MenuResult pending_;
+    PadProbeView probe_;
 };
 
 // Menu spec helpers shared with App/Cli (parsing is trivial; kept here for tests).

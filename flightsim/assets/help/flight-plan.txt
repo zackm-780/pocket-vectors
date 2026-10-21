@@ -1,0 +1,6 @@
+FLIGHT PLAN
+New flight, then Flight plan, can load a .fms file or build a quick plan to a destination runway.
+Pick an approach on the next row when you want one.
+In the air, pause and choose Flight plan. Direct to a leg, or type an ident.
+Change approach, or re-enter the approach if you flew through it.
+The active leg is marked on the plan list and on the map.

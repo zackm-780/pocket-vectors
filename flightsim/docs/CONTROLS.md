@@ -88,7 +88,8 @@ While the map is open, trim, flaps and gear inputs are ignored.
 While L2 is held, the right stick does **not** affect throttle or rudder.
 
 ## 3. Menus
-D-pad navigates, A accepts, B goes back, Start closes the pause menu, X and Y are context actions shown
+Help, on the main menu and the pause menu, lists the live bindings, tests a button, and holds the
+how-to pages. D-pad navigates, A accepts, B goes back, Start closes the pause menu, X and Y are context actions shown
 in the footer. The on-screen keyboard (airport/fix search) uses a character grid (D-pad + A, B =
 delete, Start = done, X = space, Y = cycle letters/digits).
 
