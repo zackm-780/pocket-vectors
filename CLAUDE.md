@@ -9,6 +9,7 @@ point. Read it fully before touching anything.
 
 ## Read before you write code
 
+0. `flightsim/docs/HANDOFF.md`: current state, what the user asked for next, device constraints.
 1. `flightsim/docs/PLAN.md`: what we are building, why, decisions, milestones.
 2. `flightsim/docs/ARCHITECTURE.md`: modules, frames and units, shared contracts, frame loop.
 3. `flightsim/docs/CONVENTIONS.md`: code style, units rule, git and PR workflow, definition of done.

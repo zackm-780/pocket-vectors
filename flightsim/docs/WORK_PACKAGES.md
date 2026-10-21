@@ -465,3 +465,159 @@ the measured numbers.
 ## X4: Night lighting (stretch)
 **Status:** done, merged (needs device test: city-light speckle size/shimmer, Mali fragment cost, night HUD legibility) · **Model / effort:** Sonnet / medium · **Depends:** W2, W4, W5
 Time of day, dark terrain with lit runways and approach lights, and city light speckle from urban land class.
+
+---
+
+# Wave 5: after the first device run (2026-10-21)
+
+The game runs on the RG40XXH since 2026-10-20 (DEVICE.md §3). These packages come from the
+user's first flights and requests. Start with [HANDOFF.md](HANDOFF.md). Suggested order: D1 first
+(small, fixes what the user hits on every flight), then H6 and R1, then H7 and W6 in parallel.
+
+| WP | Title | Model / effort | Depends | Owns (summary) |
+|---|---|---|---|---|
+| D1 | Device button labels for the RG40XXH and other PortMaster devices | Sonnet / medium | P2 | `assets/controls_default.ini`, `src/input/`, `tests/input/` |
+| H6 | Help menu: controls reference, button test, how-to pages, About | Sonnet / medium | H5, D1 | `src/ui/Help*`, `assets/help/`, `tests/ui/help*` |
+| H7 | HUD mini nav display ("fly the pink line") | Sonnet / medium | H3, H4 | `src/hud/MiniNav*`, `tests/hud/mininav*` |
+| W6 | World overlays: route waypoints, vertical path, nearby airports, runway highlight | Sonnet / high | W5, N5 | `src/world/WorldOverlay*`, `tests/world/overlay*` |
+| R1 | Public release: install README, SD-card zip script, release workflow | Sonnet / medium | none | `README.md`, `flightsim/INSTALL.md`, `flightsim/tools/sdcard/`, `.github/workflows/release.yml` |
+
+Settings keys, pause-menu items and `App.cpp` wiring that these WPs need are integration changes:
+describe them in the PR (or make them as small additive edits) and keep each toggle **off by
+default unless noted**.
+
+## D1: Device button labels
+**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** P2 · **Specs:** CONTROLS §1, DEVICE.md §2
+
+**Owns:** `assets/controls_default.ini`, `src/input/`, `tests/input/`, `docs/CONTROLS.md` §1.
+
+**Evidence (2026-10-20 device run):** PortMaster's mapping on the stock OS is
+`a:b0,b:b1,x:b3,y:b2,back:b8,guide:b6,start:b7,leftshoulder:b4,rightshoulder:b5,lefttrigger:b10,righttrigger:b11`.
+The user reports A and B swapped in flight with the current table (`a = b`, `b = a`, `x = y`,
+`y = x`), so the printed labels equal the SDL names; X/Y are very likely swapped too (confirm with
+the user). The probe shows **Select → SDL `guide`** and the **Menu key → SDL `back`**, so with
+`select = back` the physical Select does nothing and Menu acts as Select (map, Select+Start quit).
+
+**Deliverables:**
+1. Default label table `a = a`, `b = b`, `x = x`, `y = y`.
+2. Let a label list several SDL buttons (`select = back, guide`) and make that the default, so
+   Select works on the stock OS (`guide`) and on CFWs where Select is `back`. Chords
+   (`select+start`) must accept either. Menu on the stock OS then also acts as Select, which is
+   acceptable; say so in CONTROLS.md.
+3. Do not bind R3 in any layer used in flight: clicking it jolts right stick X by about −0.32
+   (rudder). L3 is clean and free.
+4. CONTROLS.md §1: replace the "assumption" text with the measured facts and a short "other
+   devices" note pointing at `conf/controls.ini` (INSTALL.md has the user-facing version).
+5. Optional: make the probe's input prompts wait up to 8 s for the first press (the A/B/X/Y/L1
+   prompts timed out unanswered on the first run). That file is P1's (`tools/probe/`).
+
+**Acceptance:** unit tests for the new default table and for multi-button labels (both `guide`
+and `back` produce Select; `select+start` fires Quit from either). Device check by the user:
+A = gear, B = brakes, X = speedbrake, Y = HUD declutter, Select = map, Select+Start = quit.
+
+## H6: Help menu
+**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H5, D1 · **Specs:** CONTROLS, HUD §3 (text sizes)
+
+**Owns:** `src/ui/Help*` (new screens), `assets/help/` (page text), `tests/ui/help*`. Adds one
+item to the main menu and the pause menu (H5 files; small additive edit).
+
+A **Help** entry in the main menu and the pause menu with these pages (D-pad ←/→ or ↑/↓ to page,
+B back), all legible at 640×480:
+1. **Controls**: generated from the live `ControlsConfig` (so `conf/controls.ini` overrides and the
+   label table show up correctly), one page per layer: base, L1 autopilot, R1 systems, L2 look,
+   map page, menus. Never hard-code the bindings.
+2. **Button test**: shows the device label (and SDL name) of the last button or axis pressed, and
+   which action it would fire in the base layer. Helps users of other devices fix
+   `conf/controls.ini`. Optional: "Swap A/B" and "Swap X/Y" toggles that write `[device_labels]`
+   to `conf/controls.ini` (keep the user's other lines).
+3. **How to**: short pages from plain-text files in `assets/help/` (one file per page, so they can
+   be edited without code): first flight (runway start, parking brake, throttle, rotate), using
+   the autopilot, flying a flight plan, flying an ILS approach, the map page, loading `.fms`
+   plans (where to put them: `flightsim/data/plans/`), getting more data packs, troubleshooting
+   (launch logs).
+4. **About**: "Flight Sim by Zack Martin", GitHub `github.com/zackm-780`, project
+   `github.com/zackm-780/retro-games`, support link `buymeacoffee.com/zackm`, build version and
+   commit, and credits: JSBSim (LGPL-2.1) and the data attribution text from
+   `data/ATTRIBUTION.txt` when a pack is installed (the Copernicus notice is required).
+
+**Acceptance:** screenshots of every page (`--menu help` or similar, xvfb) at 640×480; a test
+that the Controls page lists every bound action of the default config; a test that a remapped
+`controls.ini` changes what the page shows.
+
+## H7: HUD mini nav display
+**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H3, H4 · **Specs:** HUD §3, §7
+
+**Owns:** `src/hud/MiniNav*`, `tests/hud/mininav*`; a settings key (`hud_mini_nav`, default off) and
+a pause-menu toggle (integration).
+
+A small track-up moving-map inset in a HUD corner so the user can hand-fly "the pink line":
+aircraft symbol, active leg in magenta, other legs white, next waypoint name, distance and ETE,
+cross-track error, current ground track line, optional range ring. Range follows the next
+waypoint (2–20 NM, auto) or a fixed setting. Reuse `MapPageLogic` projection; no terrain
+shading. Pick a corner that does not overlap the tapes or the FMA (HUD §3 layout); about
+140×140 virtual px. Hidden in HUD MIN declutter and while the map page is open.
+
+**Acceptance:** screenshots on the KPDX→KOTH plan (straight leg, turn anticipation, approach
+legs), unit tests for the projection and range logic, frame cost under 0.3 ms on desktop.
+Needs device test (legibility).
+
+## W6: World overlays
+**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W5, N5 · **Specs:** NAVIGATION, HUD §1
+
+**Owns:** `src/world/WorldOverlay*`, `tests/world/overlay*`; settings keys and pause-menu toggles
+(integration). Each layer toggles on its own:
+1. **Route waypoints** (`overlay_route`): a marker at every plan waypoint (active one magenta),
+   with a floating label `NAME  12.3 NM` that stays legible at any distance; route legs drawn as
+   lines. Marker height: the waypoint's altitude constraint, else the plan's cruise altitude,
+   else a pole from the ground.
+2. **Vertical path** (`overlay_vpath`, default off): gates or boxes along the active leg at the
+   planned altitude, following the glidepath on approach legs ("highway in the sky lite").
+3. **Nearby airports** (`overlay_airports`): the nearest airports within a radius (default
+   25 NM, at most 12, from the nav DB nearest query), each with a marker at field elevation and a
+   label `KPDX 8.4 NM`. Hidden inside about 1 NM.
+4. **Runway highlight** (`overlay_runways`): runways are hard to see from altitude; draw their
+   outlines brighter with a minimum on-screen width at distance.
+Optional quick toggle: L3 cycles overlay presets (L3 is clean on the RG40XXH; R3 is not).
+
+**Budget:** the device pays per draw call more than per triangle (DEVICE.md §2: 150 calls cost
++3 ms). Batch all 3D overlays into at most 4 draw calls, labels through `Renderer2D` in the HUD
+pass, and stay under 0.5 ms GPU on the device.
+
+**Acceptance:** screenshots of each layer on the KPDX approach and at cruise; unit tests for
+label placement, distance culling and the nearest-airport selection; measured frame cost.
+Needs device test.
+
+## R1: Public release and install guide
+**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** none (D1 before the first release) · **Specs:** BUILD_AND_DEPLOY §6–7, DATA.md
+
+**Owns:** `README.md` (root), `flightsim/INSTALL.md`, `flightsim/tools/sdcard/` (new),
+`.github/workflows/release.yml` (new).
+
+Public users should get from nothing to flying with one zip on the SD card:
+1. **Release workflow:** on a `v*` tag, build the device package (reuse `tools/build_device.sh
+   --docker`) and attach the game in SD-card layout (`FlightSim.sh` + `flightsim/`, **no probe**)
+   to a GitHub Release. Releases are public and do not expire; Actions artifacts need a GitHub
+   login and expire after 30–90 days.
+2. **SD-card script** `tools/sdcard/make_sdcard_zip.py` (Python 3.8+, standard library only, so it
+   runs on Windows, macOS and Linux): takes the game (release zip, artifact zip or folder), one or
+   more data packs (zips or folders, merged), and optional `.fms` plans (copied to
+   `flightsim/data/plans/`), checks the layout (binary, `libs.aarch64/libJSBSim.so.1` as a regular
+   file, `data/terrain`, `data/nav/nav.ini`), and writes one zip whose contents go into the ports
+   folder (`Roms/PORTS` on the stock OS). Unit test it with tiny fixture zips.
+3. **Data packs:** the pack is built from Copernicus DEM and ESA WorldCover; do not attach it to a
+   public release until DATA.md's licence check says redistribution is fine. Document both ways to
+   build one: fork the repo and run the `datapack` workflow (presets `pdx_oth`, `bayarea`,
+   `mthood`, `tam_diablo`; add a `bbox` input for custom regions), or run
+   `tools/datapack/build_datapack.sh` locally.
+4. **Flight plans:** `.fms` v1100 (X-Plane 11/12) files go in `flightsim/data/plans/`. Document
+   exporting them from SimBrief or Little Navmap (check both against `src/nav/README_FMS.md`), and
+   the in-game quick plan.
+5. **Root README** for the public: what it is, supported devices (RG40XXH stock OS tested; other
+   PortMaster devices untested, see button mapping), install in three steps with the script, flight
+   plans, more regions, controls (link and the in-game Help), troubleshooting (launch logs),
+   building from source, contributing, credits and licences. Keep the existing "Author and support"
+   section at the bottom. `flightsim/INSTALL.md` stays the detailed version; the probe is only
+   mentioned under testing.
+
+**Acceptance:** a fresh clone, the release zip, a data pack and one `.fms` produce a zip with the
+script that boots to the main menu on the device (user test); the script's tests pass in CI.

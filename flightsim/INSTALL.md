@@ -51,6 +51,31 @@ To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/s
    `candidate` lines list every folder the script checked for `flightsim.aarch64`, and
    `GAMEDIR=` shows the folder it used.
 
+## Buttons in the wrong place?
+
+The game reads the gamepad through SDL with the button names PortMaster gives your device, and a
+small table in `flightsim/assets/controls_default.ini` (`[device_labels]`) says which SDL name
+each **printed** label produces. Devices and firmwares differ, so you can override that table
+without touching the game: create `flightsim/conf/controls.ini` (a plain text file) and put the
+lines you need in it. The game only reads this file, never overwrites it.
+
+**RG40XXH stock OS** (until the defaults are fixed, see WORK_PACKAGES D1):
+
+```ini
+[device_labels]
+a = a
+b = b
+x = x
+y = y
+select = guide
+```
+
+**Other devices:** if A and B (or X and Y) are swapped, swap the right-hand sides of those lines.
+If Select does nothing, try `select = back` or `select = guide`. The probe (Flight Sim Probe)
+lists what every button produces in `flightsimprobe/probe_report.txt` (section CONTROLLERS and
+INPUT TEST). You can also rebind actions in the same file, e.g. a `[pad.base]` section with
+`GearToggle = a`; see the comments in `controls_default.ini` and `docs/CONTROLS.md`.
+
 ## Linux / SD-card notes
 
 - FAT/exFAT often drops the executable bit. The launchers start the binary via
