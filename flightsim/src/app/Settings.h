@@ -27,6 +27,8 @@ struct Settings {
     bool showFps = false;
     HudColor hudColor = HudColor::Green;
     HudDeclutter hudDeclutterDefault = HudDeclutter::Std;
+    bool hudMiniNav = false;         // H7: track-up inset, off until the player turns it on
+    float hudMiniNavRangeNm = 0.0f;  // 0 = follow the next waypoint (2..20 NM); else a fixed range
     PressureUnits pressureUnits = PressureUnits::Hpa;
     int simHz = 120;  // 120 | 60 (stored; the fixed step is still core/SimTime.h kSimHz)
     GraphicsQuality graphicsQuality = GraphicsQuality::Med;

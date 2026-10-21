@@ -28,8 +28,9 @@ the logic: `ListNav`, `OnScreenKeyboard`, `FlightSetup` and the screens are unit
   referenced by `Scenario::planPath` (so Resume last flight keeps it); a plan-less approach goes in
   `Scenario::approachId` (practice approach at the start runway).
 * Pause button: Resume, Flight plan (direct-to a leg or an ident, change or remove the approach,
-  re-enter the approach), Restart flight, New flight, Settings, Quit to menu, Quit, Help. Restart and
-  quits ask for confirmation. Select+Start still quits from anywhere (P2).
+  re-enter the approach), Restart flight, New flight, Settings, Quit to menu, Quit, Help, Mini nav
+  (toggles the HUD inset and writes `hud_mini_nav` in `conf/settings.ini`). Restart and quits ask
+  for confirmation. Select+Start still quits from anywhere (P2).
 * Help (main menu and pause menu): live control list from the loaded bindings (one page per layer,
   plus the map and the menus), a button test that can swap A/B or X/Y in `conf/controls.ini`,
   how-to pages from `assets/help/`, and About (credits, build version, data attribution).

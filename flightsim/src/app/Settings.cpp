@@ -98,6 +98,10 @@ void Settings::clampAll() {
     fix(fovVerticalDeg, 30.0f, 110.0f, 55.0f);
     for (float* s : {&pitchSens, &rollSens, &rudderSens}) fix(*s, 0.25f, 2.0f, 1.0f);
     fix(weatherTurbulence, 0.0f, 1.0f, 0.0f);  // X1
+    if (!(hudMiniNavRangeNm == hudMiniNavRangeNm) || hudMiniNavRangeNm <= 0.0f)
+        hudMiniNavRangeNm = 0.0f;  // H7: 0 = auto
+    else
+        hudMiniNavRangeNm = std::clamp(hudMiniNavRangeNm, 2.0f, 20.0f);
     for (float* e : {&pitchExpo, &rollExpo, &rudderExpo}) fix(*e, 0.0f, 1.0f, 0.0f);
     volumePct = std::clamp(volumePct, 0, 100);
     if (simHz != 60 && simHz != 120) simHz = 120;
@@ -152,6 +156,8 @@ int Settings::applyText(const std::string& text) {
     flag("show_fps", showFps);
     choice("hud_color", kHudColors, hudColor);
     choice("hud_declutter_default", kDeclutters, hudDeclutterDefault);
+    flag("hud_mini_nav", hudMiniNav);  // H7
+    num("hud_mini_nav_range_nm", hudMiniNavRangeNm);
     choice("pressure_units", kPressure, pressureUnits);
     integer("sim_hz", simHz);
     choice("graphics_quality", kQuality, graphicsQuality);
@@ -225,6 +231,8 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"show_fps", b(s.showFps)},
         {"hud_color", enumText(kHudColors, s.hudColor)},
         {"hud_declutter_default", enumText(kDeclutters, s.hudDeclutterDefault)},
+        {"hud_mini_nav", b(s.hudMiniNav)},  // H7
+        {"hud_mini_nav_range_nm", fmtFloat(s.hudMiniNavRangeNm)},
         {"pressure_units", enumText(kPressure, s.pressureUnits)},
         {"sim_hz", std::to_string(s.simHz)},
         {"graphics_quality", enumText(kQuality, s.graphicsQuality)},

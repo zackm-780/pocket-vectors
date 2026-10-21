@@ -55,6 +55,27 @@ const SettingDef kSettingDefs[] = {
      [](Settings& s, int d) { s.pressureUnits = cycleEnum(s.pressureUnits, d, 2); }},
     {"SHOW FPS", false, [](const Settings& s) -> std::string { return s.showFps ? "ON" : "OFF"; },
      [](Settings& s, int) { s.showFps = !s.showFps; }},
+    {"MINI NAV", false,
+     [](const Settings& s) -> std::string { return s.hudMiniNav ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.hudMiniNav = !s.hudMiniNav; }},
+    {"MINI NAV RANGE", false,
+     [](const Settings& s) -> std::string {
+         return s.hudMiniNavRangeNm <= 0 ? "AUTO" : fmt("%.0f NM", s.hudMiniNavRangeNm);
+     },
+     [](Settings& s, int d) {
+         static const float kSteps[] = {0, 2, 5, 10, 20};
+         int best = 0;
+         float err = 1e9f;
+         for (int i = 0; i < 5; ++i) {
+             const float e = std::fabs(s.hudMiniNavRangeNm - kSteps[i]);
+             if (e < err) {
+                 err = e;
+                 best = i;
+             }
+         }
+         best = std::clamp(best + (d >= 0 ? 1 : -1), 0, 4);
+         s.hudMiniNavRangeNm = kSteps[best];
+     }},
     {"FIELD OF VIEW", true, [](const Settings& s) { return fmt("%.0f DEG", s.fovVerticalDeg); },
      [](Settings& s, int d) { s.fovVerticalDeg += 5.0f * static_cast<float>(d); }},
     {"VOLUME", true, [](const Settings& s) { return fmt("%.0f%%", s.volumePct); },
@@ -143,7 +164,7 @@ private:
 
 class PauseScreen : public Screen {
 public:
-    PauseScreen() : nav_(8, 8) {}
+    PauseScreen() : nav_(9, 9) {}
     ScreenId id() const override { return ScreenId::Pause; }
 
     void update(const MenuInput& in, MenuSystem& m) override {
@@ -179,13 +200,20 @@ public:
             });
             break;
         case 7: m.push(makeHelpScreen(m, "")); break;
+        case 8: {
+            Settings& s = m.settings();
+            s.hudMiniNav = !s.hudMiniNav;
+            if (!m.env().settingsPath.empty() && !s.save(m.env().settingsPath))
+                LOG_WARN("settings: cannot write %s", m.env().settingsPath.c_str());
+            break;
+        }
         }
     }
 
-    void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
+    void draw(Renderer2D& r, const UiTheme& t, const MenuSystem& m) const override {
         float px = 0, py = 0;
-        drawPanelFrame(r, t, 340, 360, "PAUSED", px, py);
-        std::vector<ListRow> rows(8);
+        drawPanelFrame(r, t, 340, 424, "PAUSED", px, py);
+        std::vector<ListRow> rows(9);
         rows[0].label = "RESUME";
         rows[1].label = "FLIGHT PLAN";
         rows[2].label = "RESTART FLIGHT";
@@ -194,8 +222,10 @@ public:
         rows[5].label = "QUIT TO MENU";
         rows[6].label = "QUIT";
         rows[7].label = "HELP";
-        drawList(r, t, px + 16, py + 48, 308, 32, nav_, rows);
-        r.text(r.centerX(), py + 48 + 8 * 32 + 8, "A SELECT   START RESUME", TextSize::S, t.dim,
+        rows[8].label = "MINI NAV";
+        rows[8].value = m.settings().hudMiniNav ? "ON" : "OFF";
+        drawList(r, t, px + 16, py + 44, 308, 34, nav_, rows);
+        r.text(r.centerX(), py + 44 + 9 * 34 + 14, "A SELECT   START RESUME", TextSize::S, t.dim,
                HAlign::Center);
     }
 

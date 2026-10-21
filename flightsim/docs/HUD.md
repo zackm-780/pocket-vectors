@@ -71,6 +71,7 @@ altitudes, flaps, gear, trim, throttle and engines, brakes, nav, autopilot) must
 | Status row 2 | 0, 456, 640, 18 | Speedbrake, reversers, brakes and parking brake, fuel, wind, flight time |
 | Warnings | centered, y 300 | Highest priority first: `CRASH: <reason>`, `PULL UP`, `STALL`, `TERRAIN`, `SINK RATE`, `OVERSPEED`, `GEAR` (amber), `AP OFF` (amber flash), `PARK BRK` (amber while throttle > 50% and parking brake set), `PAUSED` |
 | Messages | centered, y 330 | Transient feedback (§1) |
+| Mini nav | 118, 214, 140, 140 | Track-up route inset (H7), off unless `hud_mini_nav` is on. Aircraft symbol, magenta active leg, other legs white, next-waypoint distance, ETE, cross-track and a range ring. Hidden in MIN declutter and while the map page is open. |
 
 ## 4. Status rows: required fields
 
