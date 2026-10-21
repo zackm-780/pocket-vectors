@@ -42,6 +42,12 @@ struct Settings {
     bool weatherMetar = true;        // use <data>/weather/<ICAO>.txt when the airport has one
     bool weatherGusts = true;        // gusts from the scenario or METAR
     float weatherTurbulence = 0.0f;  // 0..1 light turbulence (scenario value wins)
+    // W6: world overlays, each off until the player turns it on. Radius clamps to 5..80 NM.
+    bool overlayRoute = false;
+    bool overlayVpath = false;
+    bool overlayAirports = false;
+    bool overlayRunways = false;
+    float overlayAirportRadiusNm = 25.0f;
     std::string lastAircraft;
 
     // Parses settings text onto *this (keys that are absent or invalid keep their current value;

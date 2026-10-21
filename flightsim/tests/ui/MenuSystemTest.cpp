@@ -288,7 +288,7 @@ TEST_CASE("ui: pause menu resumes, restarts and leaves") {
     tap(m, &MenuInput::left);
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::Quit);
 
-    // Mini nav is the last row and writes the setting without leaving the pause menu.
+    // Mini nav is row 8 and writes the setting without leaving the pause menu.
     m.openPause();
     CHECK_FALSE(mf.settings.hudMiniNav);
     tap(m, &MenuInput::down, 8);
@@ -299,6 +299,16 @@ TEST_CASE("ui: pause menu resumes, restarts and leaves") {
     Settings saved;
     saved.load("", mf.env.settingsPath);
     CHECK(saved.hudMiniNav);
+
+    // Overlays is the next row. Accept cycles off -> route and saves immediately.
+    CHECK_FALSE(mf.settings.overlayRoute);
+    tap(m, &MenuInput::down, 1);
+    CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);
+    CHECK(m.top() == ScreenId::Pause);
+    CHECK(mf.settings.overlayRoute);
+    CHECK_FALSE(mf.settings.overlayVpath);
+    saved.load("", mf.env.settingsPath);
+    CHECK(saved.overlayRoute);
 }
 
 TEST_CASE("ui: in-flight plan screen: direct-to a leg, re-enter the approach, direct-to an ident") {

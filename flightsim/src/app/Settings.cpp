@@ -102,6 +102,10 @@ void Settings::clampAll() {
         hudMiniNavRangeNm = 0.0f;  // H7: 0 = auto
     else
         hudMiniNavRangeNm = std::clamp(hudMiniNavRangeNm, 2.0f, 20.0f);
+    if (!(overlayAirportRadiusNm == overlayAirportRadiusNm))
+        overlayAirportRadiusNm = 25.0f;  // W6
+    else
+        overlayAirportRadiusNm = std::clamp(overlayAirportRadiusNm, 5.0f, 80.0f);
     for (float* e : {&pitchExpo, &rollExpo, &rudderExpo}) fix(*e, 0.0f, 1.0f, 0.0f);
     volumePct = std::clamp(volumePct, 0, 100);
     if (simHz != 60 && simHz != 120) simHz = 120;
@@ -174,6 +178,11 @@ int Settings::applyText(const std::string& text) {
     flag("weather_metar", weatherMetar);  // X1
     flag("weather_gusts", weatherGusts);
     num("weather_turbulence", weatherTurbulence);
+    flag("overlay_route", overlayRoute);  // W6
+    flag("overlay_vpath", overlayVpath);
+    flag("overlay_airports", overlayAirports);
+    flag("overlay_runways", overlayRunways);
+    num("overlay_airport_radius_nm", overlayAirportRadiusNm);
     str("last_aircraft", lastAircraft);
 
     if (ini.has(kSection, "sim_hz") && simHz != 60 && simHz != 120)
@@ -249,6 +258,11 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"weather_metar", b(s.weatherMetar)},  // X1
         {"weather_gusts", b(s.weatherGusts)},
         {"weather_turbulence", fmtFloat(s.weatherTurbulence)},
+        {"overlay_route", b(s.overlayRoute)},  // W6
+        {"overlay_vpath", b(s.overlayVpath)},
+        {"overlay_airports", b(s.overlayAirports)},
+        {"overlay_runways", b(s.overlayRunways)},
+        {"overlay_airport_radius_nm", fmtFloat(s.overlayAirportRadiusNm)},
         {"last_aircraft", s.lastAircraft},
     };
 }

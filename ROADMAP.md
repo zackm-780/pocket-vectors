@@ -17,7 +17,6 @@ US instrument approaches. Open work is tracked as work packages in
 
 | ID | What | Notes |
 |---|---|---|
-| W6 | World markers for the route, vertical path, nearby airports, and brighter runways | Each layer toggles on its own |
 | X3 | Device performance pass | Draw-call budget on the Mali-G31 |
 
 ## Later

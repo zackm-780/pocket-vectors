@@ -79,7 +79,9 @@ Tagged releases do not include a terrain pack. Build one and keep its `ATTRIBUTI
 ## Controls
 
 On the RG40XXH the defaults match the printed labels: A gear, B brakes, X speedbrake, Y HUD
-declutter, Select map, Start pause, Select+Start quit. The Menu key also acts as Select. R3 is
+declutter, Select map, Start pause, Select+Start quit. The Menu key also acts as Select. L3
+cycles world overlays (route, vertical path, nearby airports, runway outlines); every layer
+starts off. R3 is
 not used in flight. The in-game **Help** menu lists the live bindings, has a button test, and
 holds the how-to pages. Full map: [flightsim/docs/CONTROLS.md](flightsim/docs/CONTROLS.md).
 

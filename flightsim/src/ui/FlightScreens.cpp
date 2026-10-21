@@ -7,6 +7,7 @@
 #include "core/Log.h"
 #include "nav/FlightPlan.h"
 #include "ui/MenuScreens.h"
+#include "world/WorldOverlayLogic.h"
 
 namespace fsim {
 
@@ -108,6 +109,34 @@ const SettingDef kSettingDefs[] = {
      [](Settings& s, int) { s.weatherMetar = !s.weatherMetar; }},
     {"TURBULENCE", true, [](const Settings& s) { return fmt("%.1f", s.weatherTurbulence); },
      [](Settings& s, int d) { s.weatherTurbulence += 0.1f * static_cast<float>(d); }},
+    {"OVERLAY ROUTE", false,
+     [](const Settings& s) -> std::string { return s.overlayRoute ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.overlayRoute = !s.overlayRoute; }},
+    {"OVERLAY PATH", false,
+     [](const Settings& s) -> std::string { return s.overlayVpath ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.overlayVpath = !s.overlayVpath; }},
+    {"OVERLAY AIRPORTS", false,
+     [](const Settings& s) -> std::string { return s.overlayAirports ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.overlayAirports = !s.overlayAirports; }},
+    {"OVERLAY RUNWAYS", false,
+     [](const Settings& s) -> std::string { return s.overlayRunways ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.overlayRunways = !s.overlayRunways; }},
+    {"AIRPORT RADIUS", false,
+     [](const Settings& s) { return fmt("%.0f NM", s.overlayAirportRadiusNm); },
+     [](Settings& s, int d) {
+         static const float kSteps[] = {5, 10, 15, 25, 40, 60, 80};
+         int best = 0;
+         float err = 1e9f;
+         for (int i = 0; i < 7; ++i) {
+             const float e = std::fabs(s.overlayAirportRadiusNm - kSteps[i]);
+             if (e < err) {
+                 err = e;
+                 best = i;
+             }
+         }
+         best = std::clamp(best + (d >= 0 ? 1 : -1), 0, 6);
+         s.overlayAirportRadiusNm = kSteps[best];
+     }},
 };
 constexpr int kSettingCount = static_cast<int>(sizeof kSettingDefs / sizeof kSettingDefs[0]);
 
@@ -164,7 +193,7 @@ private:
 
 class PauseScreen : public Screen {
 public:
-    PauseScreen() : nav_(9, 9) {}
+    PauseScreen() : nav_(10, 10) {}
     ScreenId id() const override { return ScreenId::Pause; }
 
     void update(const MenuInput& in, MenuSystem& m) override {
@@ -207,13 +236,29 @@ public:
                 LOG_WARN("settings: cannot write %s", m.env().settingsPath.c_str());
             break;
         }
+        case 9: {
+            Settings& s = m.settings();
+            world::OverlayToggles t;
+            t.route = s.overlayRoute;
+            t.vpath = s.overlayVpath;
+            t.airports = s.overlayAirports;
+            t.runways = s.overlayRunways;
+            world::overlayCycle(t);
+            s.overlayRoute = t.route;
+            s.overlayVpath = t.vpath;
+            s.overlayAirports = t.airports;
+            s.overlayRunways = t.runways;
+            if (!m.env().settingsPath.empty() && !s.save(m.env().settingsPath))
+                LOG_WARN("settings: cannot write %s", m.env().settingsPath.c_str());
+            break;
+        }
         }
     }
 
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem& m) const override {
         float px = 0, py = 0;
-        drawPanelFrame(r, t, 340, 424, "PAUSED", px, py);
-        std::vector<ListRow> rows(9);
+        drawPanelFrame(r, t, 340, 440, "PAUSED", px, py);
+        std::vector<ListRow> rows(10);
         rows[0].label = "RESUME";
         rows[1].label = "FLIGHT PLAN";
         rows[2].label = "RESTART FLIGHT";
@@ -224,8 +269,15 @@ public:
         rows[7].label = "HELP";
         rows[8].label = "MINI NAV";
         rows[8].value = m.settings().hudMiniNav ? "ON" : "OFF";
+        world::OverlayToggles layers;
+        layers.route = m.settings().overlayRoute;
+        layers.vpath = m.settings().overlayVpath;
+        layers.airports = m.settings().overlayAirports;
+        layers.runways = m.settings().overlayRunways;
+        rows[9].label = "OVERLAYS";
+        rows[9].value = world::overlayPresetName(world::overlayMatchingPreset(layers));
         drawList(r, t, px + 16, py + 44, 308, 34, nav_, rows);
-        r.text(r.centerX(), py + 44 + 9 * 34 + 14, "A SELECT   START RESUME", TextSize::S, t.dim,
+        r.text(r.centerX(), py + 44 + 10 * 34 + 12, "A SELECT   START RESUME", TextSize::S, t.dim,
                HAlign::Center);
     }
 
