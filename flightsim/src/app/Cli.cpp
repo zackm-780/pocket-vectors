@@ -47,7 +47,8 @@ std::string cliUsage() {
            "  --asset-dir <path>      asset root holding jsbsim/ and assets/ (default <exe dir>)\n"
            "  --resume                start from the last flight (<conf dir>/last_flight.ini)\n"
            "  --menu <screen[:arg]>   open a menu screen (main, setup, aircraft, airport:TEXT, "
-           "runway:ICAO, start, plan:FILE, approach:FILE, settings, pause, flightplan)\n"
+           "runway:ICAO, start, plan:FILE, approach:FILE, settings, pause, flightplan, "
+           "help[:PAGE])\n"
            "  --help                  this text\n";
 }
 

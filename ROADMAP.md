@@ -17,7 +17,6 @@ US instrument approaches. Open work is tracked as work packages in
 
 | ID | What | Notes |
 |---|---|---|
-| H6 | In-game Help: live control list, button test, how-to pages, About | Credits and data attribution |
 | H7 | Small track-up nav inset on the HUD ("fly the pink line") | Off by default |
 | W6 | World markers for the route, vertical path, nearby airports, and brighter runways | Each layer toggles on its own |
 | R1 | Repeatable release packaging and a fuller install guide | Flight plans, more regions |

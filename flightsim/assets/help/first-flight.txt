@@ -1,0 +1,7 @@
+FIRST FLIGHT
+Start on a runway. Hold B to test the brakes, then double-tap B for the parking brake.
+Push the right stick up to add power. The throttle stays where you leave it.
+Steer with the right stick on the ground, and the left stick in the air.
+Rotate when the airspeed is alive, then climb away and raise the flaps with D-pad left.
+A toggles the gear. Y cycles the HUD. Start opens the pause menu.
+Select+Start quits. The Menu key also acts as Select.

@@ -220,6 +220,10 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     menuEnv.lastFlightPath = paths.conf("last_flight.ini");
     menuEnv.menuPlanPath = paths.conf("menu_plan.fms");
     menuEnv.navDir = paths.data("nav");
+    menuEnv.controlsDefaultsPath = paths.asset("assets/controls_default.ini");
+    menuEnv.controlsUserPath = paths.conf("controls.ini");
+    menuEnv.helpDir = paths.asset("assets/help");
+    menuEnv.attributionPath = paths.data("ATTRIBUTION.txt");
     MenuSystem menu(menuEnv);
     menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
     if (!opt.menuSpec.empty()) {
@@ -334,6 +338,13 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         // H5: an open menu consumes the input (X/Y/Start are menu buttons there); otherwise the
         // Pause button opens the pause menu.
         if (menu.active()) {
+            const PadProbe& probe = input.padProbe();
+            MenuSystem::PadProbeView view;
+            view.valid = probe.valid;
+            view.axis = probe.axis;
+            view.sdlCode = probe.sdlCode;
+            view.serial = probe.serial;
+            menu.setPadProbe(view);
             const MenuResult res = menu.update(menuInputFromActions(actions));
             if (!res.message.empty()) messages.post(res.message.c_str());
             if (res.settingsChanged) applySettings();

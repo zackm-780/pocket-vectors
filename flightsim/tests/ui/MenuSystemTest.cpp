@@ -49,6 +49,10 @@ struct MenuFixture {
         env.planDirs = {dir + "/plans", f.paths.asset("assets/plans")};
         env.lastFlightPath = dir + "/last_flight.ini";
         env.menuPlanPath = dir + "/menu_plan.fms";
+        env.controlsDefaultsPath = f.paths.asset("assets/controls_default.ini");
+        env.controlsUserPath = dir + "/controls.ini";
+        env.helpDir = f.paths.asset("assets/help");
+        env.attributionPath = dir + "/ATTRIBUTION.txt";
         menu = std::make_unique<MenuSystem>(env);
     }
     // Starts a cruise flight over XTST with the sample plan and its ILS 09 approach loaded.
@@ -109,7 +113,7 @@ TEST_CASE("ui: quit asks for confirmation") {
     MenuFixture mf("quit");
     MenuSystem& m = *mf.menu;
     m.openMain();
-    tap(m, &MenuInput::down, 2);  // Quit (row 3; the cursor starts on row 1)
+    tap(m, &MenuInput::down, 3);  // Quit (row 4; the cursor starts on row 1)
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);
     CHECK(m.top() == ScreenId::Confirm);
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);  // the default answer is NO
@@ -403,9 +407,31 @@ TEST_CASE("ui: canned screens open and draw inside the canvas; bad specs are rej
     mf.startFlying();
     std::string err;
     static const gfx::GlApi noGl{};
-    for (const char* spec : {"main", "setup", "aircraft", "airport", "airport:XT", "runway",
-                             "runway:XTST", "start", "plan:XTST-pattern", "approach:XTST-pattern",
-                             "settings", "pause", "flightplan", "confirm"}) {
+    for (const char* spec : {"main",
+                             "setup",
+                             "aircraft",
+                             "airport",
+                             "airport:XT",
+                             "runway",
+                             "runway:XTST",
+                             "start",
+                             "plan:XTST-pattern",
+                             "approach:XTST-pattern",
+                             "settings",
+                             "pause",
+                             "flightplan",
+                             "confirm",
+                             "help",
+                             "help:controls",
+                             "help:controls:l1",
+                             "help:controls:r1",
+                             "help:controls:l2",
+                             "help:controls:map",
+                             "help:controls:menus",
+                             "help:buttons",
+                             "help:howto",
+                             "help:howto:ils",
+                             "help:about"}) {
         INFO(spec);
         REQUIRE(m.openCanned(spec, err));
         CHECK(m.active());
@@ -430,4 +456,26 @@ TEST_CASE("ui: canned screens open and draw inside the canvas; bad specs are rej
     CHECK_FALSE(m.openCanned("runway:ZZZZ", err));
     MenuFixture noFlight("canned_noflight");
     CHECK_FALSE(noFlight.menu->openCanned("pause", err));
+}
+
+TEST_CASE("ui: help opens from the main menu and from a canned page") {
+    MenuFixture mf("help_nav");
+    MenuSystem& m = *mf.menu;
+    m.openMain();
+    tap(m, &MenuInput::down, 2);  // Help (cursor starts on New flight)
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::Help);
+    tap(m, &MenuInput::accept);  // Controls
+    tap(m, &MenuInput::back);    // back to the help index
+    CHECK(m.top() == ScreenId::Help);
+    tap(m, &MenuInput::back);
+    CHECK(m.top() == ScreenId::Main);
+
+    std::string err;
+    REQUIRE(m.openCanned("help:controls:map", err));
+    CHECK(m.top() == ScreenId::Help);
+    tap(m, &MenuInput::back);
+    CHECK(m.top() == ScreenId::Help);
+    tap(m, &MenuInput::back);
+    CHECK(m.top() == ScreenId::Main);
 }

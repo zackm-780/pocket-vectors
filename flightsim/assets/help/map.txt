@@ -1,0 +1,6 @@
+MAP
+Select opens and closes the moving map. The sim keeps running underneath.
+D-pad up and down zoom. D-pad left and right move along the route.
+A goes direct to the waypoint you have selected.
+Y switches north-up and track-up.
+B closes the map. Trim, flaps and gear are ignored while it is open.

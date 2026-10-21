@@ -519,7 +519,7 @@ and `back` produce Select; `select+start` fires Quit from either). On-device che
 A = gear, B = brakes, X = speedbrake, Y = HUD declutter, Select = map, Select+Start = quit.
 
 ## H6: Help menu
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** H5, D1 · **Specs:** CONTROLS, HUD §3 (text sizes)
+**Status:** done (needs device test: every page legible at 640x480, button test names the last press, Swap A/B and Swap X/Y rewrite conf/controls.ini and leave other lines, About shows the data-pack attribution) · **Model / effort:** Sonnet / medium · **Depends:** H5, D1 · **Specs:** CONTROLS, HUD §3 (text sizes)
 
 **Owns:** `src/ui/Help*` (new screens), `assets/help/` (page text), `tests/ui/help*`. Adds one
 item to the main menu and the pause menu (H5 files; small additive edit).

@@ -27,6 +27,7 @@ const char* screenName(ScreenId id) {
     case ScreenId::Pause: return "pause";
     case ScreenId::FlightPlan: return "flightplan";
     case ScreenId::Confirm: return "confirm";
+    case ScreenId::Help: return "help";
     }
     return "?";
 }
@@ -336,10 +337,13 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
             r.action = MenuAction::Quit;
             m.post(std::move(r));
         }));
+    } else if (name == "help") {
+        stack_.push_back(makeMainScreen(*this));
+        stack_.push_back(makeHelpScreen(*this, arg));
     } else {
         error = "unknown menu screen '" + name +
                 "' (main, setup, aircraft, airport[:TEXT], runway[:ICAO], start, plan[:FILE], "
-                "approach[:FILE], settings, pause, flightplan, confirm)";
+                "approach[:FILE], settings, pause, flightplan, confirm, help[:PAGE])";
         return false;
     }
     return true;
