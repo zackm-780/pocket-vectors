@@ -46,7 +46,7 @@ struct Settings {
     // invalid values are logged). Returns the number of rejected values.
     int applyText(const std::string& text);
     // Loads `defaultsPath` then `userPath` on top. Missing/unreadable files are logged and
-    // skipped. Always leaves a valid Settings. Returns false if the user file existed but was
+    // skipped. Always leaves a valid Settings. Returns false if the override file existed but was
     // unreadable.
     bool load(const std::string& defaultsPath, const std::string& userPath);
     // Writes the settings to `userPath`, preserving unknown keys, other sections and comment lines

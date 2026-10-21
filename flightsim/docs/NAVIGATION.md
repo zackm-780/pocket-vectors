@@ -43,8 +43,7 @@ All geometry is **true** internally. Magnetic is used only for display and user 
 - **Conventions (N3):** `depRunway`/`arrRunway` use DB idents (`28L`) and the file uses `RW28L`.
   `APP` uses CIFP-style idents without `RW` (`I05` = ILS 05, `R28L` = RNAV, `V10` = VOR). The
   file carries only the approach *name*; legs come from N4/N5 at load time. `FlightPlan::approachStartLeg`
-  marks the first approach leg. The user builds plans on a PC and
-  copies them to the SD card.
+  marks the first approach leg. Plans are built on a PC and copied to the SD card.
 
 ### 2.2 In-game planning (H5 UI, N3 logic)
 - **Quick plan:** origin airport and runway (current position by default) → destination airport,

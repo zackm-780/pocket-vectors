@@ -49,7 +49,7 @@ private:
     static constexpr int kToneSlots = 4;
     static constexpr int kTable = 1024;
 
-    // parameter hand-off
+    // parameters shared with the audio thread
     std::mutex paramMutex_;
     AudioParams shared_;
     bool sharedDirty_ = false;

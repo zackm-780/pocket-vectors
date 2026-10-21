@@ -13,8 +13,8 @@
 // allocates. Headings are TRUE internally; the heading bug is magnetic (converted with
 // NavState::magVarDeg, + = east).
 //
-// The autopilot never edits the pilot's ControlInputs; syncPilot() lets the owner of the
-// persistent pilot controls follow the autothrottle (levers move) and the AP trim, so handing
+// The autopilot never edits the pilot's ControlInputs; syncPilot() lets the flight loop
+// follow the autothrottle (levers move) and the AP trim, so handing
 // control back to the pilot is bumpless.
 
 #include <string>

@@ -42,12 +42,12 @@
 - **Headless scenarios** (`--headless --scenario … --trace …`) for anything that flies. Assert on
   traces in C++ tests (helper provided by WP-00).
 - **Visual work:** produce screenshots with `--screenshot` under Xvfb, and attach or link them in
-  the report or PR. Store canonical screenshots only if the supervisor asks (they go out of date).
+  the pull request. Store canonical screenshots only if a maintainer asks (they go out of date).
 - Tests must not need network access or real data packs. Use synthetic fixtures and XTST.
 - A test that is flaky gets fixed. It is never skipped.
 
 ## 5. Git and PRs
-- One WP per branch and PR. Branch `wp/<WP-ID>-<slug>`, or your session's designated branch.
+- One WP per branch and PR. Branch `wp/<WP-ID>-<slug>`, or another short feature branch.
 - Outside contributions, including an AI agent working on a fork, follow
   [CONTRIBUTING.md](../../CONTRIBUTING.md): fork, pull request, green CI including the device
   workflow, and the owner's review and approval before merge. Do not merge the pull request

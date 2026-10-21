@@ -5,8 +5,8 @@ comes from SDL's test library) and the JSBSim team (the CPU benchmark steps thei
 
 Run it once on the handheld and follow the prompts on screen. The whole run takes about two minutes:
 system information, an input test (you press the buttons it asks for), a GPU benchmark, a CPU benchmark
-and a graphics configuration sweep. Then send back `probe_report.txt` (and `log.txt`) from this
-port's folder. The report is rewritten after every step, so it is still useful if you have to quit
+and a graphics configuration sweep. The results are `probe_report.txt` and `log.txt` in this
+port's folder. The report is rewritten after every step, so it is still useful if the run is quit
 early with Select + Start.
 
 ## Controls

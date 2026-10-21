@@ -11,21 +11,20 @@ point. Read it fully before touching anything.
 
 ## Read before you write code
 
-0. `flightsim/docs/HANDOFF.md`: current state, what the user asked for next, device constraints.
+0. `ROADMAP.md`: what is open, and `CONTRIBUTING.md`: how a change is reviewed and merged.
 1. `flightsim/docs/PLAN.md`: what we are building, why, decisions, milestones.
 2. `flightsim/docs/ARCHITECTURE.md`: modules, frames and units, shared contracts, frame loop.
 3. `flightsim/docs/CONVENTIONS.md`: code style, units rule, git and PR workflow, definition of done.
 4. Your WP entry in `flightsim/docs/WORK_PACKAGES.md`, plus every spec doc it lists
    (`HUD.md`, `CONTROLS.md`, `NAVIGATION.md`, `DATA.md`, `BUILD_AND_DEPLOY.md`, `DEVICE.md`).
-5. `flightsim/docs/AGENTS.md`: roles (Sonnet implementers, Opus supervisor), models and effort
-   levels, and how work is handed off and reviewed.
+5. `flightsim/docs/AGENTS.md`: how a contributor or an AI coding tool takes one work package.
 
 ## Hard rules
 
 - **One WP per agent.** Work only on your WP. Edit only the paths it **owns**. If you need a change
-  elsewhere, describe it in your PR or report and let the supervisor route it.
+  elsewhere, describe it in the pull request and let a maintainer route it.
 - **Shared contracts** (`flightsim/src/core/`) change **additively only** (new fields or functions with
-  defaults). Renaming, removing or changing the meaning of anything there needs supervisor approval
+  defaults). Renaming, removing or changing the meaning of anything there needs maintainer approval
   first.
 - **Units in names.** Every physical quantity carries a unit suffix (`altMslFt`, `iasKt`,
   `rollRad`, `distNm`). Every heading, course, track or bearing says `True` or `Mag`.

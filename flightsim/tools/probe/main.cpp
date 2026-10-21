@@ -292,7 +292,7 @@ void finalScreen(Ctx& ctx) {
             }
         }
         tr.text(8 * s, static_cast<float>(ctx.heightPx) - 12 * s, s, Color{0.55f, 0.65f, 0.75f, 1.0f},
-                "Press A/B/Start to exit (or SELECT+START). Send back probe_report.txt");
+                "Press A/B/Start to exit (or SELECT+START). Report: probe_report.txt");
         if (!shotRequested) {
             shotRequested = true;
             ctx.requestShot("final");

@@ -13,7 +13,7 @@
     ],
     "desc": "Measures the handheld for the Pocket Vectors project: libc, SDL and OpenGL ES details, controller buttons and sticks, GPU and CPU speed. Writes probe_report.txt.",
     "desc_md": null,
-    "inst": "Ready to run. Follow the on-screen prompts (about 2 minutes), then send back probe_report.txt from the flightsimprobe folder.",
+    "inst": "Ready to run. Follow the on-screen prompts (about 2 minutes). The results are probe_report.txt in the flightsimprobe folder.",
     "inst_md": null,
     "genres": [
       "utility"

@@ -100,10 +100,10 @@ struct ControlsConfig {
 
     ControlsConfig();
 
-    // Parses `defaults`, then applies `user` (may be null) on top: a key present in the user file
+    // Parses `defaults`, then applies `user` (may be null) on top: a key present in the override file
     // REPLACES that action's bindings of that section. Returns false only if `defaults` is empty.
     bool load(const Ini& defaults, const Ini* user);
-    // Convenience: file paths (the user file is optional).
+    // Convenience: file paths (the override file is optional).
     bool loadFiles(const std::string& defaultsPath, const std::string& userPath);
 
     PadInput padInputForSdlButton(int sdlButton) const;

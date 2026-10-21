@@ -26,7 +26,7 @@ On-device steps for the RG40XXH: **[INSTALL.md](INSTALL.md)**.
 | [docs/PLAN.md](docs/PLAN.md) | Vision, scope, target budgets, decision log, milestones, open questions |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, frame loop, coordinate frames, shared contracts |
 | [docs/WORK_PACKAGES.md](docs/WORK_PACKAGES.md) | Work packages for parallel agents, with dependencies, waves and acceptance criteria |
-| [docs/AGENTS.md](docs/AGENTS.md) | Agent roles, models and effort levels, supervision and review workflow |
+| [docs/AGENTS.md](docs/AGENTS.md) | How a contributor or an AI coding tool takes one work package |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Code style, units rule, git/PR workflow, definition of done |
 | [docs/HUD.md](docs/HUD.md) | HUD layout and every data element it must show |
 | [docs/CONTROLS.md](docs/CONTROLS.md) | RG40XXH and keyboard control mapping |

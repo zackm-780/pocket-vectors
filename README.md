@@ -41,6 +41,10 @@ The same release also has a game-only zip and a data-only zip for updates. Full 
 
 ![On runway 28L at KPDX](screenshots/ground-kpdx.png)
 
+## Roadmap
+
+Open work and known issues: [ROADMAP.md](ROADMAP.md).
+
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md). Every outside contribution

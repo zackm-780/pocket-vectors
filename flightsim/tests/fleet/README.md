@@ -72,7 +72,7 @@ elevation), ISA, calm. All 41 tests pass.
 Stall angles of attack differ by flap setting for the jets (the 747 falls from 14.3 degrees clean to
 7.7 with flaps 30), while the profile carries a single `stall_warn_alpha_deg`.
 
-## Exceptions and notes for the supervisor
+## Exceptions and notes for the maintainer
 
 - **c310 propeller (overlay):** the stock constant-speed propeller cannot be trimmed in JSBSim 1.3.3
   (blade pitch resets to fine pitch at every initial condition and `fcs/advance-cmd-norm` is never
@@ -85,7 +85,7 @@ Stall angles of attack differ by flap setting for the jets (the 747 falls from 1
   run, which the overlay removes.
 - **Stall warning alpha is per profile, not per flap:** the 747's stall alpha falls to 7.7 degrees
   in the landing configuration while liftoff alpha with flaps 20 is 4.5, so 7.0 is the compromise.
-  Per-detent values would need an additive field in `FlapDetent` (supervisor decision).
+  Per-detent values would need an additive field in `FlapDetent` (maintainer decision).
 - **B747 and 737 are not realistic against real figures:** the stock models stall well above real
   airplanes at these weights (737 flaps 30 stall 124 kt, B747 flaps 30 stall 113 kt, and the B747
   cannot be trimmed above about 150 kt with flaps 30). Profile speeds follow the model, with the
@@ -185,7 +185,7 @@ untouched, the overlay replaces them in the runtime layout):
   test with full throttle it reached only 10 kt in 25 s while the heading drifted 7 degrees. A
   tail-dragger pilot is a separate piece of work.
 
-### Notes for the supervisor
+### Notes for the maintainer
 
 - **Elevator authority limits the stall tests on the A320 and pa28:** the idle deceleration cannot raise
   alpha past 8.9 degrees (A320 clean; Cm-alpha is -4 with a weak elevator) or past 7.9 / 3.7 degrees
