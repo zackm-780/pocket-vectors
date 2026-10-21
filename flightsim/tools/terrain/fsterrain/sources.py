@@ -32,7 +32,7 @@ WC_SPAN_DEG = 3
 EST_MB_PER_CELL = {"glo30": 30.0, "glo90": 2.0}
 EST_MB_PER_WC_TILE = 60.0
 
-USER_AGENT = "retro-games-flightsim-terrain/1.0"
+USER_AGENT = "pocket-vectors-terrain/1.0"
 
 
 def cell_name(product: str, lat0: int, lon0: int) -> str:

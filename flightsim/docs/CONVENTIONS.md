@@ -48,6 +48,10 @@
 
 ## 5. Git and PRs
 - One WP per branch and PR. Branch `wp/<WP-ID>-<slug>`, or your session's designated branch.
+- Outside contributions, including an AI agent working on a fork, follow
+  [CONTRIBUTING.md](../../CONTRIBUTING.md): fork, pull request, green CI including the device
+  workflow, and the owner's review and approval before merge. Do not merge the pull request
+  yourself, and do not push to `main`.
 - Small, focused commits in imperative mood: `nav: add FMS v11 parser`.
 - **PR body:** what and why · how it was verified (tests, traces, screenshots) · deviations from
   spec · performance impact · docs updated · `[ ] needs device test`.
@@ -59,7 +63,8 @@
 2. Builds with zero warnings (CI uses `FSIM_WERROR=ON`). All tests pass.
 3. Only owned paths changed. Contract changes are additive and mirrored in ARCHITECTURE §5.
 4. Docs updated: the WP `Status:` line, plus spec or format sections the WP owns.
-5. Supervisor review passed (AGENTS.md §2).
+5. CI is green, including the device workflow, and the owner has reviewed and approved the pull
+   request (CONTRIBUTING.md, AGENTS.md §2).
 
 ## 7. Licenses
 Third-party code and data must be compatible with free redistribution in a PortMaster port. Every

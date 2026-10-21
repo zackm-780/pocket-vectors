@@ -1,13 +1,16 @@
 # Agents: roles, models, workflow
 
 The flight sim is built by several AI agents working in parallel. This doc sets who does what,
-which model and effort each role uses, and how work moves from a work package (WP) to `main`.
+which model and effort each role uses, and how work moves from a work package (WP) to a pull
+request. Landing on `main` follows [CONTRIBUTING.md](../../CONTRIBUTING.md): a fork and a pull
+request, green CI including the device workflow, and the owner's review and approval before
+merge. An agent does not merge its own pull request and does not push to `main`.
 
 ## 1. Roles
 
 | Role | Model | Effort | Responsibilities |
 |---|---|---|---|
-| **Supervisor** (lead / planner / reviewer) | **Opus** | **extra high (`xhigh`)** | Owns the plan and these docs. Schedules waves, writes agent briefs, guards the `core/` contracts, reviews every WP against its acceptance criteria, runs builds and tests, sends fixes back to implementers, merges, resolves cross-WP integration, and updates PLAN, ARCHITECTURE and WP statuses. Decides when a WP needs splitting or re-planning. |
+| **Supervisor** (lead / planner / reviewer) | **Opus** | **extra high (`xhigh`)** | Owns the plan and these docs. Schedules waves, writes agent briefs, guards the `core/` contracts, reviews every WP against its acceptance criteria, runs builds and tests, sends fixes back to implementers, opens the pull request for the owner's approval, resolves cross-WP integration, and updates PLAN, ARCHITECTURE and WP statuses. Decides when a WP needs splitting or re-planning. |
 | **Implementer** | **Sonnet** | **medium** or **high**, as set per WP in [WORK_PACKAGES.md](WORK_PACKAGES.md) | Implements exactly one WP inside its owned paths. Writes tests. Proves acceptance with tests, traces and screenshots. Reports back with a summary of what changed, what was verified, and open issues. |
 | **Reviewer** (optional, for large WPs) | **Opus** | **extra high** | A second Opus pass on high-risk merges (WP-00, W2, N5, N6, F1) when the supervisor wants an independent check: correctness, contract adherence, performance, hidden coupling. |
 
@@ -33,18 +36,21 @@ Supervisor (Opus xhigh)                     Implementer (Sonnet medium/high)
 7. Review: diff, contracts, acceptance,
    build + tests yourself, screenshots
 8a. Changes needed → send back      ───────▶ (repeat 4–6)
-8b. Accept → merge into the integration
-    branch, run full build/tests, update
-    the WP Status line and any docs
+8b. Accept → open or update the pull request.
+    CI, including the device workflow, must be
+    green. The owner reviews, approves, and merges.
+    Then update the WP Status line and any docs
 9. Next wave
 ```
 
 ### Branches
 - **Cloud sessions** usually have a designated branch. Use it. Otherwise use `wp/<WP-ID>-<slug>`.
 - **Subagents inside one supervisor session** each work in an isolated **git worktree** on a local
-  branch `wp/<WP-ID>-<slug>`. They commit there and never push. The supervisor reviews, merges into
-  the session's integration branch, and pushes.
-- PR titles are `[<WP-ID>] <title>`. One WP per PR. `main` only receives reviewed work.
+  branch `wp/<WP-ID>-<slug>`. They commit there and never push. The supervisor reviews, updates the
+  branch, and opens a pull request. Merging waits for the owner's approval
+  ([CONTRIBUTING.md](../../CONTRIBUTING.md)).
+- PR titles are `[<WP-ID>] <title>`. One WP per PR. `main` receives a pull request only after CI
+  is green, including the device workflow, and the owner has approved it.
 
 ### Review checklist (supervisor)
 - [ ] Only owned paths touched. `core/` changes are additive and mirrored in ARCHITECTURE §5.
@@ -66,7 +72,9 @@ You are a Sonnet implementer agent on the RG40XXH flight sim. Your work package 
 1. Read CLAUDE.md, flightsim/docs/PLAN.md, ARCHITECTURE.md, CONVENTIONS.md, AGENTS.md, and the
    <WP-ID> entry in flightsim/docs/WORK_PACKAGES.md, plus every spec doc it lists.
 2. Work only in the paths <WP-ID> owns. Commit on branch wp/<WP-ID>-<slug> (or your session's
-   designated branch). Do not push unless told to.
+   designated branch). Push that branch to a fork and open a pull request. Do not push to `main`
+   and do not merge the pull request. The owner reviews and approves first
+   (CONTRIBUTING.md).
 3. Meet every acceptance criterion and prove it (test names and output, trace excerpts, screenshot paths).
 4. If a src/core/ contract must change in a non-additive way, or a spec is ambiguous or wrong,
    stop and report instead of guessing.

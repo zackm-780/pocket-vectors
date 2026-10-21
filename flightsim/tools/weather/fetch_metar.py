@@ -27,7 +27,7 @@ def fetch(ids, timeout_s=20.0):
     """Returns {ICAO: newest raw METAR line} for the stations that reported."""
     query = urllib.parse.urlencode({"ids": ",".join(ids), "format": "raw"}, safe=",")
     request = urllib.request.Request(
-        API + "?" + query, headers={"User-Agent": "retro-games-flightsim-fetch-metar/1.0"}
+        API + "?" + query, headers={"User-Agent": "pocket-vectors-fetch-metar/1.0"}
     )
     with urllib.request.urlopen(request, timeout=timeout_s) as response:
         text = response.read().decode("utf-8", "replace")

@@ -21,7 +21,8 @@ On-device steps for the RG40XXH: **[INSTALL.md](INSTALL.md)**.
 
 | Doc | Purpose |
 |---|---|
-| [INSTALL.md](INSTALL.md) | Sideload on the RG40XXH: unzip layout, data pack, probe, launch logs |
+| [INSTALL.md](INSTALL.md) | Sideload on the RG40XXH: one release zip into `Roms/PORTS` |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Fork, pull request, CI (including the device workflow), owner review |
 | [docs/PLAN.md](docs/PLAN.md) | Vision, scope, target budgets, decision log, milestones, open questions |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, frame loop, coordinate frames, shared contracts |
 | [docs/WORK_PACKAGES.md](docs/WORK_PACKAGES.md) | Work packages for parallel agents, with dependencies, waves and acceptance criteria |
