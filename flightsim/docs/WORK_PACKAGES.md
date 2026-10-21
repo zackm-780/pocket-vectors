@@ -565,7 +565,7 @@ legs), unit tests for the projection and range logic, frame cost under 0.3 ms on
 Needs device test (legibility).
 
 ## W6: World overlays
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W5, N5 · **Specs:** NAVIGATION, HUD §1
+**Status:** done (needs device test: each layer is legible at 640x480 on the KPDX approach and at cruise; layers stay off until enabled and toggle on their own; L3 cycles presets and R3 stays unbound; labels stay readable; quit with Select+Start after a toggle so `settings.ini` is kept; the 3D overlays stay within 4 draw calls) · **Model / effort:** Sonnet / high · **Depends:** W5, N5 · **Specs:** NAVIGATION, HUD §8
 
 **Owns:** `src/world/WorldOverlay*`, `tests/world/overlay*`; settings keys and pause-menu toggles
 (integration). Each layer toggles on its own:

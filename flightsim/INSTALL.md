@@ -97,7 +97,9 @@ also writes `flightsim/conf/log.txt`.
 
 On the RG40XXH the defaults match the printed labels: A is gear, B is brakes (double-tap for the
 parking brake), X cycles the speedbrake, Y cycles the HUD, Select opens the map, Start pauses, and
-Select+Start quits. The Menu key also acts as Select. R3 is not used in flight (the click jolts
+Select+Start quits. The Menu key also acts as Select. L3 cycles world overlays (route, vertical
+path, nearby airports, runway outlines). Every layer starts off; the pause menu and Settings turn
+them on one at a time. R3 is not used in flight (the click jolts
 the rudder).
 
 **Other devices:** if A and B (or X and Y) come out swapped, or Select does nothing, create

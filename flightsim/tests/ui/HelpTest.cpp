@@ -66,6 +66,7 @@ TEST_CASE("ui: help controls list every pad binding of the default config") {
     CHECK(hasLine(*base, "SELECT", "MapToggle"));
     CHECK(hasLine(*base, "SELECT+START", "Quit"));
     CHECK(hasLine(*base, "R2", "Brakes"));
+    CHECK(hasLine(*base, "L3", "OverlayPreset"));
 
     const HelpLayerPage* map = findPage(pages, "map");
     REQUIRE(map != nullptr);

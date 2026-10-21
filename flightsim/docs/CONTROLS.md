@@ -41,6 +41,7 @@ INSTALL.md.
 | R2 | Brakes (hold), the same as B. Lets you keep a thumb on the right stick for steering. |
 | Select | Map page toggle |
 | Start | Pause menu |
+| L3 | Cycle world overlays (off, route, route + path, airports, all). Each layer starts off. |
 | Select + Start | **Quit** (PortMaster gptokeyb hotkey) |
 
 ### Map page (Select opens it; the sim keeps running)

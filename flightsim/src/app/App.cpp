@@ -45,6 +45,7 @@
 #include "world/Sky.h"                     // W4
 #include "world/TerrainRenderer.h"         // W2
 #include "world/Weather.h"                 // X1
+#include "world/WorldOverlay.h"            // W6
 #include "world/terrain/TerrainService.h"  // W1
 
 namespace fsim {
@@ -170,6 +171,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     // W5: airports near the camera (runways, markings, lights, PAPI); registers flatten areas.
     world::AirportRenderer airports(window.gl(), window.flavor());
     if (!airports.init()) return 1;
+    world::WorldOverlay worldOverlay(window.gl(), window.flavor());  // W6
+    if (!worldOverlay.init()) LOG_WARN("world overlay: shader failed; markers stay hidden");
     airports.setNavDatabase(&sim.navDb());
     airports.setTerrain(&sim.terrain());
     airports.setAtmosphere(&atmosphere);
@@ -376,6 +379,22 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             // N6: AP / FD / A/T engage, mode and bug actions.
             if (interactive)
                 sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
+            if (interactive &&
+                actions.pressed[static_cast<int>(Action::OverlayPreset)]) {  // W6: L3 presets
+                world::OverlayToggles layers;
+                layers.route = settings.overlayRoute;
+                layers.vpath = settings.overlayVpath;
+                layers.airports = settings.overlayAirports;
+                layers.runways = settings.overlayRunways;
+                const int preset = world::overlayCycle(layers);
+                settings.overlayRoute = layers.route;
+                settings.overlayVpath = layers.vpath;
+                settings.overlayAirports = layers.airports;
+                settings.overlayRunways = layers.runways;
+                if (!menuEnv.settingsPath.empty() && !settings.save(menuEnv.settingsPath))
+                    LOG_WARN("settings: cannot write %s", menuEnv.settingsPath.c_str());
+                messages.postf("OVERLAYS %s", world::overlayPresetName(preset));
+            }
             if (interactive) {  // X1: altimeter setting (R1 + D-pad up/down, R1 + Select = STD)
                 const bool inHg = settings.pressureUnits == PressureUnits::InHg;
                 auto pr = [&](Action a) { return actions.pressed[static_cast<int>(a)]; };
@@ -454,6 +473,24 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                ftToM(view.altAglFt));
         renderer.render(camera, w, h);
         airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
+        {  // W6: route, vertical path, airports, runway outlines (at most 4 draws)
+            const bool layersOn = settings.overlayRoute || settings.overlayVpath ||
+                                  settings.overlayAirports || settings.overlayRunways;
+            const bool showOverlays =
+                layersOn && state != AppState::Menu && !mapShown && !opt.glyphSheet;
+            if (showOverlays) {
+                world::OverlayToggles layers;
+                layers.route = settings.overlayRoute;
+                layers.vpath = settings.overlayVpath;
+                layers.airports = settings.overlayAirports;
+                layers.runways = settings.overlayRunways;
+                worldOverlay.render(
+                    camera, sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
+                    &sim.navDb(), &sim.terrain(), layers, settings.overlayAirportRadiusNm);
+            } else {
+                worldOverlay.clearFrame();
+            }
+        }
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
             hudOptions.paused = false;  // H5: the pause menu says PAUSED itself
             hudOptions.magVarDeg =
@@ -485,6 +522,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                     miniNav.draw(hud2d, sim.aircraft(), sim.navState(),
                                  sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
                                  settings.hudMiniNavRangeNm);
+                worldOverlay.drawLabels(hud2d);  // W6
             }
             hud2d.end();
             if (menu.active()) {  // H5: own batch, so its panels cover the HUD strokes beneath

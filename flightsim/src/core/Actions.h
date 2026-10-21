@@ -53,6 +53,8 @@ enum class Action {
     BaroInc,
     BaroDec,
     BaroStd,
+    // Additive (W6): L3 cycles world-overlay presets. R3 stays unbound.
+    OverlayPreset,
     Count
 };
 

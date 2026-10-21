@@ -122,7 +122,25 @@ Full screen, toggled with Select (or M). Opaque background. Pauses nothing.
 - Info panel: next waypoints with DTK, distance, ETE, and altitude constraint. Direct-to with A on
   a selected waypoint.
 
-## 8. Acceptance screenshots (H2/H3 must provide these)
+## 8. World overlays (W6)
+Drawn in the world, after the airports and before the HUD. Labels share the HUD batch. Every layer
+starts off (`overlay_route`, `overlay_vpath`, `overlay_airports`, `overlay_runways` in
+`settings.ini`). L3, or the pause-menu OVERLAYS row, cycles off / route / route + path / airports /
+all. A mix that is not one of those presets shows as CUSTOM.
+
+- **Route.** A pole at each plan waypoint (the active one magenta) and a line along each leg. The
+  pole reaches the waypoint's altitude constraint, otherwise the plan's cruise altitude, otherwise
+  a short mast above the ground. The label reads `NAME  12.3 NM`.
+- **Vertical path.** Gates along the active leg at the planned altitude. On an approach leg the
+  gates and the line descend on a glidepath.
+- **Airports.** The nearest fields inside the radius (default 25 NM, at most 12), hidden inside
+  about 1 NM. Marker at field elevation, label `KPDX  8.4 NM`.
+- **Runways.** A brighter outline of each runway, widened so it stays readable from altitude. The
+  field you are on still gets outlines.
+
+The four layers are separate draw calls (a layer with nothing to draw is skipped). R3 is not used.
+
+## 9. Acceptance screenshots (H2/H3 must provide these)
 1. c172p on the XTST runway, parking brake set, engine idle.
 2. Climbing through 1,500 ft, 25° right bank, flaps 10.
 3. 737 cruise at FL350, A/T SPD, HDG, ALT, M.78 visible.
