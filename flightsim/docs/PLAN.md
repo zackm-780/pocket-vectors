@@ -121,5 +121,5 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 | Q3 | Is the main route in the US? | **Answered:** Portland (KPDX) ⇄ Southwest Oregon Regional, North Bend (KOTH), both covered by FAA CIFP. |
 | Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the probe and recorded in DEVICE.md. |
 | Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg is a setting. |
-| Q6 | Do printed X and Y match SDL names on the RG40XXH, the same way A and B do? | Likely yes (DEVICE.md §2). Needs one more on-device check (ROADMAP, D1). |
+| Q6 | Do printed X and Y match SDL names on the RG40XXH, the same way A and B do? | Likely yes (DEVICE.md §2). The default table uses that mapping. Needs one more on-device check (ROADMAP). |
 | Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured. `show_fps` in settings writes it to the launch log. |

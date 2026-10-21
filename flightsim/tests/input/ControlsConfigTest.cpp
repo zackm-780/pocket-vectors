@@ -122,39 +122,81 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
 
 TEST_CASE("input: device label table maps printed labels to SDL buttons in one place") {
     const ControlsConfig c = defaultConfig();
-    // Documented assumption: printed A (right) = SDL b, printed B (bottom) = SDL a, ...
-    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::A)] == SDL_CONTROLLER_BUTTON_B);
-    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::B)] == SDL_CONTROLLER_BUTTON_A);
-    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::X)] == SDL_CONTROLLER_BUTTON_Y);
-    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::Y)] == SDL_CONTROLLER_BUTTON_X);
+    CHECK(c.warningCount == 0);
+    // RG40XXH stock OS: printed labels equal SDL names.
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::A)] == SDL_CONTROLLER_BUTTON_A);
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::B)] == SDL_CONTROLLER_BUTTON_B);
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::X)] == SDL_CONTROLLER_BUTTON_X);
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::Y)] == SDL_CONTROLLER_BUTTON_Y);
     CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::L1)] ==
           SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
-    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::Select)] == SDL_CONTROLLER_BUTTON_BACK);
-    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::L2)] == -1);  // analog trigger
-    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_B) == PadInput::A);
+    const int sel = static_cast<int>(PadInput::Select);
+    CHECK(c.sdlButtonForLabel[sel] == SDL_CONTROLLER_BUTTON_BACK);
+    CHECK(c.sdlButtonCountForLabel[sel] == 2);
+    CHECK(c.sdlButtonsForLabel[sel][0] == SDL_CONTROLLER_BUTTON_BACK);
+    CHECK(c.sdlButtonsForLabel[sel][1] == SDL_CONTROLLER_BUTTON_GUIDE);
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::L2)] == -1);  // trigger, not a button
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_A) == PadInput::A);
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_B) == PadInput::B);
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_BACK) == PadInput::Select);
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_GUIDE) == PadInput::Select);
 
-    // Flipping the four lines makes SDL buttons equal printed labels, bindings are untouched.
+    // Another device can still swap the four face buttons. Bindings stay on printed labels.
     Ini flip;
-    flip.loadText("[device_labels]\na = a\nb = b\nx = x\ny = y\n");
+    flip.loadText("[device_labels]\na = b\nb = a\nx = y\ny = x\n");
     Ini base;
     base.loadFile("assets/controls_default.ini");
     ControlsConfig f;
     f.load(base, &flip);
-    CHECK(f.padInputForSdlButton(SDL_CONTROLLER_BUTTON_A) == PadInput::A);
+    CHECK(f.padInputForSdlButton(SDL_CONTROLLER_BUTTON_B) == PadInput::A);
+    CHECK(f.padInputForSdlButton(SDL_CONTROLLER_BUTTON_A) == PadInput::B);
     CHECK(hasPadBinding(f, PadLayer::Base, PadInput::A, Action::GearToggle));
+    // Select is not in the override, so both stock-OS buttons still count.
+    CHECK(f.padInputForSdlButton(SDL_CONTROLLER_BUTTON_GUIDE) == PadInput::Select);
+}
+
+TEST_CASE("input: a label may list several SDL buttons") {
+    const ControlsConfig c = configFromText("[device_labels]\nselect = back, guide\na = a, b\n"
+                                            "l2 = lefttrigger\n");
+    CHECK(c.warningCount == 0);
+    CHECK(c.sdlButtonCountForLabel[static_cast<int>(PadInput::Select)] == 2);
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_GUIDE) == PadInput::Select);
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_BACK) == PadInput::Select);
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::A)] == SDL_CONTROLLER_BUTTON_A);
+    CHECK(c.sdlButtonsForLabel[static_cast<int>(PadInput::A)][1] == SDL_CONTROLLER_BUTTON_B);
+    CHECK(c.padInputForSdlButton(SDL_CONTROLLER_BUTTON_B) == PadInput::A);
+    CHECK(c.sdlButtonForLabel[static_cast<int>(PadInput::L2)] == -1);
+
+    const ControlsConfig bad = configFromText("[device_labels]\nselect = back, notabutton\n");
+    CHECK(bad.warningCount == 1);
+    CHECK(bad.padInputForSdlButton(SDL_CONTROLLER_BUTTON_BACK) == PadInput::Select);
+    CHECK(bad.sdlButtonCountForLabel[static_cast<int>(PadInput::Select)] == 1);
+}
+
+TEST_CASE("input: no in-flight layer binds R3") {
+    const ControlsConfig c = defaultConfig();
+    for (int layer = 0; layer < kPadLayerCount; ++layer) {
+        for (const PadButtonBinding& b : c.padButtons[layer]) {
+            CHECK(b.input != PadInput::R3);
+        }
+    }
+    for (const PadChord& chord : c.chords) {
+        CHECK(chord.a != PadInput::R3);
+        CHECK(chord.b != PadInput::R3);
+    }
 }
 
 TEST_CASE("input: the label table decides which SDL button is gear") {
     InputSystem in;
     in.setConfig(defaultConfig());
-    // SDL button B (east) is the printed A: gear.
+    // SDL button A is the printed A: gear.
     SDL_Event e{};
     e.type = SDL_CONTROLLERBUTTONDOWN;
-    e.cbutton.button = SDL_CONTROLLER_BUTTON_B;
+    e.cbutton.button = SDL_CONTROLLER_BUTTON_A;
     in.handleEvent(e);
     CHECK(in.update(kFrameS).pressed[idx(Action::GearToggle)]);
-    // SDL button A (south) is the printed B: brakes.
-    e.cbutton.button = SDL_CONTROLLER_BUTTON_A;
+    // SDL button B is the printed B: brakes.
+    e.cbutton.button = SDL_CONTROLLER_BUTTON_B;
     in.handleEvent(e);
     CHECK(in.update(kFrameS).down[idx(Action::Brakes)]);
 }

@@ -114,12 +114,19 @@ bool padInputFromName(std::string_view name, PadInput& out) {
 }
 
 ControlsConfig::ControlsConfig() {
-    for (int& b : sdlButtonForLabel) b = -1;
+    for (int i = 0; i < kPadInputCount; ++i) {
+        sdlButtonForLabel[i] = -1;
+        sdlButtonCountForLabel[i] = 0;
+        for (int j = 0; j < kMaxSdlButtonsPerLabel; ++j) sdlButtonsForLabel[i][j] = -1;
+    }
 }
 
 PadInput ControlsConfig::padInputForSdlButton(int sdlButton) const {
+    if (sdlButton < 0) return PadInput::Count;
     for (int i = 0; i < kPadInputCount; ++i) {
-        if (sdlButtonForLabel[i] == sdlButton && sdlButton >= 0) return static_cast<PadInput>(i);
+        for (int j = 0; j < sdlButtonCountForLabel[i]; ++j) {
+            if (sdlButtonsForLabel[i][j] == sdlButton) return static_cast<PadInput>(i);
+        }
     }
     return PadInput::Count;
 }
@@ -154,9 +161,28 @@ bool ControlsConfig::load(const Ini& defaults, const Ini* user) {
             warn("device_labels", label, "unknown device label");
             continue;
         }
-        const SDL_GameControllerButton b = SDL_GameControllerGetButtonFromString(sdlName.c_str());
-        // L2/R2 are triggers (axes) in SDL; their table entries are documentation only.
-        sdlButtonForLabel[static_cast<int>(in)] = b == SDL_CONTROLLER_BUTTON_INVALID ? -1 : b;
+        // A label may list several SDL buttons ("back, guide"). L2/R2 are triggers (axes);
+        // lefttrigger/righttrigger stay in the file as documentation and are not buttons.
+        const int idx = static_cast<int>(in);
+        int count = 0;
+        for (const std::string& token : splitTrim(sdlName, ',')) {
+            if (token.empty()) continue;
+            const SDL_GameControllerButton b = SDL_GameControllerGetButtonFromString(token.c_str());
+            if (b == SDL_CONTROLLER_BUTTON_INVALID) {
+                const std::string lower = toLower(token);
+                if (lower != "lefttrigger" && lower != "righttrigger") {
+                    warn("device_labels", label, "unknown SDL button");
+                }
+                continue;
+            }
+            if (count >= kMaxSdlButtonsPerLabel) {
+                warn("device_labels", label, "too many SDL buttons");
+                break;
+            }
+            sdlButtonsForLabel[idx][count++] = static_cast<int>(b);
+        }
+        sdlButtonCountForLabel[idx] = count;
+        sdlButtonForLabel[idx] = count > 0 ? sdlButtonsForLabel[idx][0] : -1;
     }
 
     // ---- scalar settings ----

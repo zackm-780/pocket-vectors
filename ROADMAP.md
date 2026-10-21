@@ -8,17 +8,15 @@ US instrument approaches. Open work is tracked as work packages in
 
 ## Known issues
 
-- On the RG40XXH stock OS the default button table maps printed A and B to each other's SDL
-  names (X and Y are likely the same). Until that default changes, `flightsim/conf/controls.ini`
-  can correct it. See [flightsim/INSTALL.md](flightsim/INSTALL.md).
 - Frame rate on the device has not been measured. Set `show_fps = true` in
   `flightsim/conf/settings.ini` and read `flightsim_launch_log.txt`.
+- X and Y on the RG40XXH match the printed labels in the PortMaster mapping. That still wants a
+  confirmation in the game (A and B were checked on device with the previous, swapped table).
 
 ## Next
 
 | ID | What | Notes |
 |---|---|---|
-| D1 | Button labels match the printing on the RG40XXH, and Select accepts both SDL `guide` and `back` | So other PortMaster devices keep working |
 | H6 | In-game Help: live control list, button test, how-to pages, About | Credits and data attribution |
 | H7 | Small track-up nav inset on the HUD ("fly the pink line") | Off by default |
 | W6 | World markers for the route, vertical path, nearby airports, and brighter runways | Each layer toggles on its own |

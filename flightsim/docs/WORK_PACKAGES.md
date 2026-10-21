@@ -489,13 +489,13 @@ describe them in the PR (or make them as small additive edits) and keep each tog
 default unless noted**.
 
 ## D1: Device button labels
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** P2 · **Specs:** CONTROLS §1, DEVICE.md §2
+**Status:** done (needs device test: A = gear, B = brakes, X = speedbrake, Y = HUD declutter, Select = map, Menu also Select, Select+Start = quit, R3 click does nothing in flight) · **Model / effort:** Sonnet / medium · **Depends:** P2 · **Specs:** CONTROLS §1, DEVICE.md §2
 
 **Owns:** `assets/controls_default.ini`, `src/input/`, `tests/input/`, `docs/CONTROLS.md` §1.
 
 **Evidence (2026-10-20 device run):** PortMaster's mapping on the stock OS is
 `a:b0,b:b1,x:b3,y:b2,back:b8,guide:b6,start:b7,leftshoulder:b4,rightshoulder:b5,lefttrigger:b10,righttrigger:b11`.
-A test flight on 2026-10-20 found A and B swapped with the current table (`a = b`, `b = a`,
+A test flight on 2026-10-20 found A and B swapped with the table then in use (`a = b`, `b = a`,
 `x = y`, `y = x`), so the printed labels equal the SDL names. X/Y are very likely the same; that
 still needs a second on-device check. The probe shows **Select → SDL `guide`** and the **Menu
 key → SDL `back`**, so with

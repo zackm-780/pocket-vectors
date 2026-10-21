@@ -23,6 +23,14 @@ struct Fixture {
     }
 };
 
+void pressSdlButton(InputSystem& in, Uint8 button, bool down) {
+    SDL_Event e{};
+    e.type = down ? SDL_CONTROLLERBUTTONDOWN : SDL_CONTROLLERBUTTONUP;
+    e.cbutton.button = button;
+    e.cbutton.state = down ? SDL_PRESSED : SDL_RELEASED;
+    in.handleEvent(e);
+}
+
 }  // namespace
 
 TEST_CASE("input: left stick gives pitch and roll through deadzone and expo") {
@@ -293,6 +301,19 @@ TEST_CASE("input: Select+Start chord quits") {
     const ActionState& s = f.frame();
     CHECK(s.pressed[idx(Action::Quit)]);
     CHECK(f.in.quitRequested());
+}
+
+TEST_CASE("input: Select+Start quits from guide as well as back") {
+    for (Uint8 selectButton : {static_cast<Uint8>(SDL_CONTROLLER_BUTTON_GUIDE),
+                               static_cast<Uint8>(SDL_CONTROLLER_BUTTON_BACK)}) {
+        Fixture f;
+        pressSdlButton(f.in, selectButton, true);
+        f.frame();
+        CHECK_FALSE(f.in.quitRequested());
+        pressSdlButton(f.in, static_cast<Uint8>(SDL_CONTROLLER_BUTTON_START), true);
+        CHECK(f.frame().pressed[idx(Action::Quit)]);
+        CHECK(f.in.quitRequested());
+    }
 }
 
 TEST_CASE("input: SDL_QUIT requests quit") {
