@@ -1,7 +1,9 @@
 name: device
 
 # Builds the RG40XXH (aarch64, glibc 2.31) PortMaster packages inside the Debian 11 image from
-# flightsim/tools/docker/, checks them (GLIBC <= 2.31, dependency whitelist, layout) and uploads the zips.
+# flightsim/tools/docker/, checks them (GLIBC <= 2.31, dependency whitelist, layout) and uploads them
+# twice: unpacked as flightsim-sdcard-PORTS (download, unzip once, copy everything into Roms/PORTS on
+# the SD card) and as the PortMaster zips (flightsim-device-zips).
 
 on:
   push:
@@ -65,6 +67,21 @@ jobs:
         run: |
           ls -la dist
           for z in dist/*.zip; do echo "== $z"; unzip -l "$z" | grep -v "jsbsim/" ; done
+
+      # Both ports unpacked side by side: FlightSim.sh, flightsim/, FlightSimProbe.sh, flightsimprobe/.
+      - name: Unpack the ports for the SD card
+        working-directory: flightsim
+        run: |
+          rm -rf dist/sdcard-PORTS && mkdir -p dist/sdcard-PORTS
+          for z in dist/*.zip; do unzip -q "$z" -d dist/sdcard-PORTS; done
+          ls -la dist/sdcard-PORTS
+
+      - name: Upload the SD card folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: flightsim-sdcard-PORTS
+          path: flightsim/dist/sdcard-PORTS/
+          if-no-files-found: error
 
       - name: Upload device zips
         uses: actions/upload-artifact@v4

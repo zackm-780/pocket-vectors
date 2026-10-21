@@ -21,13 +21,14 @@ tiles are skipped). At the end it prints pack size, file counts and the largest 
 ## GitHub Actions: workflow `datapack`
 
 Actions tab, "datapack", "Run workflow". Inputs: `preset` (default `pdx_oth`), `include_world`
-(default on). It uploads `flightsim-data-<preset>-<date>` (a zip with `terrain/`, `nav/`,
-`ATTRIBUTION.txt`, `README.txt` at the top level), kept 30 days. Unzip it into `flightsim/data/`.
+(default off). It uploads the artifact `flightsim-data-<preset>-<date>`, kept 30 days. The artifact
+holds one `data/` folder (`terrain/`, `nav/`, `ATTRIBUTION.txt`, `README.txt`), not a zip inside
+the download: unzip the download once and copy `data/` into `flightsim/` on the SD card.
 
 * Caches: terrain downloads (key by preset) and nav downloads (key by preset and 28-day cycle).
   The world layer's GLO-90 downloads (about 50 GB) are not cached (the repository cache limit is
   10 GB); they go to `/mnt/world-cache` and are deleted after use.
-* Zip method: deflate (-6). On a coastal sample the terrain tiles shrank to 21 percent and the nav CSVs
+* Compression: upload-artifact deflate, level 6. On a coastal sample the terrain tiles shrank to 21 percent and the nav CSVs
   to about 25 percent; mountainous tiles compress less, but always some. Store would only save a minute.
 * **Estimated runtime (not yet measured on a runner):** region `pdx_oth` 7-10 about 2-5 minutes of
   compute (104 s on 4 cores locally) plus about 1.5 GB of downloads; nav about 1 minute; world layer

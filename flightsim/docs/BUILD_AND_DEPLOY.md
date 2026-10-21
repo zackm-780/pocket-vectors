@@ -86,18 +86,18 @@ PortMaster is **optional**. The RG40XXH stock OS ships it (`/roms/ports/PortMast
 launch scripts also work without it. Either way they use the port folder next to the script when
 it holds the binary. Without PortMaster the game handles Select+Start itself.
 
-### 7.1 Extract the port zip (SD-card safe)
-1. Download `flightsim-portmaster.zip` (and optionally `flightsim-probe-portmaster.zip`) from the
-   `device` CI workflow artifact or from `tools/build_device.sh` → `flightsim/dist/`.
-2. Unzip **onto the SD card** (or into a folder you then copy onto the card) so that these sit
-   **side by side** in the ports/scripts folder your launcher uses:
-   - `FlightSim.sh`
-   - `flightsim/` (directory)
-   The same pattern for the probe: `FlightSimProbe.sh` next to `flightsimprobe/`.
-3. Prefer unzipping with a tool that keeps Unix paths as written (the zip itself contains **no
-   symlinks**). Safe options: the handheld's own file manager, 7-Zip, or `unzip` on Linux/macOS.
-   Avoid re-zipping the port folder on Ubuntu with tools that turn libraries into symlinks again.
-4. After extract, confirm `flightsim/libs.aarch64/libJSBSim.so.1` is a **normal file** (not a
+### 7.1 Copy the ports (SD-card safe)
+The step-by-step version for the user is `flightsim/INSTALL.md`.
+1. From the `device` workflow run, download the artifact `flightsim-sdcard-PORTS`: both ports
+   already unpacked (`FlightSim.sh`, `flightsim/`, `FlightSimProbe.sh`, `flightsimprobe/`). Unzip
+   it once and copy the four items into the ports folder (`Roms/PORTS` on the stock OS). The
+   PortMaster zips (`flightsim-device-zips`, or `flightsim/dist/` from `tools/build_device.sh`)
+   hold the same files.
+2. The script and its folder must sit **side by side**: `FlightSim.sh` next to `flightsim/`,
+   `FlightSimProbe.sh` next to `flightsimprobe/`.
+3. The packages contain **no symlinks**. Avoid re-zipping the port folder on Ubuntu with tools
+   that turn libraries into symlinks again.
+4. After copying, confirm `flightsim/libs.aarch64/libJSBSim.so.1` is a **normal file** (not a
    shortcut/symlink). The binary's `DT_NEEDED` is exactly that name; `LD_LIBRARY_PATH` points at
    `libs.aarch64`.
 
@@ -106,9 +106,9 @@ it holds the binary. Without PortMaster the game handles Select+Start itself.
    `data_dir` in `flightsim/conf/settings.ini`.
    **Getting the data pack (no PC pipeline needed):** on GitHub open the Actions tab, pick the
    **datapack** workflow, "Run workflow" (defaults: preset `pdx_oth` plus a Pacific Northwest coarse layer for the far view; world layer off). When it
-   finishes, download the artifact `flightsim-data-<preset>-<date>` (a zip), **unzip it into
-   `flightsim/data/`** (the zip's top level is `terrain/`, `nav/`, `ATTRIBUTION.txt`, `README.txt`)
-   and copy that folder to the card. Terrain is built from Copernicus DEM and ESA WorldCover, nav
+   finishes, download the artifact `flightsim-data-<preset>-<date>`, unzip it once, and copy the
+   `data/` folder inside it into `flightsim/` on the card (`data/` holds `terrain/`, `nav/`,
+   `ATTRIBUTION.txt`, `README.txt`). Terrain is built from Copernicus DEM and ESA WorldCover, nav
    from OurAirports, FAA NASR and CIFP (real approaches) and WMM. To build it on a PC instead:
    `flightsim/tools/datapack/build_datapack.sh --out flightsim/data` (needs **Python ≥ 3.12**; see its README). The pack is
    about 0.4 GB by default and about 3 GB with the world layer (`include_world` on; hours of

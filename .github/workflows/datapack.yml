@@ -1,8 +1,9 @@
 name: datapack
 
 # Builds the flightsim data pack (terrain + nav + FAA approaches, optional world coarse layer) from
-# public sources and uploads it as one zip artifact. Run it from the Actions tab ("Run workflow"),
-# download the artifact, unzip into flightsim/data/ on the SD card. The data is never committed.
+# public sources and uploads it as one artifact holding a data/ folder. Run it from the Actions tab
+# ("Run workflow"), download the artifact, unzip it once and copy data/ into Roms/PORTS/flightsim/
+# on the SD card. The data is never committed.
 # See flightsim/tools/datapack/README.md.
 
 on:
@@ -68,7 +69,7 @@ jobs:
         working-directory: flightsim
         run: |
           set -euo pipefail
-          args=(--out "$RUNNER_TEMP/pack" --preset "$PRESET" --jobs "$(nproc)")
+          args=(--out "$RUNNER_TEMP/upload/data" --preset "$PRESET" --jobs "$(nproc)")
           if [ "$INCLUDE_WORLD" = "true" ]; then args+=(--world); fi
           # world cache on the big temp disk when the workspace disk is small
           sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
@@ -76,21 +77,14 @@ jobs:
           # pipefail: without it, a failing build still looks green when tee|tail both succeed.
           tools/datapack/build_datapack.sh "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/build.log" | tail -n 400
 
-      - name: Zip the pack
-        id: zip
-        run: |
-          name="flightsim-data-${PRESET}-${{ steps.keys.outputs.date }}"
-          # Deflate: terrain tiles shrink to about 20-50 percent, CSVs to about 25 percent.
-          (cd "$RUNNER_TEMP/pack" && zip -q -r -6 "$GITHUB_WORKSPACE/$name.zip" .)
-          ls -l "$GITHUB_WORKSPACE/$name.zip"
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-
+      # The artifact holds data/ itself (not a zip inside the artifact's zip): one unzip, then copy.
+      # upload-artifact deflates it; terrain tiles shrink to about 20-50 percent, CSVs to about 25.
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.zip.outputs.name }}
-          path: ${{ steps.zip.outputs.name }}.zip
+          name: flightsim-data-${{ inputs.preset }}-${{ steps.keys.outputs.date }}
+          path: ${{ runner.temp }}/upload/
           retention-days: 30
-          compression-level: 0   # already zipped
+          compression-level: 6
           if-no-files-found: error
 
       - name: Summary
@@ -99,7 +93,7 @@ jobs:
           {
             echo "## Data pack"
             echo "Preset \`$PRESET\`, world layer: \`$INCLUDE_WORLD\`."
-            echo "Download the artifact, unzip straight into \`flightsim/data/\` on the SD card (the zip has terrain/, nav/ at its top level)."
+            echo "Download the artifact, unzip it once and copy its \`data\` folder into \`Roms/PORTS/flightsim/\` on the SD card."
             echo '```'
             tail -n 25 "$RUNNER_TEMP/build.log" 2>/dev/null || true
             echo '```'
