@@ -493,7 +493,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             if (showFps) {
                 const AircraftState& s = sim.aircraft();
                 char title[160];
-                std::snprintf(title, sizeof title, "Flight Sim | %.0f fps | %.0f kt | %.0f ft",
+                std::snprintf(title, sizeof title, "Pocket Vectors | %.0f fps | %.0f kt | %.0f ft",
                               fpsFrames / fpsClockS, s.iasKt, s.altMslFt);
                 window.setTitle(title);
                 LOG_INFO("%.1f fps", fpsFrames / fpsClockS);

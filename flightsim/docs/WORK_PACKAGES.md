@@ -535,7 +535,7 @@ B back), all legible at 640×480:
    the autopilot, flying a flight plan, flying an ILS approach, the map page, loading `.fms`
    plans (where to put them: `flightsim/data/plans/`), getting more data packs, troubleshooting
    (launch logs).
-4. **About**: "Flight Sim by Zack Martin", GitHub `github.com/zackm-780`, project
+4. **About**: "Pocket Vectors, Retro Flight Sim with Modern Data, by Zack Martin", GitHub `github.com/zackm-780`, project
    `github.com/zackm-780/retro-games`, support link `buymeacoffee.com/zackm`, build version and
    commit, and credits: JSBSim (LGPL-2.1) and the data attribution text from
    `data/ATTRIBUTION.txt` when a pack is installed (the Copernicus notice is required).

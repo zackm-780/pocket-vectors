@@ -85,16 +85,11 @@ From the probe (DEVICE.md §2):
 
 - X and Y: swapped as well? Does L1 work (the probe's L1 prompt got no press)?
 - "It kind of works": what else felt wrong (frame rate, stick feel, text size, terrain)?
-- **Name:** "Flight Sim" is a working title; the user wants a better name and a subtitle that says
-  retro handheld but smart and new (options were suggested in chat; wait for their pick). A rename
-  should change the **display** name (`gameinfo.xml`, `port.json` title, window title, main menu,
-  About page, READMEs) and keep the folder and binary names (`flightsim/`, `FlightSim.sh`,
-  `flightsim.aarch64`), or users lose `conf/` and `data/` on update. Renaming those needs a
-  migration note in INSTALL.md and `check_package.sh` / `test_launch_scripts.sh` updates.
-- **Licence:** the repository has no `LICENSE` file. Public and forkable on GitHub is not the same
-  as open source: without a licence others may not reuse or redistribute the code. The user needs
-  to pick one before inviting contributions (it must be compatible with JSBSim's LGPL-2.1 and the
-  data licences in DATA.md). Do not choose it for them.
+- Decided 2026-10-21 (PLAN D20, D21): the name is **Pocket Vectors**, subtitle "Retro Flight Sim
+  with Modern Data" (main menu, window title, port metadata and READMEs are done). Only the display
+  name changed: keep `flightsim/`, `FlightSim.sh` and `flightsim.aarch64`, or users lose `conf/` and
+  `data/` on update. The licence is **Apache-2.0** with a `NOTICE` crediting Zack Martin; both
+  ship in `port/licenses/`, and the H6 About page should show the NOTICE.
 
 ## 6. Process
 

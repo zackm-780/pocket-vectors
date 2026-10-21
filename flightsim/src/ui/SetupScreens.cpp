@@ -106,8 +106,8 @@ public:
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
         drawBackdrop(r, 0.88f);
         const float cx = r.centerX();
-        r.text(cx, 118, "FLIGHT SIM", TextSize::L, t.accent, HAlign::Center);
-        r.text(cx, 140, "FIRST PERSON FLIGHT SIMULATOR", TextSize::S, t.dim, HAlign::Center);
+        r.text(cx, 118, "POCKET VECTORS", TextSize::L, t.accent, HAlign::Center);
+        r.text(cx, 140, "RETRO FLIGHT SIM WITH MODERN DATA", TextSize::S, t.dim, HAlign::Center);
         r.line(cx - 150, 152, cx + 150, 152, t.accent.withAlpha(0.6f));
         std::vector<ListRow> rows(4);
         rows[0].label = "RESUME LAST FLIGHT";

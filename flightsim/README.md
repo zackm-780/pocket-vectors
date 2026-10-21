@@ -1,4 +1,6 @@
-# Flight Sim (working title)
+# Pocket Vectors
+
+**Retro Flight Sim with Modern Data.**
 
 A first-person flight simulator for the **Anbernic RG40XXH** (stock OS, via PortMaster) that also
 builds on desktop Linux, macOS and Windows for development.

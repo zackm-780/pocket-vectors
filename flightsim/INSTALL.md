@@ -43,10 +43,10 @@ To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/s
 
 ## 4. Probe first, then fly
 
-1. From Ports, run **Flight Sim Probe**. It writes `flightsimprobe_launch_log.txt` next to
+1. From Ports, run **Pocket Vectors Probe** (only needed for testing). It writes `flightsimprobe_launch_log.txt` next to
    `FlightSimProbe.sh`. When it finishes, copy **`flightsimprobe/probe_report.txt`** off
    the card (that is the file to keep).
-2. Run **Flight Sim**. Exit with **Select + Start**.
+2. Run **Pocket Vectors**. Exit with **Select + Start**.
 3. If something goes wrong, read `flightsim_launch_log.txt` next to `FlightSim.sh`. Its
    `candidate` lines list every folder the script checked for `flightsim.aarch64`, and
    `GAMEDIR=` shows the folder it used.
@@ -71,7 +71,7 @@ select = guide
 ```
 
 **Other devices:** if A and B (or X and Y) are swapped, swap the right-hand sides of those lines.
-If Select does nothing, try `select = back` or `select = guide`. The probe (Flight Sim Probe)
+If Select does nothing, try `select = back` or `select = guide`. The probe (Pocket Vectors Probe)
 lists what every button produces in `flightsimprobe/probe_report.txt` (section CONTROLLERS and
 INPUT TEST). You can also rebind actions in the same file, e.g. a `[pad.base]` section with
 `GearToggle = a`; see the comments in `controls_default.ini` and `docs/CONTROLS.md`.

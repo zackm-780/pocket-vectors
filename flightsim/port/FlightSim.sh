@@ -1,5 +1,5 @@
 #!/bin/bash
-# Flight Sim - launch script (aarch64).
+# Pocket Vectors (flightsim) - launch script (aarch64).
 #
 # Works with PortMaster (official template: https://portmaster.games/packaging.html) and without it.
 # The port folder is the "flightsim" folder next to this script when it holds the binary, else
@@ -23,7 +23,7 @@ case "$0" in */*) SCRIPT_DIR="${0%/*}" ;; *) SCRIPT_DIR=. ;; esac
 SCRIPT_DIR="$(cd "$SCRIPT_DIR" 2>/dev/null && pwd)"
 LAUNCHLOG="${SCRIPT_DIR:-/tmp}/${PORTNAME}_launch_log.txt"
 {
-  echo "== Flight Sim launch $(date 2>/dev/null)"
+  echo "== Pocket Vectors launch $(date 2>/dev/null)"
   echo "script: $0 (dir: $SCRIPT_DIR) shell: ${BASH_VERSION:-sh} user: $(id 2>/dev/null)"
   uname -a 2>&1
 } > "$LAUNCHLOG" 2>&1
@@ -101,7 +101,7 @@ mkdir -p "$CONFDIR"
 exec >> "$LAUNCHLOG" 2>&1
 
 if [ ! -f "$BIN" ]; then
-  pm_message "Flight Sim: flightsim.${DEVICE_ARCH} is missing from $GAMEDIR"
+  pm_message "Pocket Vectors: flightsim.${DEVICE_ARCH} is missing from $GAMEDIR"
   sleep 5
   exit 1
 fi

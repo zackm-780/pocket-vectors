@@ -17,7 +17,7 @@ struct WindowConfig {
     bool fullscreen = false;
     bool vsync = true;
     bool preferMsaa = true;
-    std::string title = "Flight Sim";
+    std::string title = "Pocket Vectors";
 };
 
 class Window {

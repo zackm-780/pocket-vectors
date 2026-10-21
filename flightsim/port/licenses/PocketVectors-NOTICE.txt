@@ -1,0 +1,12 @@
+Pocket Vectors
+Copyright 2026 Zack Martin (https://github.com/zackm-780)
+
+This product includes software developed by Zack Martin as part of the
+retro-games project: https://github.com/zackm-780/retro-games
+
+Licensed under the Apache License, Version 2.0 (see LICENSE). Forks and
+redistributions must keep this NOTICE file and credit the original author.
+
+Third-party components keep their own licences: JSBSim (LGPL-2.1), SDL2
+(zlib), and the data packs (terrain, airports, navigation data) under the
+terms listed in each pack's ATTRIBUTION.txt.
