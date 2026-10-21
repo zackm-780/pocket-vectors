@@ -119,12 +119,14 @@ export FLIGHTSIM_PLATFORM=portmaster
 pm_platform_helper "$BIN"
 
 echo "--- starting $BIN ---"
+# --asset-dir: started through the loader, the game would take the loader's folder (/lib) for its
+# own and miss jsbsim/, assets/ and data/.
 if [ -x "$BIN" ]; then
-  "$BIN" --fullscreen --conf-dir "$CONFDIR"
+  "$BIN" --fullscreen --asset-dir "$GAMEDIR" --conf-dir "$CONFDIR"
 else
   # SD cards formatted FAT/exFAT may not keep the execute bit: start through the dynamic loader.
   echo "(not executable here; starting via /lib/ld-linux-aarch64.so.1)"
-  /lib/ld-linux-aarch64.so.1 "$BIN" --fullscreen --conf-dir "$CONFDIR"
+  /lib/ld-linux-aarch64.so.1 "$BIN" --fullscreen --asset-dir "$GAMEDIR" --conf-dir "$CONFDIR"
 fi
 echo "flightsim exited with status $?"
 

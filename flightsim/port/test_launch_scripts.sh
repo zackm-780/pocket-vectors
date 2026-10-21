@@ -16,6 +16,8 @@ trap 'rm -rf "$WORK"' EXIT
 failures=0
 
 # $1 script path, $2 port name, $3 layout. Prints the folder the fake binary ran in, or nothing.
+# The binary must also be told that folder (it cannot rely on /proc/self/exe when the script starts
+# it through /lib/ld-linux-aarch64.so.1): --asset-dir for the game, --jsbsim-dir for the probe.
 run_layout() {
   local script="$1" port="$2" layout="$3"
   local root="$WORK/$layout-$port"
@@ -38,10 +40,17 @@ EOF
     pm-only) portdir="$pmroot/ports/$port" ;;
   esac
   mkdir -p "$portdir"
-  printf '#!/bin/sh\necho "FAKEBIN ran in $(pwd)"\n' > "$portdir/$port.aarch64"
+  printf '#!/bin/sh\necho "FAKEBIN ran in $(pwd)"\necho "FAKEBIN args $*"\n' > "$portdir/$port.aarch64"
   chmod +x "$portdir/$port.aarch64"
   env -i PATH="$PATH" HOME="$root/home" XDG_DATA_HOME="$root/xdg" bash "$launcher" >/dev/null 2>&1
-  sed -n 's/^FAKEBIN ran in //p' "$sd/${port}_launch_log.txt" 2>/dev/null
+  local log="$sd/${port}_launch_log.txt" ran want_arg
+  ran="$(sed -n 's/^FAKEBIN ran in //p' "$log" 2>/dev/null)"
+  case "$port" in flightsim) want_arg="--asset-dir $ran " ;; *) want_arg="--jsbsim-dir $ran/jsbsim" ;; esac
+  if [ -n "$ran" ] && ! grep -q -F -- "$want_arg" "$log"; then
+    echo "$ran (but not passed '$want_arg')"
+    return
+  fi
+  echo "$ran"
 }
 
 check() {

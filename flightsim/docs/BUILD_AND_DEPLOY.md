@@ -124,7 +124,9 @@ The step-by-step version for the user is `flightsim/INSTALL.md`.
 ### 7.3 Linux / handheld notes (stock Anbernic)
 - **Filesystem:** microSD is usually FAT32 or exFAT — no symlinks, case-insensitive names, and the
   execute bit is often lost. Launch scripts detect a non-executable binary and start it via
-  `/lib/ld-linux-aarch64.so.1` (same for the probe).
+  `/lib/ld-linux-aarch64.so.1` (same for the probe). They always pass the port folder
+  (`--asset-dir` for the game, `--jsbsim-dir` for the probe), because under the loader
+  `/proc/self/exe` names the loader, not the binary.
 - **Line endings:** keep `FlightSim.sh` / `FlightSimProbe.sh` as Unix LF. CRLF from a Windows editor
   can break `#!/bin/bash`.
 - **Userspace:** the build is **aarch64 (64-bit)** glibc. Some stock images are 32-bit armhf; those

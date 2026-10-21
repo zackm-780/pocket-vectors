@@ -131,12 +131,13 @@ pm_platform_helper "$BIN"
 
 echo "--- starting $BIN ---"
 # PROBE_EXTRA_ARGS is for development (e.g. PROBE_EXTRA_ARGS="--quick --skip gpu").
+# --jsbsim-dir: started through the loader, the probe would look for jsbsim/ next to the loader.
 if [ -x "$BIN" ]; then
-  "$BIN" --fullscreen --out "$GAMEDIR" $PROBE_EXTRA_ARGS
+  "$BIN" --fullscreen --out "$GAMEDIR" --jsbsim-dir "$GAMEDIR/jsbsim" $PROBE_EXTRA_ARGS
 else
   # SD cards formatted FAT/exFAT may not keep the execute bit: start through the dynamic loader.
   echo "(not executable here; starting via /lib/ld-linux-aarch64.so.1)"
-  /lib/ld-linux-aarch64.so.1 "$BIN" --fullscreen --out "$GAMEDIR" $PROBE_EXTRA_ARGS
+  /lib/ld-linux-aarch64.so.1 "$BIN" --fullscreen --out "$GAMEDIR" --jsbsim-dir "$GAMEDIR/jsbsim" $PROBE_EXTRA_ARGS
 fi
 echo "probe exited with status $?"
 
