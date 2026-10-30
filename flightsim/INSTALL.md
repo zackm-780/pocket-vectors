@@ -29,7 +29,12 @@ The zip is built that way because FAT/exFAT cards cannot store symlinks.
 
 ## 2. Updating later
 
-Two smaller zips are on the same release, for when you do not want to copy everything again:
+**From 1.0 to 1.1 or later:** download `pocket-vectors-vX.Y.Z-game.zip` from the newest release,
+unzip it into `Roms/PORTS` and merge the folders (your `conf/` and `data/` stay). If you created
+`flightsim/conf/controls.ini` for the 1.0 A/B workaround, delete it: from 1.1 the defaults match
+the printed labels. Changes per version are in [CHANGELOG.md](../CHANGELOG.md).
+
+The 1.0 release also carries two smaller zips, for when you do not want to copy everything again:
 
 - **Game only** (`pocket-vectors-1.0.0-game.zip`): unzip into `Roms/PORTS`. It is `FlightSim.sh`
   and `flightsim/` without `data/`. On Windows, copying over the existing folder keeps

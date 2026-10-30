@@ -20,6 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check the tag matches the CMake project version
+        run: |
+          set -euo pipefail
+          want="${GITHUB_REF_NAME#v}"
+          want="${want%%-*}"
+          have="$(grep -oP '^project\(flightsim VERSION \K[0-9.]+' flightsim/CMakeLists.txt)"
+          if [ "$want" != "$have" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match project(flightsim VERSION ${have})." >&2
+            echo "Bump the version in flightsim/CMakeLists.txt first." >&2
+            exit 1
+          fi
+
       - name: Build the device package
         working-directory: flightsim
         env:
@@ -43,9 +55,23 @@ jobs:
           cat > "$notes" <<EOF
           Pocket Vectors ${tag} for the Anbernic RG40XXH (stock OS, 64-bit, SDL2).
 
-          This asset is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
-          Unzip it into \`Roms/PORTS\`. To fly somewhere other than the built-in synthetic field, add a data
-          pack with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).
+          The asset is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
+
+          ## Update an existing install
+
+          Unzip \`pocket-vectors-${tag}-game.zip\` into \`Roms/PORTS\` and **merge** the folders, so
+          \`flightsim/conf/\` and \`flightsim/data/\` stay. In the macOS Finder, "Replace" deletes
+          \`flightsim/data/\`: merge instead, or copy \`data/\` back afterwards. If you created
+          \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it.
+
+          ## New install
+
+          Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:
+          unzip [pocket-vectors-1.0.0-data-pdx_oth.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.0.0/pocket-vectors-1.0.0-data-pdx_oth.zip)
+          and copy the \`data/\` folder inside it to \`Roms/PORTS/flightsim/\`. Or combine both into one zip
+          with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).
+
+          ## Other regions
 
           Build a pack from the Actions tab (workflow \`datapack\`, presets \`pdx_oth\`, \`bayarea\`,
           \`mthood\`, \`tam_diablo\`, or a \`bbox\`) or with \`tools/datapack/build_datapack.sh\`.
@@ -55,6 +81,15 @@ jobs:
           EOF
           # The heredoc above is indented; strip the leading spaces.
           sed -i 's/^          //' "$notes"
+          # Append this version's CHANGELOG section (the lines under "## <version>").
+          ver="${tag#v}"
+          ver="${ver%%-*}"
+          if [ -f ../CHANGELOG.md ]; then
+            changes="$(awk -v v="## ${ver}" '$0 == v || index($0, v " ") == 1 {on = 1; next} /^## / {on = 0} on' ../CHANGELOG.md)"
+            if [ -n "$changes" ]; then
+              printf '\n## Changes\n%s\n' "$changes" >> "$notes"
+            fi
+          fi
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "$asset" --clobber
           else

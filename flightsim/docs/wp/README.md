@@ -33,7 +33,7 @@ session can be thrown away and a fresh one picks up from the board.
 
 | Phase | Cards | Runs in parallel | Gate to leave the phase | Release |
 |---|---|---|---|---|
-| 1 | T1 (owner), R2, P1b, X3a | R2, P1b and X3a together; T1 any time | T1 done, R2 merged | owner tags **v1.1.0** |
+| 1 | T1 (owner), R2, P1b, X3a | P1b and X3a together; T1 any time | T1 done (tests the v1.1.0 release) | **v1.1.0** published from R2; a fix release if T1 finds a bug |
 | 2 | X3b, N7, S2, X5, F5, W1b, U1 | At most 3 builders; never two cards that share a hot file (below) | Every phase-2 card merged | none |
 | 2b | T2 (owner), then X3c | | X3c meets the 30 fps floor | owner tags **v1.2.0** |
 | 3 | N8, N9, H8, W7, R3, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first | T3 done | owner tags **v1.3.0** |
