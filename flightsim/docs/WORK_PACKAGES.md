@@ -1,5 +1,9 @@
 # Work packages
 
+> **Waves 0–5 (this file) are the history up to and just after 1.0.** New work is on the card
+> board, one file per work package: [wp/README.md](wp/README.md). X3 below is split there into
+> X3a, X3b and X3c.
+
 Each work package (WP) is sized for one contributor or one AI coding tool. The **Model / effort**
 line is a hint for how careful the change is (medium for a well-specified package, high where the
 math or the renderer is easy to get wrong). **Owns** lists the paths the WP
@@ -459,7 +463,7 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer
+**Status:** superseded (split into X3a, X3b, X3c on the card board, [wp/README.md](wp/README.md)) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
 
