@@ -624,3 +624,107 @@ Public users should get from nothing to flying with one zip on the SD card:
 
 **Acceptance:** a fresh clone, the release zip, a data pack and one `.fms` produce a zip with the
 script that boots to the main menu on the device (user test); the script's tests pass in CI.
+
+---
+
+# Wave 6: toward 1.2 (after the 1.1 device test, 2026-10-30)
+
+The 1.1 build (`main` `1737feb`) was flown on the RG40XXH. Confirmed working on the device: A/B
+labels, thrust reversers (R1 + A) and the other combos the owner tried. Three problems came back,
+fixed in I2. A code check of every documented combo found two more that did nothing (R1 + Y,
+L1 + Select), also fixed in I2. The rest of the wave is the first part of PLAN section 2's v2
+list plus follow-ups recorded in earlier packages. Proposed 1.2 cut: I2, N7, V1, then X3 once
+device numbers exist. W7, N8 and S2 can follow in 1.3.
+
+| WP | Title | Model / effort | Depends | Owns (summary) |
+|---|---|---|---|---|
+| I2 | 1.1 device-test fixes: gear, look layer, nav source, direct-to, runway overlay | Sonnet / medium | P2, W6 | small fixes across merged modules (maintainer-assigned) |
+| N7 | Autopilot go-around (TO/GA) and FLC | Sonnet / high | N6 | `src/autopilot/`, `tests/autopilot/` |
+| V1 | External chase view with simple models | Sonnet / high | W2, W5 | `src/world/ExternalView*`, `tests/world/externalview*` |
+| W7 | Cloud layers | Sonnet / medium | W4, X1 | `src/world/Clouds*`, `tests/world/clouds*` |
+| N8 | SIDs and STARs | Sonnet / high | N4, N5, H5 | `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*` |
+| S2 | GPWS voice callouts | Sonnet / medium | S1, X2 | `src/audio/`, `assets/audio/` |
+
+## I2: 1.1 device-test fixes
+**Status:** in review (needs device test: resume from the pause menu with A in flight and the gear stays put; L2 + D-pad snaps and L2 + right stick looks, release recenters; R1 + Y on an ILS plan shows NAV SOURCE LOC / GPS; L1 + Select goes direct to the active waypoint, or opens the direct-to list without a plan; runway outlines and the approach path clear below 250 ft above the field) · **Model / effort:** Sonnet / medium · **Depends:** P2, W6
+1. **Gear moved on its own.** On the pad A is both MenuAccept and GearToggle. The frame a menu
+   closed in (RESUME, or starting a flight with A) also reached `PilotControls`, so the gear
+   toggled; airborne starts and resumes in flight put it up. The keyboard has separate keys, so
+   desktop tests never showed it. A frame the menu owns now gives the flight no buttons
+   (`clearButtons`, axes kept).
+2. **Look-around did nothing.** The L2 layer raised the look actions, but nothing turned them
+   into camera angles. `input/LookControl` does now: D-pad snaps, rate-based right-stick free
+   look, ease back to straight ahead on release (about 0.3 s). The look layer is L2; R2 stays the
+   brakes. Dev hook for screenshots: `FSIM_LOOK_DEG=yaw,pitch`.
+3. **Runway ribbons near the ground.** The runway outlines' vertical fins (at least 14 m tall)
+   boxed in the view on short final and on the runway. Outlines now clear when the eye is less
+   than 250 ft above the runway's elevation; the approach path clears below 250 ft above the end
+   of the approach leg.
+4. **R1 + Y and L1 + Select were unbound in the app.** Nav source cycle (`nextNavSourceSelect`,
+   plus `Navigator::locAvailable` / `vorTuned`, additive) and direct-to the active waypoint
+   (`MenuSystem::openDirectTo`, additive, when there is no plan).
+5. Project version 1.2.0 (the About page showed 0.1.0).
+
+## N7: Autopilot go-around and FLC
+**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N6 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+
+**Owns:** `src/autopilot/`, `tests/autopilot/`; one binding each in `assets/controls_default.ini`
+and CONTROLS.md (integration, proposed in the PR; L1 + L3 is free for TO/GA, R3 stays unbound).
+
+N6 left FLC and go-around out. **TO/GA:** pitch to the profile's go-around attitude (FD bars),
+A/T to go-around thrust, lateral mode holds the current track, the navigator sequences into the
+missed approach, and the FMA reads `TOGA | GA`. Pressing it below minimums with the AP on keeps
+the AP engaged. **FLC:** climb or descend to the altitude bug at the speed bug with pitch on
+speed and the A/T at climb or idle thrust, capturing ALT* at the bug.
+**Acceptance (headless, c172p and 737):** a go-around from 200 ft on the XTST ILS climbs through
+1,000 ft AGL without sinking more than 50 ft below the TO/GA point, and the navigator is on the
+missed-approach legs. FLC from 3,000 to 9,000 ft holds the speed bug ±5 kt and captures with less
+than 100 ft overshoot.
+
+## V1: External chase view
+**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W2, W5 · **Specs:** PLAN §2 (v2+), D5
+
+**Owns:** `src/world/ExternalView*` (new), `tests/world/externalview*`; a camera-mode toggle
+(integration, proposed in the PR; L2 + L3 is free).
+
+A chase camera behind and above the aircraft (orbit with L2 + right stick) and a simple model
+built in code per category (single, twin, bizjet, airliner, heavy: fuselage, wings, tail, engines,
+gear when down, flaps), so no model files or licences are needed. The HUD shows only the status
+strip and messages in this view. D5 still holds for the cockpit view.
+**Acceptance:** screenshots for each category on the runway and in a bank; the model is one draw
+call; terrain and runway depth stay correct around it; frame cost under 0.5 ms on desktop.
+
+## W7: Cloud layers
+**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** W4, X1 · **Specs:** ARCHITECTURE §6
+
+**Owns:** `src/world/Clouds*`, `tests/world/clouds*`; a `[clouds]` weather section in scenarios
+and the weather menu (integration).
+
+Up to three layers (FEW / SCT / BKN / OVC with a base and a top) from manual weather or METAR
+ceilings. The layer is drawn from above, from below and inside it (fog to the cloud colour).
+The budget: at most 3 draw calls and a fill cost the Mali can carry (DEVICE.md §2: about 17
+blended full-screen layers per frame in total).
+**Acceptance:** screenshots below, inside and above an OVC 1,500 ft layer at XTST, and a METAR
+fixture that produces a BKN layer.
+
+## N8: SIDs and STARs
+**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N4, N5, H5 · **Specs:** NAVIGATION §2–3, DATA §7
+
+**Owns:** `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*`; the departure and
+arrival rows on the flight-plan screen (H5, small additive edit).
+
+Parse CIFP SID and STAR records (runway and enroute transitions) into the `.proc` files, load
+them at runtime, and let the flight-plan screen insert a SID after the origin and a STAR before
+the approach. `.fms` imports keep their SID/STAR names. Leg types as in N4.
+**Acceptance:** the KPDX and KOTH SIDs and STARs parse with the published fixes and altitude
+constraints; the perfect-pilot test flies a KPDX SID into the KPDX-KOTH plan.
+
+## S2: GPWS voice callouts
+**Status:** todo (needs a PLAN decision on the voice source and its licence first) · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
+
+**Owns:** `src/audio/` (voice playback), `assets/audio/` (clips).
+"MINIMUMS", radio-altitude callouts (500, 100, 50, 40, 30, 20, 10), "SINK RATE", "PULL UP",
+"TERRAIN", "TOO LOW GEAR" in place of the X2 tones, with the tones as the fallback when a clip
+is missing. Small mono 22.05 kHz clips loaded at start.
+**Acceptance:** each GPWS event plays its clip in a scripted approach (audio event log), and the
+memory cost is under 2 MB.
