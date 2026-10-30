@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 
@@ -34,6 +35,7 @@
 #include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "input/InputSystem.h"         // P2
+#include "input/LookControl.h"         // I2
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
@@ -190,6 +192,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     PilotControls pilotControls;
     pilotControls.setStickTuning(settings.stickTuning());  // P3
     bool showFps = effectiveShowFps(opt, settings);        // P3
+    // I2: L2 look layer -> camera look angles. FSIM_LOOK_DEG=yaw,pitch holds a look for
+    // screenshots (like the FSIM_W2_* hooks).
+    LookControl look;
+    float lookHoldYawDeg = 0, lookHoldPitchDeg = 0;
+    if (const char* env = std::getenv("FSIM_LOOK_DEG"))
+        std::sscanf(env, "%f,%f", &lookHoldYawDeg, &lookHoldPitchDeg);
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
@@ -272,6 +280,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     };
     // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
     auto flightStarted = [&]() {
+        look.reset();  // I2
         if (const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent))
             renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
         setSkyTime();
@@ -318,6 +327,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         while (SDL_PollEvent(&event)) input.handleEvent(event);
         const ActionState& actions = input.update(dtS);  // P2
         messages.tick(dtS);
+        // I2: a frame the menu owns gives the flight no buttons, also when the menu closes in it.
+        const bool menuOwnsFrame = menu.active();
         // H4: the map takes MapToggle; while shown it consumes the D-pad / A / B / Y actions.
         ActionState flightActions = actions;
         if (menu.active()) {
@@ -373,14 +384,23 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         sim.setPaused(state != AppState::Flying);
 
         if (state == AppState::Flying) {
+            // I2: the press that closed a menu stays in the menu. On the pad A is MenuAccept and
+            // GearToggle, so resuming or starting a flight with A used to move the gear.
+            ActionState cmdActions = actions;
+            if (menuOwnsFrame) {
+                clearButtons(flightActions);
+                clearButtons(cmdActions);
+            }
             if (interactive)
                 pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
+            // I2: L2 look layer (frozen while a menu is open, eases back when L2 is released).
+            if (interactive) look.update(flightActions, dtS);
             // N6: AP / FD / A/T engage, mode and bug actions.
             if (interactive)
-                sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
+                sim.autopilot().handleActions(cmdActions, sim.aircraft(), sim.navState(), dtS);
             if (interactive &&
-                actions.pressed[static_cast<int>(Action::OverlayPreset)]) {  // W6: L3 presets
+                cmdActions.pressed[static_cast<int>(Action::OverlayPreset)]) {  // W6: L3 presets
                 world::OverlayToggles layers;
                 layers.route = settings.overlayRoute;
                 layers.vpath = settings.overlayVpath;
@@ -397,7 +417,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             }
             if (interactive) {  // X1: altimeter setting (R1 + D-pad up/down, R1 + Select = STD)
                 const bool inHg = settings.pressureUnits == PressureUnits::InHg;
-                auto pr = [&](Action a) { return actions.pressed[static_cast<int>(a)]; };
+                auto pr = [&](Action a) { return cmdActions.pressed[static_cast<int>(a)]; };
                 if (pr(Action::BaroStd)) sim.setAltimeterSettingHpa(static_cast<float>(kStdQnhHpa));
                 const int steps = (pr(Action::BaroInc) ? 1 : 0) - (pr(Action::BaroDec) ? 1 : 0);
                 if (steps != 0) sim.stepAltimeter(steps, inHg);
@@ -405,6 +425,37 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                     char t[16];
                     formatAltimeterSetting(t, sizeof t, sim.altimeterSettingHpa(), inHg);
                     messages.postf("ALTIMETER %s", t);
+                }
+            }
+            if (interactive) {  // I2: R1 + Y nav source, L1 + Select direct-to
+                auto pr = [&](Action a) { return cmdActions.pressed[static_cast<int>(a)]; };
+                Navigator& nav = sim.navigator();
+                if (pr(Action::NavSourceCycle)) {
+                    const NavSource shown = sim.navState().source;
+                    const NavSourceSelect next =
+                        nextNavSourceSelect(shown, nav.locAvailable(), nav.vorTuned());
+                    nav.setSourceSelect(next);
+                    const char* text = "NAV SOURCE GPS";
+                    if (next == NavSourceSelect::Loc) text = "NAV SOURCE LOC";
+                    if (next == NavSourceSelect::Vor) text = "NAV SOURCE VOR";
+                    if (shown != NavSource::Loc && shown != NavSource::Vor &&
+                        next == NavSourceSelect::Auto)
+                        text = "NO LOC OR VOR TUNED";
+                    messages.post(text);
+                }
+                if (pr(Action::DirectTo)) {
+                    const int leg = nav.hasPlan() ? nav.plan().activeLeg : -1;
+                    if (leg >= 1 && leg < static_cast<int>(nav.plan().legs.size()) &&
+                        nav.directToLeg(leg)) {
+                        // The plan is now [PPOS, DF target, ...] with the target active.
+                        const FlightPlan& plan = nav.plan();
+                        messages.postf(
+                            "DIRECT TO %s",
+                            plan.legs[static_cast<size_t>(plan.activeLeg)].to.ident.c_str());
+                    } else {  // no plan (or it is flown out): pick a waypoint from the list
+                        mapShown = false;
+                        menu.openDirectTo();
+                    }
                 }
             }
             sim.advance(dtS);
@@ -468,7 +519,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         int w = 0, h = 0;
         window.drawableSize(w, h);
         camera.setViewport(w, h);
-        camera.setPoseFromAircraft(view);
+        // I2: the look angles (or the FSIM_LOOK_DEG screenshot hook).
+        if (lookHoldYawDeg != 0 || lookHoldPitchDeg != 0)
+            camera.setPoseFromAircraft(view, static_cast<float>(degToRad(lookHoldYawDeg)),
+                                       static_cast<float>(degToRad(lookHoldPitchDeg)));
+        else
+            camera.setPoseFromAircraft(view, look.yawRad(), look.pitchRad());
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(view.altAglFt));
         renderer.render(camera, w, h);

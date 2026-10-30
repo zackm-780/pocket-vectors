@@ -132,11 +132,13 @@ all. A mix that is not one of those presets shows as CUSTOM.
   pole reaches the waypoint's altitude constraint, otherwise the plan's cruise altitude, otherwise
   a short mast above the ground. The label reads `NAME  12.3 NM`.
 - **Vertical path.** Gates along the active leg at the planned altitude. On an approach leg the
-  gates and the line descend on a glidepath.
+  gates and the line descend on a glidepath, and clear once the eye is less than 250 ft above the
+  end of the leg (the runway).
 - **Airports.** The nearest fields inside the radius (default 25 NM, at most 12), hidden inside
   about 1 NM. Marker at field elevation, label `KPDX  8.4 NM`.
 - **Runways.** A brighter outline of each runway, widened so it stays readable from altitude. The
-  field you are on still gets outlines.
+  outlines of a runway clear once the eye is less than 250 ft above its elevation (height above
+  the field, not distance), so short final and the ground roll show the runway and the sky.
 
 The four layers are separate draw calls (a layer with nothing to draw is skipped). R3 is not used.
 

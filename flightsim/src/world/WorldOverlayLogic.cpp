@@ -232,6 +232,7 @@ void addGate(std::vector<float>& batch, const OverlayEye& eye, double latDeg, do
 
 void addRunwayOutline(std::vector<float>& batch, const OverlayEye& eye, const Runway& rw) {
     if (rw.ident > rw.oppositeIdent && !rw.oppositeIdent.empty()) return;
+    if (overlayHiddenNearField(eye.altMslM, rw.thrElevFt)) return;
     const double distEnds =
         greatCircleDistM(rw.startLatDeg, rw.startLonDeg, rw.endLatDeg, rw.endLonDeg);
     if (distEnds < 30.0) return;
@@ -325,6 +326,10 @@ float metersForPixels(float distM, float px, float viewH, float vFovRad) {
     if (!(distM > 1.0f) || viewH < 1.0f || !(vFovRad > 0.01f)) return 0.0f;
     const float span = 2.0f * distM * std::tan(vFovRad * 0.5f);
     return px * span / viewH;
+}
+
+bool overlayHiddenNearField(double eyeAltMslM, float fieldElevFt) {
+    return eyeAltMslM - ftToM(fieldElevFt) < ftToM(kOverlayNearFieldHideFt);
 }
 
 float overlayRunwayHalfWidthM(float trueHalfWidthM, float distM, float minPx, float viewH,
@@ -477,10 +482,12 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
             if (!leg.missedApproach) {
                 const double dist =
                     greatCircleDistM(prev.to.latDeg, prev.to.lonDeg, leg.to.latDeg, leg.to.lonDeg);
-                if (dist >= 50.0 && dist < kMaxLegM) {
-                    const float g1 = groundFtAt(terrain, leg.to.latDeg, leg.to.lonDeg);
-                    const bool approach =
-                        plan->approachStartLeg >= 0 && active >= plan->approachStartLeg;
+                const float g1 = groundFtAt(terrain, leg.to.latDeg, leg.to.lonDeg);
+                const bool approach =
+                    plan->approachStartLeg >= 0 && active >= plan->approachStartLeg;
+                // Short final: the path would box in the runway (kOverlayNearFieldHideFt).
+                const bool nearField = approach && overlayHiddenNearField(eye.altMslM, g1);
+                if (dist >= 50.0 && dist < kMaxLegM && !nearField) {
                     float endFt = g1 + 50.0f;
                     if (leg.alt.kind != AltConstraintKind::None && leg.alt.altFt > 1.0f)
                         endFt = leg.alt.altFt;

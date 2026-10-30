@@ -91,6 +91,18 @@ void Navigator::setRealApproachProvider(RealApproachProvider provider) {
     realProvider_ = std::move(provider);
 }
 
+NavSourceSelect nextNavSourceSelect(NavSource shown, bool locAvailable, bool vorTuned) {
+    switch (shown) {
+    case NavSource::Loc: return vorTuned ? NavSourceSelect::Vor : NavSourceSelect::Gps;
+    case NavSource::Vor: return NavSourceSelect::Auto;
+    case NavSource::Gps:
+    case NavSource::None: break;
+    }
+    if (locAvailable) return NavSourceSelect::Loc;
+    if (vorTuned) return NavSourceSelect::Vor;
+    return NavSourceSelect::Auto;
+}
+
 void Navigator::setSourceSelect(NavSourceSelect select) {
     select_ = select;
     locLatched_ = false;

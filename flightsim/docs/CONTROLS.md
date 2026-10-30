@@ -66,7 +66,7 @@ While the map is open, trim, flaps and gear inputs are ignored.
 | L1 + D-pad ↑ / ↓ | Altitude bug +/− 100 ft (hold: accelerates to 1,000 ft/step) |
 | L1 + right stick Y | VS bug (in VS mode) or speed bug (A/T on), rate-based |
 | L1 + R2 | ALT hold at the current altitude |
-| L1 + Select | Direct-to the next waypoint in the plan (or open the direct-to list) |
+| L1 + Select | Direct-to the active waypoint from present position (no plan, or none left: opens the direct-to list) |
 
 ### R1 held: systems layer
 | Input | Action |
@@ -75,18 +75,25 @@ While the map is open, trim, flaps and gear inputs are ignored.
 | R1 + A | Thrust reversers toggle (only on ground with throttle at idle) |
 | R1 + B | Flight director on/off |
 | R1 + X | Sync bugs (heading bug = current heading, altitude bug = current altitude rounded to 100) |
-| R1 + Y | Nav source cycle GPS → LOC/VOR (when tuned) → GPS |
+| R1 + Y | Nav source cycle GPS → LOC (ILS or LOC approach loaded) → VOR (when tuned) → GPS. Leaving LOC stays on GPS until the next press; `NO LOC OR VOR TUNED` when there is nothing to switch to. |
 | R1 + D-pad ↑ / ↓ | Altimeter setting +/− 0.01 inHg or 1 hPa (per the pressure-units setting; hold repeats) |
 | R1 + Select | Altimeter to standard (STD, 1013.25 hPa) |
 
 ### L2 held: look layer
 | Input | Action |
 |---|---|
-| L2 + right stick | Free look (yaw ±150°, pitch −60°..+45°). Released = recenter over 0.3 s. |
+| L2 + right stick | Free look (yaw ±150°, pitch −60°..+45°). The stick turns the view (150°/s at full deflection); let go and the view stays there while L2 is held. |
 | L2 + D-pad ← / → / ↓ | Snap look left 90° / right 90° / back |
 | L2 + D-pad ↑ | Look down 25° over the nose (landing view) |
+| Release L2 | The view eases back to straight ahead in about 0.3 s |
 
-While L2 is held, the right stick does **not** affect throttle or rudder.
+While L2 is held, the right stick does **not** affect throttle or rudder, and the D-pad does not
+trim or move the flaps. The look layer is **L2**. R2 is the brakes, so R2 + D-pad is brakes plus
+trim or flaps. The HUD stays on screen; the horizon, ladder and flight path marker stay conformal
+to the world, so they slide off when you look away.
+
+Buttons pressed in a menu stay in the menu: the A that picks RESUME (or starts a flight) does not
+also toggle the gear.
 
 ## 3. Menus
 Help, on the main menu and the pause menu, lists the live bindings, tests a button, and holds the
