@@ -91,7 +91,11 @@ jobs:
             fi
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
+            # The release was published from the web page (which also creates the tag).
             gh release upload "$tag" "$asset" --clobber
+            if [ -z "$(gh release view "$tag" --json body --jq .body)" ]; then
+              gh release edit "$tag" --notes-file "$notes"
+            fi
           else
             gh release create "$tag" "$asset" --title "Pocket Vectors ${tag}" --notes-file "$notes"
           fi
