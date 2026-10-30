@@ -811,3 +811,42 @@ TEST_CASE(
     nav.activateNearestLeg(makeAircraft(45.0, -100.4, 5000, 90));
     CHECK(nav.plan().activeLeg == 1);
 }
+
+// ---- R1 + Y nav source cycle (I2) ------------------------------------------------------------
+
+TEST_CASE("nav: source cycle GPS -> LOC -> GPS, skipping what is not available") {
+    // Pure rule first: from GPS go to LOC, else VOR, else stay automatic.
+    CHECK(nextNavSourceSelect(NavSource::Gps, true, false) == NavSourceSelect::Loc);
+    CHECK(nextNavSourceSelect(NavSource::Gps, false, true) == NavSourceSelect::Vor);
+    CHECK(nextNavSourceSelect(NavSource::Gps, false, false) == NavSourceSelect::Auto);
+    CHECK(nextNavSourceSelect(NavSource::None, true, false) == NavSourceSelect::Loc);
+    // Leaving LOC forces GPS (Auto would latch LOC straight back on the final course).
+    CHECK(nextNavSourceSelect(NavSource::Loc, true, false) == NavSourceSelect::Gps);
+    CHECK(nextNavSourceSelect(NavSource::Loc, true, true) == NavSourceSelect::Vor);
+    CHECK(nextNavSourceSelect(NavSource::Vor, true, true) == NavSourceSelect::Auto);
+
+    // On a real ILS plan the LOC is available and the cycle moves the needle both ways.
+    Xtst x;
+    Navigator nav = ilsNavigator(x, *x.r27, finalPoint(*x.r27, 8.0));
+    const AircraftState ac = onFinal(*x.r27, 5.0, 0.0, gsPathAltFt(*x.r27, 5.0));
+    NavState s = nav.update(ac, 0.1);
+    REQUIRE(nav.locAvailable());
+    CHECK_FALSE(nav.vorTuned());
+    nav.setSourceSelect(nextNavSourceSelect(s.source, nav.locAvailable(), nav.vorTuned()));
+    if (s.source == NavSource::Gps) {  // not latched yet: the press selects LOC
+        s = nav.update(ac, 0.1);
+        CHECK(s.source == NavSource::Loc);
+        nav.setSourceSelect(nextNavSourceSelect(s.source, nav.locAvailable(), nav.vorTuned()));
+    }
+    s = nav.update(ac, 0.1);
+    CHECK(s.source == NavSource::Gps);
+    CHECK(nav.sourceSelect() == NavSourceSelect::Gps);
+    s = nav.update(ac, 0.1);  // stays on GPS, no automatic switch back
+    CHECK(s.source == NavSource::Gps);
+}
+
+TEST_CASE("nav: no LOC without an ILS approach in the plan") {
+    SyntheticNavDb db;
+    Navigator nav(db);
+    CHECK_FALSE(nav.locAvailable());
+}

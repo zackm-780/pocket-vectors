@@ -322,3 +322,44 @@ TEST_CASE("input: message queue ring keeps the newest eight") {
     q.post("A VERY LONG MESSAGE THAT DOES NOT FIT IN THE BUFFER AT ALL");
     CHECK(std::strlen(q.newest().text) == sizeof(Message::text) - 1);
 }
+
+TEST_CASE("input: the A that closes a menu does not move the gear once its buttons are dropped") {
+    // On the pad A is both MenuAccept and GearToggle (CONTROLS.md). The app clears the buttons of
+    // a frame the menu consumed, so resuming in the air with A left the gear where it was.
+    InputSystem in;
+    in.setConfig(defaultConfig());
+    padButton(in, PadInput::A, true);
+    ActionState frame = in.update(kFrameS);
+    CHECK(frame.pressed[idx(Action::MenuAccept)]);
+    CHECK(frame.pressed[idx(Action::GearToggle)]);
+
+    Rig r;
+    r.state.wowAny = false;  // airborne
+    r.controls.gearDown = true;
+    r.actions = frame;
+    clearButtons(r.actions);
+    r.step();
+    CHECK(r.controls.gearDown);
+    CHECK(r.messages.size() == 0);
+
+    // A real press in flight still works.
+    padButton(in, PadInput::A, false);
+    in.update(kFrameS);
+    padButton(in, PadInput::A, true);
+    r.actions = in.update(kFrameS);
+    r.step();
+    CHECK_FALSE(r.controls.gearDown);
+    CHECK(r.saidLast("GEAR UP"));
+}
+
+TEST_CASE("input: clearButtons keeps the sticks") {
+    InputSystem in;
+    in.setConfig(defaultConfig());
+    padAxis(in, SDL_CONTROLLER_AXIS_LEFTX, 1.0f);
+    padButton(in, PadInput::B, true);
+    ActionState a = in.update(kFrameS);
+    clearButtons(a);
+    CHECK(a.axis[idx(Axis::Roll)] == doctest::Approx(1.0f));
+    CHECK_FALSE(a.down[idx(Action::Brakes)]);
+    CHECK_FALSE(a.pressed[idx(Action::MenuBack)]);
+}

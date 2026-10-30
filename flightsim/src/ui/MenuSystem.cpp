@@ -247,6 +247,11 @@ void MenuSystem::openPause() {
     stack_.push_back(makePauseScreen());
 }
 
+void MenuSystem::openDirectTo() {
+    close();
+    stack_.push_back(makeSearchScreen(SearchMode::DirectTo, *this));
+}
+
 MenuResult MenuSystem::update(const MenuInput& in) {
     pending_ = MenuResult{};
     if (!stack_.empty()) stack_.back()->update(in, *this);

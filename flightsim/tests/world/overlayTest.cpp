@@ -239,6 +239,63 @@ TEST_CASE("overlay: opposite runway direction is drawn once, and four layers are
                             empty, empty, empty, empty, nullptr, 0, n) == 0);
 }
 
+TEST_CASE("overlay: runway outlines clear below 250 ft above the field") {
+    // Field elevation 30 ft; the eye is on a 2 NM final to runway 10 (heading north).
+    Airport field = fieldAt("KPDX", 45.05, -122.2);
+    OverlayAirportRef refs[] = {{&field, 2.0}};
+    OverlayToggles t;
+    t.runways = true;
+    auto outlineVerts = [&](double heightAboveFieldFt) {
+        const OverlayEye eye =
+            eyeAt(45.05 - 2.0 / 60.0, -122.2, ftToM(30.0 + heightAboveFieldFt), 0.0f);
+        std::vector<float> route, vpath, ap, rw;
+        int n = 0;
+        buildWorldOverlay(t, nullptr, nullptr, 0, refs, 1, nullptr, eye, route, vpath, ap, rw,
+                          nullptr, 0, n);
+        return rw.size();
+    };
+    CHECK(outlineVerts(1500.0) > 0);
+    CHECK(outlineVerts(260.0) > 0);
+    CHECK(outlineVerts(240.0) == 0);
+    CHECK(outlineVerts(8.0) == 0);  // on the runway
+    // Height above the field, not distance: far out but low still hides them.
+    CHECK(overlayHiddenNearField(ftToM(30.0 + 249.0), 30.0f));
+    CHECK_FALSE(overlayHiddenNearField(ftToM(30.0 + 251.0), 30.0f));
+}
+
+TEST_CASE("overlay: the approach path clears below 250 ft, an enroute path does not") {
+    // FAF at 1500 ft, then the runway fix (ground 0 ft without terrain). Eye on that last leg.
+    FlightPlan plan;
+    for (int i = 0; i < 3; ++i) {
+        Leg leg;
+        leg.to.ident = i == 2 ? "RW10" : (i == 1 ? "FAF" : "IAF");
+        leg.to.latDeg = 45.0 + 0.05 * i;
+        leg.to.lonDeg = -122.0;
+        if (i == 1) {
+            leg.alt.kind = AltConstraintKind::At;
+            leg.alt.altFt = 1500;
+        }
+        plan.legs.push_back(leg);
+    }
+    plan.activeLeg = 2;
+    plan.approachStartLeg = 1;
+    OverlayToggles t;
+    t.vpath = true;
+    auto pathVerts = [&](const FlightPlan& p, double altFt) {
+        const OverlayEye eye = eyeAt(45.07, -122.0, ftToM(altFt), 0.0f);
+        std::vector<float> route, vpath, ap, rw;
+        int n = 0;
+        buildWorldOverlay(t, &p, nullptr, 0, nullptr, 0, nullptr, eye, route, vpath, ap, rw,
+                          nullptr, 0, n);
+        return vpath.size();
+    };
+    CHECK(pathVerts(plan, 1000.0) > 0);
+    CHECK(pathVerts(plan, 200.0) == 0);
+    FlightPlan enroute = plan;
+    enroute.approachStartLeg = -1;
+    CHECK(pathVerts(enroute, 200.0) > 0);
+}
+
 TEST_CASE("overlay: building an 8-leg plan and 12 airports stays under 0.5 ms") {
     const OverlayEye eye = eyeAt(45.2, -122.2, 1800.0, 0.2f);
     FlightPlan plan = linePlan(8, 2);

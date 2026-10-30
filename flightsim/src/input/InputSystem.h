@@ -17,6 +17,11 @@
 
 namespace fsim {
 
+// Drops every button (held, pressed, repeat count) and keeps the axes, so the sticks do not jump.
+// The app hands this to the flight on a frame a menu consumed: on the pad A is both MenuAccept
+// and GearToggle, so the A that closes the pause menu must not also move the gear.
+void clearButtons(ActionState& actions);
+
 // Last gamepad button or axis seen. The Help button test reads this; it stays until the next event.
 struct PadProbe {
     bool valid = false;
