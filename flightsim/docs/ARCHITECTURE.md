@@ -405,9 +405,12 @@ struct ActionState {
   desktop). Optional extensions (MSAA, 32-bit indices, anisotropy) are queried at runtime and
   must have fallbacks. Use 16-bit indices for meshes ≤ 65,535 vertices.
 - **Pass order:** sky (full-screen gradient using the inverse view-projection) → terrain → airports
-  (runway surface, then markings with polygon offset, then lights as point sprites) → external
-  aircraft model in the chase view (V1, one draw, depth tested, back faces culled) → world overlays
-  (W6) → HUD (2D, depth off) → UI and map overlays.
+  (runway surface, then markings with polygon offset, then lights as point sprites) → cloud
+  layers (W7, blended, no depth writes, at most three draws including the in-cloud fade) →
+  external aircraft model in the chase view (V1, one draw, depth tested, back faces culled) → world
+  overlays (W6, so they show through clouds) → HUD (2D, depth off) → UI and map overlays.
+- **Textures:** one, the W7 cloud coverage map (128 x 128 luminance, mip chain built on the CPU).
+  Everything else is untextured.
 - **Projection:** vertical FOV setting (default 55°), near 0.5 m, far = max(40 km, horizon distance
   + 20 km), capped at 400 km. 24-bit depth. If far-range precision is insufficient, W2 may split the
   frustum into near and far passes.

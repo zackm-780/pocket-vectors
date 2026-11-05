@@ -721,7 +721,7 @@ device's 640 x 480, 0.41 / 0.65 ms at 1280 x 960. A hardware GPU draws it in far
 number comes with X3.
 
 ## W7: Cloud layers
-**Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** W4, X1 · **Specs:** ARCHITECTURE §6
+**Status:** in review (needs device test: OVC from below, inside and above at the device's fill rate; the GLES texture path on the Mali) · **Model / effort:** Sonnet / medium · **Depends:** W4, X1 · **Specs:** ARCHITECTURE §6
 
 **Owns:** `src/world/Clouds*`, `tests/world/clouds*`; a `[clouds]` weather section in scenarios
 and the weather menu (integration).
@@ -732,6 +732,24 @@ The budget: at most 3 draw calls and a fill cost the Mali can carry (DEVICE.md �
 blended full-screen layers per frame in total).
 **Acceptance:** screenshots below, inside and above an OVC 1,500 ft layer at XTST, and a METAR
 fixture that produces a BKN layer.
+
+Done (PR #11): `world/CloudsLogic` (no GL: parsing, resolution, coverage noise, per-frame plan)
+and `world/Clouds`. Sources: `clouds` setting (AUTO / OFF / FEW / SCT / BKN / OVC, with
+`cloud_base_ft` for a manual layer; settings menu rows CLOUDS and CLOUD BASE), then the scenario
+`[clouds]` section (`layer1..3 = OVC 1500 3500`, base and top ft above the field, METAR style
+`BKN015` also works, `clear = true`; written back to last_flight.ini), then the METAR (VV becomes
+OVC). Tops default to 800 / 1,200 / 1,800 / 2,500 ft above the base; layers do not overlap. Each
+layer the eye is outside is one blended disk (50 km, curvature drop, fogged per vertex) at its
+base or top, shaped by one 128 x 128 tiling noise texture sampled at two scales (8 km tiles), with
+the threshold set so each cover hides about its share (tested within 8 %). Inside a layer the view
+fades to the cloud colour over the first 200 ft (one full-screen quad, scaled by the local
+coverage). At most three draws in all and at most three blended full-screen layers. Drawn before
+the chase model. `GlApi` gains the GLES2 texture calls (additive); the mip chain is built on the
+CPU. Fixture: `tests/fixtures/weather/XTST_bkn.txt`; scenario `weather_ovc1500_xtst.ini`. Cost on
+Mesa llvmpipe (software) at 640 x 480: 1.4 ms in cloud, 2.7 to 3.0 ms for a layer seen from below
+or above; llvmpipe texturing is slow, so the Mali number comes from X3 (the fill is at most one
+blended full screen plus the layers' share of it). Not done: cloud shadows and dimmed ground
+light under an overcast.
 
 ## N8: SIDs and STARs
 **Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N4, N5, H5 · **Specs:** NAVIGATION §2–3, DATA §7

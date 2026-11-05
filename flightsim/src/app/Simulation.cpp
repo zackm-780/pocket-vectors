@@ -54,10 +54,12 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
 
     {  // X1: weather. The start wind is the profile wind at the start height (F1 trims in calm
         // air and then switches it on), later steps add gusts and turbulence.
-        world::Metar metar;
+        world::Metar& metar = metar_;  // W7 keeps it for the clouds
+        metar = world::Metar{};
         const bool haveMetar =
             weatherOptions_.useMetar &&
             world::loadMetarFor(paths_.data("weather"), scenario_.airportIdent, metar);
+        haveMetar_ = haveMetar;
         weather_.setConditions(world::resolveWeather(scenario_.weather, weatherOptions_,
                                                      haveMetar ? &metar : nullptr,
                                                      static_cast<float>(start_.headingTrueDeg)));

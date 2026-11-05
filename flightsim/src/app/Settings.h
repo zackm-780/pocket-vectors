@@ -50,6 +50,10 @@ struct Settings {
     float overlayAirportRadiusNm = 25.0f;
     // V1: external chase view instead of the cockpit (L2 + L3 toggles and saves it).
     bool externalView = false;
+    // W7: clouds. auto = the scenario's [clouds], else the METAR; off = none; few / sct / bkn /
+    // ovc = one layer at cloudBaseFt above the field (500..12000).
+    world::CloudMode clouds = world::CloudMode::Auto;
+    float cloudBaseFt = 2500.0f;
     std::string lastAircraft;
 
     // Parses settings text onto *this (keys that are absent or invalid keep their current value;

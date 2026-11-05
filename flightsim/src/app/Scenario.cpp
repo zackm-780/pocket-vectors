@@ -84,6 +84,24 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
         if (w.windKt) s.windSpeedKt = *w.windKt;
     }
 
+    {  // W7: cloud layers
+        s.clouds = world::CloudSetup{};
+        if (ini.has("clouds", "clear") && ini.getBool("clouds", "clear", false))
+            s.clouds.set = true;
+        for (const char* key : {"layer1", "layer2", "layer3"}) {
+            if (!ini.has("clouds", key)) continue;
+            world::CloudLayerSpec layer;
+            const std::string text = ini.getString("clouds", key);
+            if (!world::parseCloudLayer(text, layer)) {
+                error = std::string("[clouds] ") + key +
+                        ": expected FEW|SCT|BKN|OVC <base ft> [top ft]" + " (got '" + text + "')";
+                return false;
+            }
+            s.clouds.layers.push_back(layer);
+            s.clouds.set = true;
+        }
+    }
+
     if (s.startKind != "runway" && s.startKind != "final" && s.startKind != "cruise") {
         error = "[scenario] start must be runway, final or cruise (got '" + s.startKind + "')";
         return false;

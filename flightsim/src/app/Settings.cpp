@@ -34,6 +34,10 @@ constexpr EnumName<GraphicsQuality> kQuality[] = {
     {"low", GraphicsQuality::Low}, {"med", GraphicsQuality::Med}, {"high", GraphicsQuality::High}};
 constexpr EnumName<ThrottleMode> kThrottle[] = {{"rate", ThrottleMode::Rate},
                                                 {"absolute", ThrottleMode::Absolute}};
+constexpr EnumName<world::CloudMode> kClouds[] = {  // W7
+    {"auto", world::CloudMode::Auto},  {"off", world::CloudMode::Off},
+    {"few", world::CloudMode::Few},    {"sct", world::CloudMode::Scattered},
+    {"bkn", world::CloudMode::Broken}, {"ovc", world::CloudMode::Overcast}};
 
 template <typename E, size_t N>
 bool parseEnum(const EnumName<E> (&table)[N], const std::string& text, E& out) {
@@ -97,7 +101,8 @@ void Settings::clampAll() {
     };
     fix(fovVerticalDeg, 30.0f, 110.0f, 55.0f);
     for (float* s : {&pitchSens, &rollSens, &rudderSens}) fix(*s, 0.25f, 2.0f, 1.0f);
-    fix(weatherTurbulence, 0.0f, 1.0f, 0.0f);  // X1
+    fix(weatherTurbulence, 0.0f, 1.0f, 0.0f);     // X1
+    fix(cloudBaseFt, 500.0f, 12000.0f, 2500.0f);  // W7
     if (!(hudMiniNavRangeNm == hudMiniNavRangeNm) || hudMiniNavRangeNm <= 0.0f)
         hudMiniNavRangeNm = 0.0f;  // H7: 0 = auto
     else
@@ -184,6 +189,8 @@ int Settings::applyText(const std::string& text) {
     flag("overlay_runways", overlayRunways);
     num("overlay_airport_radius_nm", overlayAirportRadiusNm);
     flag("external_view", externalView);  // V1
+    choice("clouds", kClouds, clouds);    // W7
+    num("cloud_base_ft", cloudBaseFt);
     str("last_aircraft", lastAircraft);
 
     if (ini.has(kSection, "sim_hz") && simHz != 60 && simHz != 120)
@@ -264,7 +271,9 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"overlay_airports", b(s.overlayAirports)},
         {"overlay_runways", b(s.overlayRunways)},
         {"overlay_airport_radius_nm", fmtFloat(s.overlayAirportRadiusNm)},
-        {"external_view", b(s.externalView)},  // V1
+        {"external_view", b(s.externalView)},     // V1
+        {"clouds", enumText(kClouds, s.clouds)},  // W7
+        {"cloud_base_ft", fmtFloat(s.cloudBaseFt)},
         {"last_aircraft", s.lastAircraft},
     };
 }
@@ -419,6 +428,17 @@ std::string scenarioToIni(const Scenario& sc) {
         if (w.metar) wx += std::string("metar = ") + (*w.metar ? "on" : "off") + "\n";
         if (w.seed != 1) wx += "seed = " + std::to_string(w.seed) + "\n";
         if (!wx.empty()) out += "\n[weather]\n" + wx;
+    }
+    if (sc.clouds.set) {  // W7
+        out += "\n[clouds]\n";
+        if (sc.clouds.layers.empty()) out += "clear = true\n";
+        for (size_t i = 0; i < sc.clouds.layers.size() && i < world::kMaxCloudLayers; ++i) {
+            const world::CloudLayerSpec& l = sc.clouds.layers[i];
+            out += "layer" + std::to_string(i + 1) + " = " + world::cloudCoverName(l.cover) + " " +
+                   num(l.baseAglFt);
+            if (l.topAglFt > l.baseAglFt) out += " " + num(l.topAglFt);
+            out += "\n";
+        }
     }
     if (!sc.apEngage.empty() || sc.hasHdgBug || sc.hasAltBug) {
         out += "\n[autopilot]\n";

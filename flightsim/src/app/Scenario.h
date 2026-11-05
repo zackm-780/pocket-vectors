@@ -9,7 +9,8 @@
 #include "core/ControlInputs.h"
 #include "core/NavDatabase.h"
 #include "sim/FlightModel.h"
-#include "world/Weather.h"  // X1
+#include "world/CloudsLogic.h"  // W7
+#include "world/Weather.h"      // X1
 
 namespace fsim {
 
@@ -48,6 +49,9 @@ struct Scenario {
     float windFromTrueDeg = 0, windSpeedKt = 0;
     // X1: [weather] keys plus the [wind] keys when present (unset = METAR file, then default).
     world::WeatherSetup weather;
+    // W7: [clouds] layer1..layer3 = "OVC 1500 3500" (cover, base and top ft above the field) or
+    // clear = true. Without the section the clouds setting and the METAR decide.
+    world::CloudSetup clouds;
     std::vector<ScriptEvent> inputs;  // sorted by time
 
     // N5: optional navigation setup. `plan` is an .fms file (resolved like --scenario paths),

@@ -44,6 +44,7 @@
 #include "world/AirportGeometry.h"         // W5
 #include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
+#include "world/Clouds.h"                  // W7
 #include "world/ExternalView.h"            // V1
 #include "world/Sky.h"                     // W4
 #include "world/TerrainRenderer.h"         // W2
@@ -176,6 +177,22 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (!airports.init()) return 1;
     world::WorldOverlay worldOverlay(window.gl(), window.flavor());  // W6
     if (!worldOverlay.init()) LOG_WARN("world overlay: shader failed; markers stay hidden");
+    world::Clouds clouds(window.gl(), window.flavor());  // W7
+    if (!clouds.init()) LOG_WARN("clouds: shader failed; no cloud layers");
+    // W7: layers from the scenario, the clouds setting or the METAR, above the start airport.
+    auto setClouds = [&]() {
+        const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent);
+        const float fieldFt = ap ? static_cast<float>(ap->elevFt) : 0.0f;
+        const world::CloudDeck deck = world::resolveClouds(
+            sim.scenario().clouds, sim.metar(), settings.clouds, settings.cloudBaseFt, fieldFt);
+        clouds.setDeck(deck, ap ? ap->latDeg : sim.aircraft().latDeg,
+                       ap ? ap->lonDeg : sim.aircraft().lonDeg);
+        if (deck.count > 0)
+            LOG_INFO("clouds (%s): %d layer(s), lowest %s %.0f-%.0f ft", deck.source.c_str(),
+                     deck.count, world::cloudCoverName(deck.layers[0].cover),
+                     deck.layers[0].baseFtMsl, deck.layers[0].topFtMsl);
+    };
+    setClouds();
     world::ExternalView externalView(window.gl(), window.flavor());  // V1
     if (!externalView.init()) LOG_WARN("external view: shader failed; no aircraft model");
     std::string externalViewProfile;  // profile id the model was built for
@@ -281,6 +298,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         pilotControls.setStickTuning(settings.stickTuning());
         camera.setLens(settings.fovVerticalDeg);
         showFps = showFps || settings.showFps;
+        setClouds();  // W7
     };
     // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
     auto flightStarted = [&]() {
@@ -290,6 +308,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
         setSkyTime();
         setWeatherVisibility();  // X1
+        setClouds();             // W7
         menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
     };
     auto startOrReport = [&](const Scenario& sc) {
@@ -554,7 +573,10 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(view.altAglFt));
         renderer.render(camera, w, h);
-        airports.render(camera, w, h, sim.aircraft().simTimeS);            // W5: after the ground
+        airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
+        // W7 clouds (blended, no depth writes) before the chase model, so the aircraft stays in
+        // view inside a cloud; a layer surface is always farther away than the model.
+        if (state != AppState::Menu && !mapShown) clouds.render(camera, atmosphere);
         if (chase) externalView.render(camera, view, atmosphere.light());  // V1: one draw
         {  // W6: route, vertical path, airports, runway outlines (at most 4 draws)
             const bool layersOn = settings.overlayRoute || settings.overlayVpath ||

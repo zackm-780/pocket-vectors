@@ -109,6 +109,14 @@ const SettingDef kSettingDefs[] = {
      [](Settings& s, int) { s.weatherMetar = !s.weatherMetar; }},
     {"TURBULENCE", true, [](const Settings& s) { return fmt("%.1f", s.weatherTurbulence); },
      [](Settings& s, int d) { s.weatherTurbulence += 0.1f * static_cast<float>(d); }},
+    {"CLOUDS", false,  // W7
+     [](const Settings& s) -> std::string {
+         static const char* const kNames[] = {"AUTO", "OFF", "FEW", "SCT", "BKN", "OVC"};
+         return kNames[static_cast<int>(s.clouds)];
+     },
+     [](Settings& s, int d) { s.clouds = cycleEnum(s.clouds, d, 6); }},
+    {"CLOUD BASE", true, [](const Settings& s) { return fmt("%.0f FT", s.cloudBaseFt); },
+     [](Settings& s, int d) { s.cloudBaseFt += 500.0f * static_cast<float>(d); }},
     {"OVERLAY ROUTE", false,
      [](const Settings& s) -> std::string { return s.overlayRoute ? "ON" : "OFF"; },
      [](Settings& s, int) { s.overlayRoute = !s.overlayRoute; }},
