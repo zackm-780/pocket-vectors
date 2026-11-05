@@ -33,6 +33,10 @@ into `Roms/PORTS` on the SD card. The top of the zip is `FlightSim.sh` and `flig
 and the `pdx_oth` data). If your unzip tool creates a folder named after the zip, move those two
 items into `Roms/PORTS`.
 
+**Then update to the newest release:** unzip its `pocket-vectors-vX.Y.Z-game.zip` into
+`Roms/PORTS` and merge the folders, so `conf/` and `data/` stay
+([updating](flightsim/INSTALL.md#2-updating-later), [changes](CHANGELOG.md)).
+
 The on-card folder stays `flightsim/`, the script stays `FlightSim.sh`, and the binary stays
 `flightsim.aarch64`, so an update keeps `flightsim/conf/` and `flightsim/data/`.
 

@@ -1,5 +1,11 @@
 # Work packages
 
+> **Waves 0–6 (this file) are the history up to 1.2.** The card board, one file per work package
+> ([wp/README.md](wp/README.md)), plans the work after that. It was written before the owner put
+> Wave 6 into 1.2 (2026-11-04), so some of its cards are done already; their `Status:` lines say
+> which. X3 below is split there into X3a, X3b and X3c. Note the IDs: this file's N8 (SIDs and
+> STARs) is the board's N9, and the board's N8 (airways) is still open.
+
 Each work package (WP) is sized for one contributor or one AI coding tool. The **Model / effort**
 line is a hint for how careful the change is (medium for a well-specified package, high where the
 math or the renderer is easy to get wrong). **Owns** lists the paths the WP
@@ -459,7 +465,7 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** in progress: instrumentation and the preset are done; tuning waits for a device run (needs device test: the DEVICE.md §6 run, SHOW FPS readout legible at the top left, GRAPHICS QUALITY LOW / HIGH change the terrain at once) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
+**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b); tuning (X3c) waits for a device run (needs device test: the DEVICE.md §6 run, SHOW FPS readout legible at the top left, GRAPHICS QUALITY LOW / HIGH change the terrain at once) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
 

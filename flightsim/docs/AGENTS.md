@@ -9,6 +9,12 @@ pull request and do not push to `main`.
 
 ## 1. Before editing
 
+**Work after 1.0 is on the card board** ([wp/README.md](wp/README.md)). A card holds everything
+its builder needs. For a card, read [wp/BUILDER.md](wp/BUILDER.md) and the card, and nothing else
+up front. The brief for an AI coding tool is then one line: "Build the card
+`flightsim/docs/wp/<ID>.md`; follow `flightsim/docs/wp/BUILDER.md`." The rest of this section and
+§3 apply to work without a card.
+
 Read [CLAUDE.md](../../CLAUDE.md), [PLAN.md](PLAN.md), [ARCHITECTURE.md](ARCHITECTURE.md),
 [CONVENTIONS.md](CONVENTIONS.md), the WP entry, and every spec it names. Current open work is
 summarized in [ROADMAP.md](../../ROADMAP.md).

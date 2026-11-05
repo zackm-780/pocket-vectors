@@ -29,6 +29,23 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      # Only for a new tag: a manual re-run builds an existing tag's code as it is (v1.1.0 says
+      # 0.1.0 there, which is why 1.2 sets the version).
+      - name: Check the tag matches the CMake project version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          want="${TAG#v}"
+          want="${want%%-*}"
+          have="$(grep -oP '^project\(flightsim VERSION \K[0-9.]+' flightsim/CMakeLists.txt)"
+          if [ "$want" != "$have" ]; then
+            echo "Tag ${TAG} does not match project(flightsim VERSION ${have})." >&2
+            echo "Bump the version in flightsim/CMakeLists.txt first." >&2
+            exit 1
+          fi
+
       # build_device.sh runs port/check_package.sh inside the Debian 11 image, where the aarch64
       # binutils are, and fails on a bad package. The runner itself has no aarch64 objdump, so
       # a second check here exits 2 (the v1.1.0 run failed that way after a clean build).
@@ -52,9 +69,23 @@ jobs:
           cat > "$notes" <<EOF
           Pocket Vectors ${tag} for the Anbernic RG40XXH (stock OS, 64-bit, SDL2).
 
-          This asset is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
-          Unzip it into \`Roms/PORTS\`. To fly somewhere other than the built-in synthetic field, add a data
-          pack with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).
+          The asset is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
+
+          ## Update an existing install
+
+          Unzip \`pocket-vectors-${tag}-game.zip\` into \`Roms/PORTS\` and **merge** the folders, so
+          \`flightsim/conf/\` and \`flightsim/data/\` stay. In the macOS Finder, "Replace" deletes
+          \`flightsim/data/\`: merge instead, or copy \`data/\` back afterwards. If you created
+          \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it.
+
+          ## New install
+
+          Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:
+          unzip [pocket-vectors-1.0.0-data-pdx_oth.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.0.0/pocket-vectors-1.0.0-data-pdx_oth.zip)
+          and copy the \`data/\` folder inside it to \`Roms/PORTS/flightsim/\`. Or combine both into one zip
+          with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).
+
+          ## Other regions
 
           Build a pack from the Actions tab (workflow \`datapack\`, presets \`pdx_oth\`, \`bayarea\`,
           \`mthood\`, \`tam_diablo\`, or a \`bbox\`) or with \`tools/datapack/build_datapack.sh\`.
@@ -64,8 +95,21 @@ jobs:
           EOF
           # The heredoc above is indented; strip the leading spaces.
           sed -i 's/^          //' "$notes"
+          # Append this version's CHANGELOG section (the lines under "## <version>").
+          ver="${tag#v}"
+          ver="${ver%%-*}"
+          if [ -f ../CHANGELOG.md ]; then
+            changes="$(awk -v v="## ${ver}" '$0 == v || index($0, v " ") == 1 {on = 1; next} /^## / {on = 0} on' ../CHANGELOG.md)"
+            if [ -n "$changes" ]; then
+              printf '\n## Changes\n%s\n' "$changes" >> "$notes"
+            fi
+          fi
           if gh release view "$tag" >/dev/null 2>&1; then
+            # The release was published from the web page (which also creates the tag).
             gh release upload "$tag" "$asset" --clobber
+            if [ -z "$(gh release view "$tag" --json body --jq .body)" ]; then
+              gh release edit "$tag" --notes-file "$notes"
+            fi
           else
             gh release create "$tag" "$asset" --title "Pocket Vectors ${tag}" --notes-file "$notes"
           fi
