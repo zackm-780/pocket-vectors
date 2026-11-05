@@ -87,7 +87,7 @@ Every field is visible in **FULL** declutter. In STD, row 2 hides FUEL and fligh
 | Speedbrake / spoilers | `speedbrakePosNorm` | `SPDBRK 50%` when > 0. Amber if extended with throttle > 50%. Hidden when the aircraft has none. |
 | Reversers | `engines[].reverserDeployed` | `REV` (amber in flight, green on ground) |
 | Brakes | `brakeLeftNorm/RightNorm`, `parkingBrake` | `BRK` while braking. `PARK` while the parking brake is set. |
-| Fuel | `fuelTotalLbs` | `FUEL 9 840 LB` |
+| Fuel | `fuelTotalLbs`, `fuelFlowLbsPerHr` | `FUEL 9 840 LB`, plus the endurance at the present flow when under 2 h: `FUEL 9 840 LB 1:42` (h:mm; amber under 30 min, red under 15). LOW FUEL messages at 30 and 15 min (F6). |
 | Wind | `windFromTrueDeg`, `windKt` | `WIND 270/15` (direction shown magnetic, as pilots expect) |
 | Flight time | sim time since start | `T+00:42:10` |
 

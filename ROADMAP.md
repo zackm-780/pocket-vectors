@@ -15,17 +15,22 @@ US instrument approaches. Open work is tracked as work packages in
 
 ## Next: 1.2
 
+In review in one pull request, waiting for the owner's device test.
+
 | ID | What | Notes |
 |---|---|---|
-| I2 | 1.1 device-test fixes | Gear no longer moves when a menu closes with A; L2 look-around works; R1 + Y and L1 + Select do what CONTROLS.md says; runway outlines clear below 250 ft above the field |
+| I2 | 1.1 device-test fixes | Gear no longer moves when a menu closes with A; L2 look-around works; R1 + Y and L1 + Select do what CONTROLS.md says; runway outlines clear below 250 ft above the field; L1 + R2 leaves ALT hold toward the altitude bug |
 | N7 | Autopilot go-around (TO/GA) and FLC | Missing from the 1.0 autopilot |
 | V1 | External chase view | Simple models built in code |
+| W7 | Cloud layers | From the scenario, a setting or the METAR |
+| N8 | SIDs, STARs and approach transitions | SIDs and STARs need a data pack rebuilt with the new `cifp.py`; older packs still load |
+| S2 | GPWS voice callouts | Synthesized clips (Flite, PLAN D22); the tones stay as the fallback |
+| F6 | Fuel load and planning | FUEL row on the new-flight screen, endurance on the HUD, LOW FUEL |
 | X3 | Device performance pass | Draw-call budget on the Mali-G31; needs frame-rate numbers from a device flight |
 
 ## Later
 
-Cloud layers (W7), SIDs and STARs (N8) and GPWS voice callouts (S2) are specified in
-[flightsim/docs/WORK_PACKAGES.md](flightsim/docs/WORK_PACKAGES.md) (Wave 6). Live METAR refresh on
-the device and the rest of the v2 list are in [flightsim/docs/PLAN.md](flightsim/docs/PLAN.md).
+Live METAR refresh on the device and the rest of the v2 list are in
+[flightsim/docs/PLAN.md](flightsim/docs/PLAN.md).
 Online ideas (live traffic, multiplayer, ATC) are explored, not planned, in
 [flightsim/docs/ONLINE.md](flightsim/docs/ONLINE.md).

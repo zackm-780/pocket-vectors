@@ -194,6 +194,7 @@ struct AircraftState {
   int    engineCount = 0;
   EngineState engines[kMaxEngines];
   float  fuelTotalLbs = 0;
+  float  fuelFlowLbsPerHr = 0, fuelCapacityLbs = 0;   // additive (F6): all engines, all tanks
   // warnings
   bool   stallWarning = false, overspeed = false;
   bool   crashed = false;
@@ -238,6 +239,7 @@ struct AircraftProfile {
   std::string externalModel;   // additive (V1): [view] external_model, "" = from category
   float wingspanM = 0;         // additive (V1): [view] wingspan_m
   float gearHeightM = 0;       // additive (V1): [view] gear_height_m, reference point above ground
+  float cruiseFuelFlowLbsHr = 0;  // additive (F6): [cruise] fuel_flow_lbs_hr, all engines, measured
 };
 
 // ---------- core/TerrainQuery.h ----------   implemented by world/terrain (W1); used by sim, renderers, HUD, nav
@@ -507,6 +509,8 @@ start = final
 distance_nm = 6
 altitude_ft = 0
 time_utc = 2026-06-21T18:00:00
+; optional fuel (F6): full | auto (plan trip + 10 % + 45 min) | 40% | 9000 (lb); unset = as loaded
+fuel = full
 [wind]
 from_true_deg = 270
 speed_kt = 10

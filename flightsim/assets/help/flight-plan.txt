@@ -1,6 +1,9 @@
 FLIGHT PLAN
 New flight, then Flight plan, can load a .fms file or build a quick plan to a destination runway.
-Pick an approach on the next row when you want one.
+DEPARTURE and ARRIVAL pick a SID and a STAR, then their transitions.
+Pick an approach (and its transition) when you want one.
+FUEL on the new-flight screen: AUTO carries the plan's trip, 10 % extra and 45 minutes.
 In the air, pause and choose Flight plan. Direct to a leg, or type an ident.
 Change approach, or re-enter the approach if you flew through it.
 The active leg is marked on the plan list and on the map.
+The plan page shows the fuel, the time it lasts and the fuel left at the destination.

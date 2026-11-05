@@ -1,5 +1,7 @@
 #include "app/Scenario.h"
 
+#include "sim/FuelPlan.h"  // F6
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -56,6 +58,15 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.planPath = ini.getString("scenario", "plan");                           // N5
     s.approachId = ini.getString("scenario", "approach");                     // N5
     s.approachTransition = ini.getString("scenario", "approach_transition");  // N8
+    s.fuel = ini.getString("scenario", "fuel");                               // F6
+    if (!s.fuel.empty()) {
+        FuelSetting fs;
+        if (!parseFuelSetting(s.fuel, fs)) {
+            error = "[scenario] fuel must be default, full, auto, a percentage or pounds (got '" +
+                    s.fuel + "')";
+            return false;
+        }
+    }
     s.windFromTrueDeg = ini.getFloat("wind", "from_true_deg", 0.f);
     s.windSpeedKt = ini.getFloat("wind", "speed_kt", 0.f);
     {  // X1: weather. [wind] keeps working; [weather] keys override it.

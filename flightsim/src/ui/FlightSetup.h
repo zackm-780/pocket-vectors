@@ -111,6 +111,8 @@ struct FlightSetup {
     std::string approachId;
     // N8: approach transition by name ("" = AUTO, "VECTORS" = none), with or without a plan.
     std::string approachTransition;
+    // F6: fuel on board: "default" (the model's), "full", "75%", "50%", "25%" or "auto".
+    std::string fuel = "default";
 
     bool hasPlan() const { return planKind != PlanKind::None; }
     const std::string& destAirportIdent() const {

@@ -633,8 +633,9 @@ The 1.1 build (`main` `1737feb`) was flown on the RG40XXH. Confirmed working on 
 labels, thrust reversers (R1 + A) and the other combos the owner tried. Three problems came back,
 fixed in I2. A code check of every documented combo found two more that did nothing (R1 + Y,
 L1 + Select), also fixed in I2. The rest of the wave is the first part of PLAN section 2's v2
-list plus follow-ups recorded in earlier packages. Proposed 1.2 cut: I2, N7, V1, then X3 once
-device numbers exist. W7, N8 and S2 can follow in 1.3.
+list plus follow-ups recorded in earlier packages. The owner put the whole wave into 1.2
+(2026-11-04), plus F6 (fuel), which came from the same device test. X3 waits for frame-rate
+numbers from a device flight.
 
 | WP | Title | Model / effort | Depends | Owns (summary) |
 |---|---|---|---|---|
@@ -644,6 +645,7 @@ device numbers exist. W7, N8 and S2 can follow in 1.3.
 | W7 | Cloud layers | Sonnet / medium | W4, X1 | `src/world/Clouds*`, `tests/world/clouds*` |
 | N8 | SIDs, STARs and approach transitions | Sonnet / high | N4, N5, H5 | `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*` |
 | S2 | GPWS voice callouts | Sonnet / medium | S1, X2 | `src/audio/`, `assets/audio/` |
+| F6 | Fuel load and planning | Sonnet / medium | F1, N5, H5 | `src/sim/FuelPlan*`, `tests/sim/fuel*` |
 
 ## I2: 1.1 device-test fixes
 **Status:** in review (needs device test: resume from the pause menu with A in flight and the gear stays put; L2 + D-pad snaps and L2 + right stick looks, release recenters; R1 + Y on an ILS plan shows NAV SOURCE LOC / GPS; L1 + Select goes direct to the active waypoint, or opens the direct-to list without a plan; runway outlines and the approach path clear below 250 ft above the field; L1 + R2 in ALT with the bug 1,000 ft away climbs or descends toward it) · **Model / effort:** Sonnet / medium · **Depends:** P2, W6
@@ -793,3 +795,37 @@ is loaded, else the X2 tone), MINIMUMS through AudioControl. Setting `gpws_voice
 VOICE). Clips from `tools/audio/make_voice_clips.py` (Flite, PLAN D22). Tests: the scripted
 approach logs 2500 1000 500 100 50 40 30 20 10, the 2,500 fpm dive SINK RATE, the 3,500 fpm one
 PULL UP, gear up TOO LOW GEAR, each played on the synth.
+
+## F6: Fuel load and planning
+**Status:** in review (needs device test: the FUEL row on the new-flight screen, the HUD
+endurance, LOW FUEL in a long flight) · **Model / effort:** Sonnet / medium · **Depends:** F1,
+N5, H5
+
+**Owns:** `src/sim/FuelPlan*`, `tests/sim/fuel*`; the tank load in `sim/FlightModel`; the
+`[cruise] fuel_flow_lbs_hr` profile key; the FUEL row in `ui/SetupScreens`.
+Every flight used to start with the JSBSim model's own load (full tanks on most aircraft), and
+the HUD showed the pounds on board with no sense of how long they last. The owner asked for fuel
+planning after the 1.1 device test.
+
+Done (PR #11):
+- **Load at the start.** Scenario key `fuel` and the new-flight FUEL row: AS LOADED (the model's
+  own load, as before), FULL, 75 %, 50 %, 25 % or AUTO; a scenario can also give pounds
+  (`fuel = 9000`) or a fraction (`fuel = 40%`). The tanks are set after the model loads and before
+  the trim, so the trim flies the real weight. A load above the capacity fills the tanks.
+- **AUTO** carries the plan's trip at the profile's cruise flow and speed (TAS ~ IAS + 2 % per
+  1,000 ft), plus 10 % and a 45-minute reserve. Without a plan or cruise data it fills the tanks.
+- **Cruise flows**, measured in JSBSim at each profile's `[cruise]` speed and altitude with the
+  AP and A/T level for 30 s, all engines, lb/h: c172p 53, c182 105, pa28 84, c310 120,
+  global5000 4,890, 737 5,870, A320 7,890, 787-8 6,840, B747 25,690, MD11 18,150.
+- **In flight.** `AircraftState` gains `fuelFlowLbsPerHr` (the sum of the engines'
+  `fuel-flow-rate-pps`) and `fuelCapacityLbs` (additive). HUD row 2 adds the endurance at the
+  present flow when it is under 2 h (`FUEL 9 990 LB 1:57`; amber under 30 min, red under 15).
+  The plan page shows `FUEL x LB  h:mm  AT DEST y LB` (fuel left at the destination at the
+  present flow and ground speed). LOW FUEL messages fire once at 30 and once at 15 minutes,
+  airborne only.
+
+Tests (`tests/sim/fuelTest.cpp`): the setting parses and prints back; AUTO arithmetic (160 NM at
+120 kt and 100 lb/h plans 221.7 lb); the c172p and 737 load what the setting asks; AUTO on the
+XTST LNAV plan loads the planned pounds within 3 % and the flow in flight is near the cruise
+figure; LOW FUEL fires once per threshold; the HUD field, its colours and its fit in the slot.
+A 737 cannot start below its tank minimum (about 95 lb unusable), so its test loads 3,000 lb.

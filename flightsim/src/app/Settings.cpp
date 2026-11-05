@@ -408,6 +408,7 @@ std::string scenarioToIni(const Scenario& sc) {
     if (!sc.approachId.empty()) out += "approach = " + sc.approachId + "\n";  // N5
     if (!sc.approachTransition.empty())
         out += "approach_transition = " + sc.approachTransition + "\n";  // N8
+    if (!sc.fuel.empty()) out += "fuel = " + sc.fuel + "\n";             // F6
     out += "\n[wind]\nfrom_true_deg = " + num(sc.windFromTrueDeg) +
            "\nspeed_kt = " + num(sc.windSpeedKt) + "\n";
     {  // X1: [weather]. A uniform wind (legacy [wind] only) stays in [wind]; gusts or aloft keys

@@ -133,7 +133,7 @@ private:
 
 class SetupScreen : public Screen {
 public:
-    SetupScreen() : nav_(7, kListRows) {}
+    SetupScreen() : nav_(8, kListRows) {}
     ScreenId id() const override { return ScreenId::Setup; }
 
     void update(const MenuInput& in, MenuSystem& m) override {
@@ -152,6 +152,10 @@ public:
             s.startType =
                 static_cast<StartType>((n % kStartTypeCount + kStartTypeCount) % kStartTypeCount);
         }
+        if (nav_.selected() == 6 && (in.left || in.right || in.accept)) {  // F6: fuel
+            cycleFuel(s, in.left ? -1 : 1);
+            return;
+        }
         if (!in.accept) return;
         switch (nav_.selected()) {
         case 0: m.push(makeAircraftScreen(m)); break;
@@ -160,7 +164,7 @@ public:
         case 3: m.push(makeStartTypeScreen(m)); break;
         case 4: m.push(makePlanScreen()); break;
         case 5: m.push(makeApproachScreen(ApproachMode::Setup, m)); break;
-        case 6: m.startFlight(); break;
+        case 7: m.startFlight(); break;
         }
     }
 
@@ -169,7 +173,7 @@ public:
                         "A SELECT   B BACK   LEFT RIGHT START TYPE   START FLY");
         const FlightSetup& s = m.setup();
         const Airport* a = m.nav().findAirport(s.airportIdent);
-        std::vector<ListRow> rows(7);
+        std::vector<ListRow> rows(8);
         const AircraftEntry* ac = m.aircraftEntry(s.aircraftId);
         rows[0] = {"AIRCRAFT", ac ? ac->displayName : s.aircraftId};
         rows[1] = {"AIRPORT", a ? a->ident + "  " + a->name : s.airportIdent};
@@ -185,7 +189,9 @@ public:
         rows[5].label = "APPROACH";
         rows[5].value = s.approachId.empty() ? "NONE" : s.approachId;
         rows[5].dimValue = s.approachId.empty();
-        rows[6].label = ">> START FLIGHT";
+        rows[6] = {"FUEL", fuelLabel(s)};  // F6
+        rows[6].adjustable = true;
+        rows[7].label = ">> START FLIGHT";
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, 34, nav_, rows);
         if (s.hasPlan())
@@ -193,6 +199,20 @@ public:
     }
 
 private:
+    static constexpr const char* kFuelChoices[] = {"default", "full", "75%", "50%", "25%", "auto"};
+    static void cycleFuel(FlightSetup& s, int dir) {
+        constexpr int n = 6;
+        int idx = 0;
+        for (int i = 0; i < n; ++i)
+            if (s.fuel == kFuelChoices[i]) idx = i;
+        s.fuel = kFuelChoices[((idx + dir) % n + n) % n];
+    }
+    static std::string fuelLabel(const FlightSetup& s) {
+        if (s.fuel == "default") return "AS LOADED";
+        if (s.fuel == "full") return "FULL";
+        if (s.fuel == "auto") return s.hasPlan() ? "AUTO: PLAN + 45 MIN" : "AUTO: FULL (NO PLAN)";
+        return s.fuel;
+    }
     static std::string startLabel(const FlightSetup& s) {
         std::string v = startTypeLabel(s.startType);
         if (s.startType == StartType::InAir) {

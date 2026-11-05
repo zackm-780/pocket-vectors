@@ -228,7 +228,7 @@ TEST_CASE("ui: plan file and approach selection feed the scenario") {
     // references it.
     tap(m, &MenuInput::back);
     REQUIRE(m.top() == ScreenId::Setup);
-    tap(m, &MenuInput::down, 6);
+    tap(m, &MenuInput::down, 7);  // START FLIGHT (after FUEL, F6)
     const MenuResult r = tap(m, &MenuInput::accept);
     REQUIRE(r.action == MenuAction::StartFlight);
     CHECK(r.scenario.planPath == mf.env.menuPlanPath);

@@ -6,6 +6,7 @@
 
 #include "core/Log.h"
 #include "nav/FlightPlan.h"
+#include "sim/FuelPlan.h"  // F6
 #include "ui/MenuScreens.h"
 #include "world/WorldOverlayLogic.h"
 
@@ -334,6 +335,18 @@ public:
             legs_ = planSummary(plan_,
                                 [&db](double lat, double lon) { return db.magVarDeg(lat, lon); });
             distNm_ = planDistNm(plan_);
+            if (f.aircraft) {  // F6: fuel on board, endurance, and what is left at the destination
+                const AircraftState& a = *f.aircraft;
+                const double remNm = distRemainingNm(plan_, LatLon{a.latDeg, a.lonDeg}, false);
+                const float gs = std::max(a.gsKt, 60.0f);
+                char e[16], num[16], dest[16];
+                formatEndurance(e, sizeof e, enduranceMin(a.fuelTotalLbs, a.fuelFlowLbsPerHr));
+                std::snprintf(num, sizeof num, "%.0f", a.fuelTotalLbs);
+                std::snprintf(dest, sizeof dest, "%.0f",
+                              fuelAtDestinationLbs(a.fuelTotalLbs, a.fuelFlowLbsPerHr, remNm, gs));
+                std::snprintf(fuelLine_, sizeof fuelLine_, "FUEL %s LB  %s  AT %s %s LB", num, e,
+                              plan_.destIdent.c_str(), dest);
+            }
         }
         nav_.setCount(kActionRows + static_cast<int>(legs_.size()));
         std::vector<char> disabled(static_cast<size_t>(nav_.count()), 0);
@@ -399,6 +412,7 @@ public:
             sub = b;
         }
         drawScreenFrame(r, t, "FLIGHT PLAN", sub, "A SELECT   B BACK   START RESUME");
+        if (fuelLine_[0]) r.text(r.centered(kContentX), 66, fuelLine_, TextSize::S, t.dim);
         std::vector<ListRow> rows(static_cast<size_t>(nav_.count()));
         rows[0].label = "DIRECT TO IDENT...";
         rows[1].label = "CHANGE APPROACH...";
@@ -437,6 +451,7 @@ private:
     static constexpr int kActionRows = 5;  // N8: + DEPARTURE / ARRIVAL
     FlightPlan plan_;
     std::vector<LegSummary> legs_;
+    char fuelLine_[96] = {0};  // F6
     double distNm_ = 0;
     bool hasApproach_ = false;
     ListNav nav_;

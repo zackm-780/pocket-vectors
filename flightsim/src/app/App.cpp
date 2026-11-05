@@ -41,6 +41,7 @@
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
+#include "sim/FuelPlan.h"                  // F6
 #include "ui/MapPage.h"                    // H4
 #include "ui/MenuSystem.h"                 // H5
 #include "world/AirportGeometry.h"         // W5
@@ -284,6 +285,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     std::vector<audio::AudioEvent> audioEvents;
     audioEvents.reserve(16);
     std::vector<audio::AudioEvent> gpwsToneBuf;  // X2: GPWS tones for S1, reused per frame
+    LowFuelMonitor lowFuel;                      // F6
     gpwsToneBuf.reserve(8);
     // S2: GPWS voice clips (missing clips fall back to the tones).
     audio::VoiceBank voiceBank;
@@ -316,6 +318,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     auto flightStarted = [&]() {
         look.reset();          // I2
         externalView.reset();  // V1
+        lowFuel.reset();       // F6
         if (const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent))
             renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
         setSkyTime();
@@ -503,6 +506,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 }
             }
             sim.advance(dtS);
+        }
+        {  // F6: LOW FUEL at 30 and 15 minutes of endurance
+            const AircraftState& as = sim.aircraft();
+            const int mins = lowFuel.update(enduranceMin(as.fuelTotalLbs, as.fuelFlowLbsPerHr),
+                                            !as.wowAny && as.valid);
+            if (mins > 0) messages.postf("LOW FUEL %d MIN", mins);
         }
         gpwsToneBuf.clear();
         {  // X2: GPWS-lite; text callouts go to the message queue, tones to S1

@@ -10,6 +10,7 @@
 #include "nav/ApproachBuilder.h"  // N5
 #include "nav/FlightPlan.h"       // N5
 #include "nav/Procedures.h"       // N4
+#include "sim/FuelPlan.h"         // F6
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
@@ -76,6 +77,34 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
                  wc.hasVisibility ? wc.visibilityM : -1.0f, wc.qnhHpa);
     }
 
+    {  // F6: fuel on board
+        FuelSetting fs;
+        parseFuelSetting(scenario_.fuel, fs);  // validated by the scenario parser
+        start_.fuelLbs = start_.fuelFraction = 0;
+        switch (fs.kind) {
+        case FuelSetting::Kind::Default: break;
+        case FuelSetting::Kind::Full: start_.fuelFraction = 1; break;
+        case FuelSetting::Kind::Fraction: start_.fuelFraction = fs.value; break;
+        case FuelSetting::Kind::Lbs: start_.fuelLbs = fs.value; break;
+        case FuelSetting::Kind::Auto: {
+            // Trip = the scenario plan's length; cruise TAS ~ IAS + 2 % per 1,000 ft.
+            double tripNm = 0;
+            if (!scenario_.planPath.empty()) {
+                const PlanBuildResult r =
+                    loadPlanFromFmsFile(paths_.resolveInputFile(scenario_.planPath), nav_);
+                if (r.ok) tripNm = planDistNm(r.plan);
+            }
+            const float tasKt = profile_.cruiseKt * (1.0f + 0.02f * profile_.cruiseAltFt / 1000.0f);
+            const float lbs = plannedFuelLbs(tripNm, tasKt, profile_.cruiseFuelFlowLbsHr);
+            if (lbs > 0)
+                start_.fuelLbs = lbs;
+            else
+                start_.fuelFraction = 1;  // no plan or no cruise data: full tanks
+            LOG_INFO("fuel AUTO: %.0f NM trip, %.0f lb planned", tripNm, lbs);
+            break;
+        }
+        }
+    }
     if (!model_.start(profile_, start_)) {
         error = "flight model failed to start " + profile_.id + " (see log)";
         return false;

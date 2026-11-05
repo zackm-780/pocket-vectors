@@ -440,6 +440,7 @@ Scenario FlightSetup::buildScenario(const std::string& planFilePath) const {
     if (hasPlan()) s.planPath = planFilePath;
     s.approachId = approachId;
     if (!hasPlan()) s.approachTransition = approachTransition;  // with a plan: in the .fms
+    if (fuel != "default") s.fuel = fuel;                       // F6
     return s;
 }
 

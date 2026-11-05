@@ -49,6 +49,11 @@ struct AircraftProfile {
     // [view] gear_height_m: height of the JSBSim reference point above the runway on the wheels
     // (measured), so the external model's wheels touch the ground. 0 = unknown.
     float gearHeightM = 0;
+
+    // --- additive (F6) ---
+    // [cruise] fuel_flow_lbs_hr: all engines at the cruise altitude and speed (measured); AUTO fuel
+    // plans with it. 0 = unknown (AUTO then loads full tanks).
+    float cruiseFuelFlowLbsHr = 0;
 };
 
 }  // namespace fsim

@@ -60,6 +60,8 @@ struct Scenario {
     std::string planPath, approachId;
     // N8: [scenario] approach_transition = the approach transition by name ("VECTORS" = none).
     std::string approachTransition;
+    // F6: [scenario] fuel = default | full | auto | NN% | pounds (sim/FuelPlan.h).
+    std::string fuel;
 
     // [autopilot] section; applied by the autopilot once N6 lands. Kept so scenarios are final.
     std::vector<std::string> apEngage;
