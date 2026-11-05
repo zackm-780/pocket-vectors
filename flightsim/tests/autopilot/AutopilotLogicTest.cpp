@@ -412,6 +412,32 @@ TEST_CASE("autopilot: ALT mode holds the present altitude; GS stays armed behind
     CHECK(r.ap.state().vertArmed == VertMode::Gs);
 }
 
+TEST_CASE("autopilot: the ALT button in ALT with the bug away climbs or descends toward it") {
+    // 1.1 device test (787): ALT at 8,100 ft with the bug at 14,000 and no way out but a
+    // disconnect, because the pad has no VS button.
+    Rig r;
+    r.ac.altMslFt = 8100;
+    r.engage();
+    r.ap.setAltBugFt(14000);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);  // first press: hold here
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);  // second press: toward the bug
+    CHECK(r.ap.state().vertArmed == VertMode::Alt);
+    CHECK(r.ap.state().vsBugFpm > 0);
+
+    r.ap.setAltBugFt(4000);  // bug below: descend
+    r.ap.selectAltHold(r.ac);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().vsBugFpm < 0);
+
+    r.ap.setAltBugFt(8150);  // bug within 100 ft: stays in ALT
+    r.ap.selectAltHold(r.ac);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
+}
+
 TEST_CASE("autopilot: VS mode picks a sensible initial rate") {
     Rig r;
     r.engage();
