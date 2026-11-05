@@ -25,10 +25,10 @@ constexpr double kMinimumsCalloutS = 3.0;
 enum class FmaColumn { Spd = 0, Lat, Vert, Count };
 
 struct FmaText {
-    char spd[12] = {0};       // "SPD", "RETARD" or ""
+    char spd[12] = {0};       // "SPD", "RETARD", "TOGA", "THR CLB", "THR IDLE" or ""
     char lat[8] = {0};        // active lateral: "ROL" "HDG" "NAV" "LOC"
     char latArmed[10] = {0};  // "(LOC)" or ""
-    char vert[12] = {0};      // "PIT" "ALT" "ALT*" "VS +700" "G/S" "FLC"
+    char vert[12] = {0};      // "PIT" "ALT" "ALT*" "VS +700" "G/S" "FLC" "GA"
     char vertArmed[10] = {0};
     char status[16] = {0};  // "AP FD A/T", "FD", "A/T" or ""
 };

@@ -45,6 +45,13 @@ void applyKey(ApConfig& c, const std::string& key, float v) {
         {"gs_max_corr_fpm", &ApConfig::gsMaxCorrFpm},
         {"min_climb_ias_kt", &ApConfig::minClimbIasKt},
         {"alpha_limit_deg", &ApConfig::alphaLimitDeg},
+        {"spd_tau_s", &ApConfig::spdTauS},
+        {"spd_accel_tau_s", &ApConfig::spdAccelTauS},
+        {"spd_max_delta_vs_fpm", &ApConfig::spdMaxDeltaVsFpm},
+        {"ga_pitch_deg", &ApConfig::gaPitchDeg},
+        {"ga_pitch_rate_degps", &ApConfig::gaPitchRateDegps},
+        {"climb_throttle", &ApConfig::climbThrottleNorm},
+        {"ga_throttle", &ApConfig::gaThrottleNorm},
         {"at_kp", &ApConfig::atKp},
         {"at_ki", &ApConfig::atKi},
         {"at_k_accel", &ApConfig::atKAccel},
@@ -88,8 +95,14 @@ ApConfig ApConfig::fromProfile(const AircraftProfile& p) {
         c.atKp = 0.025f;
         c.atKi = 0.006f;
         c.retardAglFt = 30;
+        c.gaPitchDeg = 15;
+        c.climbThrottleNorm = 0.95f;
+        c.spdMaxDeltaVsFpm = 4000;
         break;
     case AircraftCategory::Turboprop:
+        c.gaPitchDeg = 12;
+        c.climbThrottleNorm = 0.95f;
+        c.spdMaxDeltaVsFpm = 3000;
         c.bankLimitDeg = 25;
         c.vsMaxClimbFpm = 2000;
         c.vsMaxDescentFpm = 2000;

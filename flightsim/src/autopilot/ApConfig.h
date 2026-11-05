@@ -36,6 +36,14 @@ struct ApConfig {
     float gsTauS = 12, gsMaxCorrFpm = 500;
     float minClimbIasKt = 0;  // underspeed protection without A/T (0 = 1.25 * vs1)
     float alphaLimitDeg = 0;  // pitch demand is cut above this angle of attack (0 = off)
+    // ---- FLC / go-around (N7): pitch on speed ----
+    float spdTauS = 5;              // speed error closes with this time constant (s)
+    float spdAccelTauS = 1.0f;      // low-pass of the IAS acceleration the speed law uses (s)
+    float spdMaxDeltaVsFpm = 2500;  // largest VS change the speed law asks for at once
+    float gaPitchDeg = 10;          // go-around attitude: the GA pitch command never exceeds it
+    float gaPitchRateDegps = 3;  // pitch command slew in GA (faster rotation than the normal limit)
+    float climbThrottleNorm = 1.0f;  // A/T throttle in an FLC climb (THR CLB)
+    float gaThrottleNorm = 1.0f;     // A/T throttle in GA (TOGA)
     // ---- autothrottle ----
     float atKp = 0.015f, atKi = 0.004f, atKAccel = 0.05f;  // per kt, per kt*s, per kt/s
     float atAvailable = 0;  // 1 = offer the A/T even if the profile has no autothrottle

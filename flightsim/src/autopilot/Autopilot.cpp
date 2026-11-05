@@ -24,6 +24,12 @@ constexpr float kGsFullScaleDeg = 0.7f;       // NAVIGATION 3.2
 constexpr float kPathDeg = 3.0f;              // GS / VNAV path angle
 constexpr float kWarnDurationS = 5.0f;        // HUD.md 5: flashing AP OFF
 constexpr float kGsCaptureBand = 0.5f;        // 1 dot = half of full-scale deflection
+// N7 speed law: VS change (fpm) per kt of TAS per kt/s of IAS acceleration, from the energy
+// balance dh/dt + (V / g) dV/dt = const: 0.5144^2 / 9.80665 * 196.85 = 5.311.
+constexpr float kFpmPerKtPerKtps = 5.311f;
+constexpr float kSpdLawMaxVsFpm = 8000.f;  // FLC / GA VS target clamp (pitch limits still apply)
+constexpr float kGaBugMinAboveFt = 500.f, kGaBugAboveFt = 1000.f;
+constexpr float kGaSinkArrestKt = 5.f;
 
 float clampf(float v, float lo, float hi) {
     return std::max(lo, std::min(hi, v));
@@ -66,6 +72,7 @@ void Autopilot::configure(const AircraftProfile& profile) {
     hasAt_ = profile.hasAutothrottle || cfg_.atAvailable > 0.5f;
     engineCount_ = std::max(1, profile.engineCount);
     approachFlapDetent_ = profile.approachFlapDetent;
+    gaFlapsMinKt_ = profile.vrefKt > 0 ? profile.vrefKt : 1.3f * profile.vs0Kt;
     st_ = AutopilotState{};
     rollHoldDeg_ = pitchHoldDeg_ = holdAltFt_ = captureAltFt_ = 0;
     vsBugRawFpm_ = spdBugRaw_ = 0;
@@ -82,6 +89,9 @@ void Autopilot::configure(const AircraftProfile& profile) {
     bugAccumVs_ = bugAccumSpd_ = 0;
     retardLatched_ = false;
     lastAc_ = AircraftState{};
+    gaSpeedKt_ = 0;
+    iasAccelInit_ = thrustWas_ = false;
+    apLastIasKt_ = apIasAccelKtps_ = 0;
 }
 
 void Autopilot::initModes(const AircraftState& ac) {
@@ -142,7 +152,8 @@ bool Autopilot::setAt(bool on, const AircraftState& ac, const AircraftProfile*) 
     if (!on) {
         st_.atEngaged = false;
         st_.spdActive = SpdMode::Off;
-        atInit_ = atSynced_ = retardLatched_ = false;
+        st_.thrustTargetNorm = 0;
+        atInit_ = atSynced_ = retardLatched_ = thrustWas_ = false;
         return true;
     }
     if (!hasAt_ || ac.wowAny || !ac.valid) return false;
@@ -233,6 +244,47 @@ void Autopilot::selectVs(const AircraftState& ac) {
     vsFresh_ = true;
 }
 
+bool Autopilot::selectGoAround(const AircraftState& ac, const NavState& nav) {
+    if (!ac.valid || ac.wowAny || ac.crashed) return false;
+    magVarDeg_ = nav.magVarDeg;
+    if (!modesLive()) setFd(true, ac);
+    if (st_.vertActive == VertMode::Ga) return true;  // a second press changes nothing
+    // Lateral: hold the present heading; NAV arms on the plan (the navigator sequences into the
+    // missed approach once the MAP is passed airborne).
+    const float magDeg = static_cast<float>(wrap360(radToDeg(ac.headingTrueRad) - nav.magVarDeg));
+    setHdgBugMagDeg(std::round(magDeg));
+    st_.latActive = LatMode::Hdg;
+    st_.latArmed = nav.activeLegIndex >= 0 && navAvailable(nav) ? LatMode::Nav : LatMode::Off;
+    // Vertical: pitch on speed, no GS arm left over.
+    st_.vertActive = VertMode::Ga;
+    st_.vertArmed = VertMode::Off;
+    // Clean, 1.25 Vs1 (minClimbIasKt); with flaps out that is far too fast (190 kt in the 737),
+    // so Vref is the floor there.
+    gaSpeedKt_ = std::max(ac.iasKt, ac.flapDetent > 0 ? gaFlapsMinKt_ : cfg_.minClimbIasKt);
+    vsFresh_ = true;
+    const float altFt = altIndFt(ac);
+    if (st_.altBugFt < altFt + kGaBugMinAboveFt) setAltBugFt(roundTo(altFt + kGaBugAboveFt, 100.f));
+    if (hasAt_ && !st_.atEngaged) setAt(true, ac);  // TOGA thrust (updateAutothrottle)
+    return true;
+}
+
+void Autopilot::selectFlc(const AircraftState& ac) {
+    if (!modesLive()) return;
+    if (st_.vertActive == VertMode::Flc) {
+        selectPitch(ac);
+        return;
+    }
+    if (std::fabs(st_.altBugFt - altIndFt(ac)) <= cfg_.altCaptureMinFt) {
+        st_.vertActive = VertMode::Alt;  // already there: hold the bug
+        holdAltFt_ = st_.altBugFt;
+        if (st_.vertArmed == VertMode::Alt) st_.vertArmed = VertMode::Off;
+        return;
+    }
+    if (st_.spdBugKt <= 0) setSpdBugKt(std::round(ac.iasKt));
+    st_.vertActive = VertMode::Flc;
+    vsFresh_ = true;
+}
+
 void Autopilot::setHdgBugMagDeg(float deg) {
     float d = std::fmod(deg, 360.f);
     if (d <= 0.f) d += 360.f;
@@ -277,6 +329,8 @@ void Autopilot::handleActions(const ActionState& a, const AircraftState& ac, con
     if (pressed(Action::AltMode)) selectAltHold(ac);
     if (pressed(Action::VsMode)) selectVs(ac);
     if (pressed(Action::SyncBugs)) syncBugs(ac, nav);
+    if (pressed(Action::GoAround)) selectGoAround(ac, nav);
+    if (pressed(Action::FlcMode)) selectFlc(ac);
 
     if (pressed(Action::HdgBugInc))
         setHdgBugMagDeg(st_.hdgBugMagDeg + acceleratedStep(repeats(Action::HdgBugInc), 1, 10));
@@ -319,7 +373,7 @@ void Autopilot::applyScenario(const std::vector<std::string>& tokens, const Airc
     magVarDeg_ = nav.magVarDeg;
     for (const std::string& t : tokens) {
         const bool modeToken = t == "hdg" || t == "nav" || t == "apr" || t == "alt" || t == "vs" ||
-                               t == "rol" || t == "pit" || t == "pitch";
+                               t == "rol" || t == "pit" || t == "pitch" || t == "flc";
         if (t == "ap" || modeToken) engageAp(ac, nav);
         if (t == "fd") setFd(true, ac);
         if (t == "at" || t == "spd") setAt(true, ac);
@@ -351,6 +405,8 @@ void Autopilot::applyScenario(const std::vector<std::string>& tokens, const Airc
             selectRoll(ac);
         } else if (t == "pit" || t == "pitch") {
             selectPitch(ac);
+        } else if (t == "flc") {
+            if (st_.vertActive != VertMode::Flc) selectFlc(ac);
         }
     }
 }
@@ -378,6 +434,7 @@ ControlInputs Autopilot::update(const ControlInputs& pilot, const AircraftState&
     magVarDeg_ = nav.magVarDeg;
     ControlInputs out = pilot;
 
+    updateIasAccel(ac, dtS);
     checkDisconnects(pilot, ac, nav, dtS);
 
     if (modesLive()) {
@@ -398,7 +455,10 @@ ControlInputs Autopilot::update(const ControlInputs& pilot, const AircraftState&
         if (st_.apEngaged) {
             if (!loopsInit_) initLoops(pilot, ac);
             bankCmdDeg_ = slew(bankCmdDeg_, bankTarget, cfg_.bankRateLimitDegps, dtS);
-            pitchCmdDeg_ = slew(pitchCmdDeg_, pitchTarget, cfg_.pitchRateLimitDegps, dtS);
+            const float pitchRate = st_.vertActive == VertMode::Ga
+                                        ? std::max(cfg_.pitchRateLimitDegps, cfg_.gaPitchRateDegps)
+                                        : cfg_.pitchRateLimitDegps;
+            pitchCmdDeg_ = slew(pitchCmdDeg_, pitchTarget, pitchRate, dtS);
             innerLoops(pilot, ac, dtS, out);
         }
     } else {
@@ -452,9 +512,11 @@ void Autopilot::checkDisconnects(const ControlInputs& pilot, const AircraftState
         disengageAp(true);
         return;
     }
-    // No autoland in v1: disconnect below minimums - 50 ft while flying an approach.
+    // No autoland in v1: disconnect below minimums - 50 ft while flying an approach. Not in GA:
+    // TO/GA below minimums keeps the AP flying the go-around (N7).
     const bool coupled =
-        st_.latActive == LatMode::Loc || st_.vertActive == VertMode::Gs || nav.onFinal;
+        st_.vertActive != VertMode::Ga &&
+        (st_.latActive == LatMode::Loc || st_.vertActive == VertMode::Gs || nav.onFinal);
     if (nav.phase == NavPhase::Approach && coupled && nav.minimumsFt > 0 &&
         altIndFt(ac) < nav.minimumsFt - cfg_.minimumsDisconnectMarginFt)
         disengageAp(true);
@@ -519,7 +581,10 @@ void Autopilot::updateModes(const AircraftState& ac, const NavState& nav) {
         selectPitch(ac);
 
     const float altErr = st_.altBugFt - altIndFt(ac);
-    if (st_.vertActive == VertMode::Pitch || st_.vertActive == VertMode::Vs) {
+    // N7: FLC and GA capture the bug like PIT and VS (GA ends at ALT*; the A/T goes back to SPD).
+    const bool capturing = st_.vertActive == VertMode::Pitch || st_.vertActive == VertMode::Vs ||
+                           st_.vertActive == VertMode::Flc || st_.vertActive == VertMode::Ga;
+    if (capturing) {
         const float vs = ac.vsFpm;
         const bool toward = vs * altErr > 0.f && std::fabs(vs) >= 100.f;
         const float captureFt =
@@ -529,8 +594,10 @@ void Autopilot::updateModes(const AircraftState& ac, const NavState& nav) {
             st_.vertActive = VertMode::AltCapture;
             captureAltFt_ = st_.altBugFt;
         } else if (st_.vertArmed != VertMode::Gs) {
-            const bool vsToward = st_.vertActive == VertMode::Vs && st_.vsBugFpm * altErr > 0.f;
-            st_.vertArmed = (toward || vsToward) ? VertMode::Alt : VertMode::Off;
+            const bool modeToward =
+                (st_.vertActive == VertMode::Vs && st_.vsBugFpm * altErr > 0.f) ||
+                st_.vertActive == VertMode::Flc || (st_.vertActive == VertMode::Ga && altErr > 0.f);
+            st_.vertArmed = (toward || modeToward) ? VertMode::Alt : VertMode::Off;
         }
     } else if (st_.vertActive == VertMode::Alt || st_.vertActive == VertMode::AltCapture) {
         if (st_.vertArmed == VertMode::Alt) st_.vertArmed = VertMode::Off;
@@ -588,6 +655,7 @@ float Autopilot::lateralBankCmd(const AircraftState& ac, const NavState& nav) {
 
 float Autopilot::verticalPitchCmd(const AircraftState& ac, const NavState& nav, double dtS) {
     float vsTarget = 0.f;
+    float maxPitchDeg = cfg_.pitchMaxDeg;
     switch (st_.vertActive) {
     case VertMode::Off: return pitchDegOf(ac);
     case VertMode::Pitch: return pitchHoldDeg_;
@@ -612,29 +680,75 @@ float Autopilot::verticalPitchCmd(const AircraftState& ac, const NavState& nav, 
         vsTarget = vsPath + corr;
         break;
     }
-    case VertMode::Flc: return pitchDegOf(ac);
+    case VertMode::Flc: {
+        // Pitch on speed, but never away from the bug: no climb with the bug below, no descent
+        // with it above (the speed then waits for the thrust, as in a real FLC).
+        vsTarget = speedOnPitchVs(ac, st_.spdBugKt);
+        if (st_.altBugFt > altIndFt(ac))
+            vsTarget = std::max(vsTarget, 0.f);
+        else
+            vsTarget = std::min(vsTarget, 0.f);
+        break;
+    }
+    case VertMode::Ga:
+        vsTarget = speedOnPitchVs(ac, gaSpeedKt_);
+        // Stop the descent first: while the speed is within kGaSinkArrestKt of the target the
+        // GA never asks for a descent (the thrust is still spooling up).
+        if (ac.iasKt >= gaSpeedKt_ - kGaSinkArrestKt) vsTarget = std::max(vsTarget, 0.f);
+        maxPitchDeg = std::min(maxPitchDeg, cfg_.gaPitchDeg);
+        break;
     }
     // Underspeed protection without an autothrottle: below the minimum speed trade altitude for
-    // speed (100 fpm less climb, or more descent, per knot of deficit). GS is exempt (it descends).
-    if (!st_.atEngaged && st_.vertActive != VertMode::Gs && cfg_.minClimbIasKt > 0.f &&
-        ac.iasKt < cfg_.minClimbIasKt)
+    // speed (100 fpm less climb, or more descent, per knot of deficit). GS is exempt (it descends),
+    // FLC and GA fly pitch on speed already.
+    const bool speedMode = st_.vertActive == VertMode::Flc || st_.vertActive == VertMode::Ga;
+    if (!st_.atEngaged && st_.vertActive != VertMode::Gs && !speedMode &&
+        cfg_.minClimbIasKt > 0.f && ac.iasKt < cfg_.minClimbIasKt)
         vsTarget -= (cfg_.minClimbIasKt - ac.iasKt) * 100.f;
-    return vsLoopPitch(ac, vsTarget, dtS);
+    return std::min(vsLoopPitch(ac, vsTarget, dtS, maxPitchDeg), maxPitchDeg);
 }
 
-float Autopilot::vsLoopPitch(const AircraftState& ac, float vsTargetFpm, double dtS) {
+// N7 pitch on speed (TECS-like): the VS that turns the speed error into the acceleration
+// (target - IAS) / spdTauS. The energy balance gives the VS change for an acceleration error;
+// the TAS / IAS factor converts the IAS rate to a TAS rate. The VS loop then flies it.
+float Autopilot::speedOnPitchVs(const AircraftState& ac, float targetKt) const {
+    const float iasKt = std::max(ac.iasKt, 30.f);
+    const float tasKt = std::max(ac.tasKt, iasKt);
+    const float accelErrKtps =
+        apIasAccelKtps_ + (ac.iasKt - targetKt) / std::max(1.f, cfg_.spdTauS);
+    const float dVs = clampf(kFpmPerKtPerKtps * tasKt * (tasKt / iasKt) * accelErrKtps,
+                             -cfg_.spdMaxDeltaVsFpm, cfg_.spdMaxDeltaVsFpm);
+    return clampf(ac.vsFpm + dVs, -kSpdLawMaxVsFpm, kSpdLawMaxVsFpm);
+}
+
+void Autopilot::updateIasAccel(const AircraftState& ac, double dtS) {
+    const float dt = static_cast<float>(dtS);
+    if (!ac.valid || !iasAccelInit_ || dt <= 0.f) {
+        apLastIasKt_ = ac.iasKt;
+        apIasAccelKtps_ = 0;
+        iasAccelInit_ = ac.valid;
+        return;
+    }
+    const float accel = (ac.iasKt - apLastIasKt_) / dt;
+    apIasAccelKtps_ +=
+        clampf(dt / std::max(0.05f, cfg_.spdAccelTauS), 0.f, 1.f) * (accel - apIasAccelKtps_);
+    apLastIasKt_ = ac.iasKt;
+}
+
+float Autopilot::vsLoopPitch(const AircraftState& ac, float vsTargetFpm, double dtS,
+                             float maxPitchDeg) {
     const float tasKt = std::max(ac.tasKt, 40.f);
     const float degPerFpm = 1.f / (tasKt * kFpmPerKtPerDeg);  // path angle per fpm of VS
     if (vsFresh_) {
         // Bumpless start with a feed-forward step to the new flight path angle.
         const float dGamma = (vsTargetFpm - ac.vsFpm) * degPerFpm;
-        vsIntegPitchDeg_ = clampf(pitchDegOf(ac) + dGamma, cfg_.pitchMinDeg, cfg_.pitchMaxDeg);
+        vsIntegPitchDeg_ = clampf(pitchDegOf(ac) + dGamma, cfg_.pitchMinDeg, maxPitchDeg);
         vsFresh_ = false;
     }
     const float err = vsTargetFpm - ac.vsFpm;
     vsIntegPitchDeg_ =
         clampf(vsIntegPitchDeg_ + cfg_.vsKiRel * degPerFpm * err * static_cast<float>(dtS),
-               cfg_.pitchMinDeg, cfg_.pitchMaxDeg);
+               cfg_.pitchMinDeg, maxPitchDeg);
     return vsIntegPitchDeg_ + cfg_.vsKpRel * degPerFpm * err;
 }
 
@@ -714,19 +828,34 @@ void Autopilot::updateAutothrottle(const ControlInputs& pilot, const AircraftSta
         lastIasKt_ = ac.iasKt;
     }
 
+    // N7: GA and FLC hold a fixed throttle (THR) while the AP / FD flies pitch on speed.
+    const bool thrust =
+        modesLive() && (st_.vertActive == VertMode::Ga || st_.vertActive == VertMode::Flc);
+
     // RETARD in the flare on landing (descending, landing configuration, below ~30 ft RA).
     const bool landingConfig =
         ac.flapDetent >= approachFlapDetent_ && (!ac.gearRetractable || ac.gearPosNorm > 0.9f);
     if (ac.altAglFt < cfg_.retardAglFt && ac.vsFpm < -50.f && landingConfig) retardLatched_ = true;
-    if (ac.altAglFt > 2.f * cfg_.retardAglFt) retardLatched_ = false;
+    if (ac.altAglFt > 2.f * cfg_.retardAglFt || st_.vertActive == VertMode::Ga)
+        retardLatched_ = false;
 
     float target;
     if (retardLatched_) {
         st_.spdActive = SpdMode::Retard;
+        st_.thrustTargetNorm = 0;
         target = 0.f;
         atThrottle_ = slew(atThrottle_, target, cfg_.retardSlewPerS, dtS);
         atInteg_ = atThrottle_;
+    } else if (thrust) {
+        st_.spdActive = SpdMode::Thrust;
+        st_.thrustTargetNorm = thrustTargetNorm(ac);
+        atThrottle_ = slew(atThrottle_, st_.thrustTargetNorm, cfg_.atSlewPerS, dtS);
+        atInteg_ = atThrottle_;  // SPD takes over from here without a jump
+        thrustWas_ = true;
     } else {
+        if (thrustWas_) atInteg_ = atThrottle_;
+        thrustWas_ = false;
+        st_.thrustTargetNorm = 0;
         st_.spdActive = SpdMode::Speed;
         const float err = st_.spdBugKt - ac.iasKt;
         target = atInteg_ + cfg_.atKp * err - cfg_.atKAccel * iasAccelKtps_;
@@ -736,6 +865,11 @@ void Autopilot::updateAutothrottle(const ControlInputs& pilot, const AircraftSta
     }
     const int n = std::min(kMaxEngines, ac.engineCount > 0 ? ac.engineCount : engineCount_);
     for (int i = 0; i < n; ++i) out.throttleNorm[i] = atThrottle_;
+}
+
+float Autopilot::thrustTargetNorm(const AircraftState& ac) const {
+    if (st_.vertActive == VertMode::Ga) return clampf(cfg_.gaThrottleNorm, 0.f, 1.f);
+    return st_.altBugFt > altIndFt(ac) ? clampf(cfg_.climbThrottleNorm, 0.f, 1.f) : 0.f;
 }
 
 }  // namespace fsim

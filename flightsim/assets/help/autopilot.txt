@@ -4,4 +4,6 @@ X selects heading mode. Y switches NAV and approach.
 D-pad left and right move the heading bug. D-pad up and down move the altitude bug.
 R2 holds the current altitude. The right stick sets vertical speed or the speed bug.
 Select jumps direct to the next waypoint in the plan.
+L3 is TO/GA: go-around attitude, full thrust with the autothrottle, heading hold.
+Start is FLC: climb or descend to the altitude bug at the speed bug.
 The flight mode annunciator on the HUD shows what is armed and what is active.

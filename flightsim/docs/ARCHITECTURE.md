@@ -352,8 +352,8 @@ struct NavState {
 
 // ---------- core/AutopilotState.h ----------   produced by autopilot/ (N6), read by HUD
 enum class LatMode  { Off, Roll, Hdg, Nav, Loc };
-enum class VertMode { Off, Pitch, Alt, AltCapture, Vs, Gs, Flc };
-enum class SpdMode  { Off, Speed, Retard };
+enum class VertMode { Off, Pitch, Alt, AltCapture, Vs, Gs, Flc, Ga };  // Ga additive (N7)
+enum class SpdMode  { Off, Speed, Retard, Thrust };                    // Thrust additive (N7)
 struct AutopilotState {
   bool apEngaged = false, fdOn = false, atEngaged = false;
   LatMode latActive = LatMode::Off, latArmed = LatMode::Off;
@@ -362,21 +362,28 @@ struct AutopilotState {
   float hdgBugMagDeg = 0, altBugFt = 0, vsBugFpm = 0, spdBugKt = 0;
   float fdPitchCmdDeg = 0, fdRollCmdDeg = 0; bool fdValid = false;
   bool  disconnectWarning = false;          // flashing AP OFF
+  float thrustTargetNorm = 0;               // additive (N7): SpdMode::Thrust throttle, 1 = TOGA
 };
 
 // ---------- core/Actions.h ----------   semantic input actions (P2 binds physical inputs to these)
-enum class Axis { Pitch, Roll, Rudder, ThrottleRate, LookYaw, LookPitch, Count };
+enum class Axis { Pitch, Roll, Rudder, ThrottleRate, LookYaw, LookPitch, BugRate, Count };  // BugRate (P2)
 enum class Action { TrimNoseUp, TrimNoseDown, FlapsUp, FlapsDown, GearToggle, Brakes, ParkingBrake,
                     SpeedbrakeCycle, ReverseToggle, HudDeclutter, MapToggle, Pause, LookHold,
                     LookLeft, LookRight, LookBack, LookDown,
                     ApToggle, AtToggle, FdToggle, HdgMode, NavMode, AprMode, AltMode, VsMode,
                     HdgBugDec, HdgBugInc, AltBugDec, AltBugInc, SyncBugs, NavSourceCycle, DirectTo,
                     RudderTrimLeft, RudderTrimRight, MenuUp, MenuDown, MenuLeft, MenuRight,
-                    MenuAccept, MenuBack, Screenshot, Count };
+                    MenuAccept, MenuBack, Screenshot,
+                    Quit,                              // additive (P2)
+                    BaroInc, BaroDec, BaroStd,         // additive (I1)
+                    OverlayPreset,                     // additive (W6)
+                    GoAround, FlcMode,                 // additive (N7): L1 + L3, L1 + Start
+                    Count };
 struct ActionState {
   float axis[(int)Axis::Count] = {};          // -1..1 after deadzone/curve
   bool  down[(int)Action::Count] = {};        // held
   bool  pressed[(int)Action::Count] = {};     // edge this frame (with auto-repeat where bound)
+  int   repeatCount[(int)Action::Count] = {}; // additive (P2): auto-repeats in the current hold
 };
 
 // ---------- core/Log.h, core/Ini.h, core/Csv.h, core/Paths.h ----------

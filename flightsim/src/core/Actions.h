@@ -55,6 +55,9 @@ enum class Action {
     BaroStd,
     // Additive (W6): L3 cycles world-overlay presets. R3 stays unbound.
     OverlayPreset,
+    // Additive (N7): TO/GA (L1 + L3) and FLC (L1 + Start); F6 / F7 on the keyboard.
+    GoAround,
+    FlcMode,
     Count
 };
 

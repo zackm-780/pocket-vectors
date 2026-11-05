@@ -666,7 +666,7 @@ device numbers exist. W7, N8 and S2 can follow in 1.3.
 5. Project version 1.2.0 (the About page showed 0.1.0).
 
 ## N7: Autopilot go-around and FLC
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N6 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+**Status:** in review (needs device test: L1 + L3 on short final goes around with `TOGA | GA`; L1 + Start climbs to the bug in `THR CLB | FLC`) · **Model / effort:** Sonnet / high · **Depends:** N6 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
 
 **Owns:** `src/autopilot/`, `tests/autopilot/`; one binding each in `assets/controls_default.ini`
 and CONTROLS.md (integration, proposed in the PR; L1 + L3 is free for TO/GA, R3 stays unbound).
@@ -680,6 +680,16 @@ speed and the A/T at climb or idle thrust, capturing ALT* at the bug.
 1,000 ft AGL without sinking more than 50 ft below the TO/GA point, and the navigator is on the
 missed-approach legs. FLC from 3,000 to 9,000 ft holds the speed bug ±5 kt and captures with less
 than 100 ft overshoot.
+
+Done (PR #11): `VertMode::Ga`, `SpdMode::Thrust`, `AutopilotState::thrustTargetNorm`,
+`Action::GoAround` / `FlcMode` (additive), L1 + L3 / L1 + Start, F6 / F7. Measured (headless,
+10 kt crosswind): go-around at 200 ft AGL sinks 9 ft (c172p) and 36 ft (737) below the TO/GA
+point, then climbs through 1,000 ft AGL on the missed-approach legs with NAV; FLC 3,000 to
+9,000 ft holds the bug within 2 kt and overshoots 16 ft (c172p, leaned 3 % per 1,000 ft: the
+JSBSim c172p stops climbing near 8,700 ft at full rich) and 25 ft (737); a 737 FLC descent at
+idle overshoots 18 ft. Deviations: the GA speed floor is Vref with flaps out (1.25 Vs1 clean is
+190 kt in the 737); FLC never climbs with the bug below or descends with it above; in GA the
+737 pitch overshoots the 15 degree command to about 18.6 degrees while TOGA thrust builds.
 
 ## V1: External chase view
 **Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W2, W5 · **Specs:** PLAN §2 (v2+), D5

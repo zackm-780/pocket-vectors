@@ -278,3 +278,127 @@ TEST_CASE("sim: AP-managed trim keeps a disconnect gentle (c172p)") {
     CHECK(after.nzG > 0.8f);
     CHECK(after.nzG < 1.3f);
 }
+
+// N7 acceptance: AP + A/T coupled on the ILS, TO/GA at 200 ft AGL (the DA is 200 ft above the
+// threshold, so this is also below the minimums the AP would otherwise disconnect at - 50 ft).
+TEST_CASE("sim: N7 go-around from 200 ft on the XTST ILS (c172p, 737)") {
+    for (const char* ac : {"c172p", "737"}) {
+        SimFixture f;
+        const bool jet = std::string(ac) == "737";
+        const std::string scenario =
+            std::string("[scenario]\naircraft = ") + ac +
+            "\nairport = XTST\nrunway = 27\nstart = final\ndistance_nm = 6\napproach = I27\n"
+            "[wind]\nfrom_true_deg = 360\nspeed_kt = 10\n[autopilot]\nengage = ap at apr\n" +
+            (jet ? "spd_bug_kt = 145\n" : "spd_bug_kt = 65\n");
+        REQUIRE_MESSAGE(f.initText(scenario), f.error);
+        Autopilot& ap = f.sim.autopilot();
+        bool ga = false, sawMissed = false, through1000 = false, sawToga = false;
+        double gaAltFt = 0, gaTimeS = 0, minAfterGaFt = 1e9, gaAglFt = 0, maxPitchDeg = -90;
+        int missedLeg = -1;
+        for (long i = 0; i < 400 * kSimHz; ++i) {
+            f.sim.stepOnce();
+            const AircraftState& s = f.sim.aircraft();
+            const NavState& n = f.sim.navState();
+            const AutopilotState& st = f.sim.autopilotState();
+            if (!ga && st.vertActive == VertMode::Gs && s.altAglFt <= 200.f) {
+                REQUIRE(ap.selectGoAround(s, n));
+                CHECK(st.vertActive == VertMode::Ga);
+                CHECK(st.vertArmed != VertMode::Gs);
+                CHECK(st.latArmed != LatMode::Loc);
+                ga = true;
+                gaAltFt = s.altMslFt;
+                gaAglFt = s.altAglFt;
+                gaTimeS = s.simTimeS;
+            }
+            if (!ga) continue;
+            minAfterGaFt = std::min(minAfterGaFt, s.altMslFt);
+            maxPitchDeg = std::max(maxPitchDeg, radToDeg(s.pitchRad));
+            if (st.vertActive == VertMode::Ga && st.spdActive == SpdMode::Thrust) sawToga = true;
+            if (s.altAglFt > 1000.f) through1000 = true;
+            if (n.phase == NavPhase::Missed && missedLeg < 0) {
+                sawMissed = true;
+                missedLeg = n.activeLegIndex;
+            }
+            if (through1000 && sawMissed && s.simTimeS - gaTimeS > 90) break;
+            if (s.crashed) break;
+        }
+        const AutopilotState& st = f.sim.autopilotState();
+        const NavState& n = f.sim.navState();
+        std::printf("[N7] %s GA at %.0f ft AGL: lowest %.1f ft below the GA point, max pitch %.1f "
+                    "deg, missed approach from leg %d (now %d, %s), AP %d, lat %d vert %d\n",
+                    ac, gaAglFt, gaAltFt - minAfterGaFt, maxPitchDeg, missedLeg, n.activeLegIndex,
+                    n.phase == NavPhase::Missed ? "MISSED" : "not missed", st.apEngaged,
+                    static_cast<int>(st.latActive), static_cast<int>(st.vertActive));
+        CHECK(ga);
+        CHECK(sawToga);
+        CHECK(gaAltFt - minAfterGaFt < 50.0);
+        CHECK(through1000);
+        CHECK(sawMissed);
+        CHECK(n.phase == NavPhase::Missed);   // still on the missed-approach legs
+        CHECK(st.latActive == LatMode::Nav);  // NAV (armed by TO/GA) flies them
+        CHECK(st.apEngaged);
+        CHECK(maxPitchDeg < 20.0);
+        CHECK_FALSE(f.sim.aircraft().crashed);
+    }
+}
+
+TEST_CASE("sim: N7 FLC 3,000 -> 9,000 ft holds the speed bug and captures (c172p, 737)") {
+    struct Case {
+        const char* aircraft;
+        double startFt, targetFt, bugKt;
+    };
+    // The 737 also flies an FLC descent at idle (THR IDLE) back down to 6,000 ft.
+    const Case cases[] = {
+        {"c172p", 3000, 9000, 75}, {"737", 3000, 9000, 250}, {"737", 9000, 6000, 250}};
+    for (const Case& c : cases) {
+        SimFixture f;
+        const bool jet = std::string(c.aircraft) == "737";
+        const bool climb = c.targetFt > c.startFt;
+        REQUIRE_MESSAGE(f.initText(cruiseScenario(
+                            c.aircraft, c.startFt, "",
+                            "engage = ap at hdg flc\nhdg_bug_mag_deg = 270\nalt_bug_ft = " +
+                                std::to_string(c.targetFt) +
+                                "\nspd_bug_kt = " + std::to_string(c.bugKt) + "\n")),
+                        f.error);
+        REQUIRE(f.sim.autopilotState().vertActive == VertMode::Flc);
+        const double dir = climb ? 1.0 : -1.0;
+        bool onSpeed = false, sawCapture = false, sawThrust = false;
+        double maxSpdErrKt = 0, maxOvershootFt = -1e9;
+        for (long i = 0; i < 900 * kSimHz; ++i) {
+            if (!jet) {
+                // The pilot leans on the climb (3 % per 1,000 ft): the JSBSim c172p loses its
+                // climb near 8,700 ft at full rich.
+                const double aboveK = std::max(0.0, f.sim.aircraft().altMslFt - 3000.0) / 1000.0;
+                f.sim.pilot().mixtureNorm = static_cast<float>(1.0 - 0.03 * aboveK);
+            }
+            f.sim.stepOnce();
+            const AircraftState& s = f.sim.aircraft();
+            const AutopilotState& st = f.sim.autopilotState();
+            if (st.spdActive == SpdMode::Thrust && (st.thrustTargetNorm > 0.5f) == climb)
+                sawThrust = true;  // THR CLB on the way up, THR IDLE on the way down
+            if (st.vertActive == VertMode::AltCapture || st.vertActive == VertMode::Alt)
+                sawCapture = true;
+            if (!onSpeed && std::fabs(s.iasKt - c.bugKt) < 2.0) onSpeed = true;
+            if (onSpeed && !sawCapture)
+                maxSpdErrKt = std::max(maxSpdErrKt, std::fabs(s.iasKt - c.bugKt));
+            maxOvershootFt = std::max(maxOvershootFt, dir * (s.altMslFt - c.targetFt));
+            if (sawCapture && st.vertActive == VertMode::Alt && std::fabs(s.vsFpm) < 100 &&
+                std::fabs(s.altMslFt - c.targetFt) < 20)
+                break;
+            if (s.crashed) break;
+        }
+        const AircraftState& s = f.sim.aircraft();
+        std::printf("[N7] %s FLC %.0f -> %.0f: max speed error %.1f kt, overshoot %.0f ft, final "
+                    "%.0f ft after %.0f s\n",
+                    c.aircraft, c.startFt, c.targetFt, maxSpdErrKt, maxOvershootFt, s.altMslFt,
+                    s.simTimeS);
+        CHECK(onSpeed);
+        CHECK(sawThrust);
+        CHECK(sawCapture);
+        CHECK(maxSpdErrKt <= 5.0);
+        CHECK(maxOvershootFt < 100.0);
+        CHECK(f.sim.autopilotState().vertActive == VertMode::Alt);
+        CHECK(f.sim.autopilotState().spdActive == SpdMode::Speed);
+        CHECK_FALSE(s.crashed);
+    }
+}
