@@ -418,6 +418,9 @@ TEST_CASE("ui: settings are edited and saved when leaving the screen") {
     CHECK(mf.settings.fovVerticalDeg == doctest::Approx(55.0f));
     tap(m, &MenuInput::right, 100);  // clamps at 110
     CHECK(mf.settings.fovVerticalDeg == doctest::Approx(110.0f));
+    tap(m, &MenuInput::down);    // X3: GRAPHICS QUALITY
+    tap(m, &MenuInput::accept);  // MED -> HIGH
+    CHECK(mf.settings.graphicsQuality == GraphicsQuality::High);
     CHECK_FALSE(std::filesystem::exists(mf.env.settingsPath));  // nothing written yet
 
     const MenuResult r = tap(m, &MenuInput::back);
@@ -430,6 +433,7 @@ TEST_CASE("ui: settings are edited and saved when leaving the screen") {
     CHECK(reloaded.showFps);
     CHECK(reloaded.hudMiniNav);
     CHECK(reloaded.fovVerticalDeg == doctest::Approx(110.0f));
+    CHECK(reloaded.graphicsQuality == GraphicsQuality::High);
 
     // Leaving without a change reports nothing.
     REQUIRE(m.openCanned("settings", err));

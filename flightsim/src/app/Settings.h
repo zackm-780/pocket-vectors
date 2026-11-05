@@ -56,6 +56,8 @@ struct Settings {
     float cloudBaseFt = 2500.0f;
     // S2: spoken GPWS callouts (off: the X2 tones).
     bool gpwsVoice = true;
+    // X3: glFinish after each render pass so the frame timing holds GPU time (read at start).
+    bool perfGpuSync = false;
     std::string lastAircraft;
 
     // Parses settings text onto *this (keys that are absent or invalid keep their current value;

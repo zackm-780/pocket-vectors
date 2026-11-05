@@ -191,7 +191,8 @@ int Settings::applyText(const std::string& text) {
     flag("external_view", externalView);  // V1
     choice("clouds", kClouds, clouds);    // W7
     num("cloud_base_ft", cloudBaseFt);
-    flag("gpws_voice", gpwsVoice);  // S2
+    flag("gpws_voice", gpwsVoice);       // S2
+    flag("perf_gpu_sync", perfGpuSync);  // X3
     str("last_aircraft", lastAircraft);
 
     if (ini.has(kSection, "sim_hz") && simHz != 60 && simHz != 120)
@@ -275,7 +276,8 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"external_view", b(s.externalView)},     // V1
         {"clouds", enumText(kClouds, s.clouds)},  // W7
         {"cloud_base_ft", fmtFloat(s.cloudBaseFt)},
-        {"gpws_voice", b(s.gpwsVoice)},  // S2
+        {"gpws_voice", b(s.gpwsVoice)},       // S2
+        {"perf_gpu_sync", b(s.perfGpuSync)},  // X3
         {"last_aircraft", s.lastAircraft},
     };
 }

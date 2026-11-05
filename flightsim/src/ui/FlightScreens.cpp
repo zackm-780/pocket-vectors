@@ -80,6 +80,13 @@ const SettingDef kSettingDefs[] = {
      }},
     {"FIELD OF VIEW", true, [](const Settings& s) { return fmt("%.0f DEG", s.fovVerticalDeg); },
      [](Settings& s, int d) { s.fovVerticalDeg += 5.0f * static_cast<float>(d); }},
+    {"GRAPHICS QUALITY", false,  // X3: terrain detail preset, applied at once
+     [](const Settings& s) -> std::string {
+         return s.graphicsQuality == GraphicsQuality::Low   ? "LOW"
+                : s.graphicsQuality == GraphicsQuality::Med ? "MED"
+                                                            : "HIGH";
+     },
+     [](Settings& s, int d) { s.graphicsQuality = cycleEnum(s.graphicsQuality, d, 3); }},
     {"VOLUME", true, [](const Settings& s) { return fmt("%.0f%%", s.volumePct); },
      [](Settings& s, int d) { s.volumePct += 10 * d; }},
     {"THROTTLE MODE", false,

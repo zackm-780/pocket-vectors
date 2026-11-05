@@ -439,7 +439,10 @@ void TerrainRenderer::render(const gfx::Camera& camera, const Atmosphere* atmosp
     gl_.Uniform3f(loc_.moon, light.moonRgb[0], light.moonRgb[1], light.moonRgb[2]);  // X4
     gl_.Uniform1f(loc_.night, light.nightFactor);                                    // X4
     gl_.Uniform3f(loc_.water, kWaterRgb[0], kWaterRgb[1], kWaterRgb[2]);
-    gl_.Uniform4f(loc_.detail, 0.28f, 150.0f, 1500.0f, 0);
+    if (cfg_.detailNoise)
+        gl_.Uniform4f(loc_.detail, 0.28f, 150.0f, 1500.0f, 0);
+    else  // X3: both detail fades are 0 beyond 5 cm, so the shader skips the noise
+        gl_.Uniform4f(loc_.detail, 0.0f, 0.0f, 0.01f, 0);
     for (int i = 0; i < 4; ++i) gl_.EnableVertexAttribArray(static_cast<gfx::GLuint>(i));
     gl_.BindBuffer(gfx::GL_ELEMENT_ARRAY_BUFFER, ibo_);
 

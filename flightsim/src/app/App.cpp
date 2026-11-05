@@ -11,7 +11,9 @@
 #include <functional>
 #include <memory>
 
-#include "app/Settings.h"  // P3
+#include "app/FrameStats.h"     // X3
+#include "app/RenderQuality.h"  // X3
+#include "app/Settings.h"       // P3
 #include "app/Simulation.h"
 #include "audio/AudioControl.h"  // S1
 #include "audio/AudioEngine.h"   // S1
@@ -147,16 +149,25 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     const world::TerrainDebugOverrides dbg = world::readTerrainDebugEnv();
     if (dbg.visibilityKm > 0) atmosphere.setVisibilityM(dbg.visibilityKm * 1000.0f);
     std::unique_ptr<world::TerrainRenderer> terrainRenderer;
+    // X3: the graphics_quality preset (the FSIM_W2_PX_PER_CELL hook still wins for the LOD).
+    GraphicsQuality appliedQuality = settings.graphicsQuality;
+    auto applyGraphicsQuality = [&]() {
+        appliedQuality = settings.graphicsQuality;
+        if (!terrainRenderer) return;
+        world::TerrainRenderConfig tc = terrainRenderer->config();
+        applyRenderQuality(renderQualityFor(settings.graphicsQuality), tc);
+        if (dbg.pixelsPerCell > 0) tc.lod.pixelsPerCell = dbg.pixelsPerCell;
+        terrainRenderer->setConfig(tc);
+        LOG_INFO("graphics quality %s: terrain %.1f px/cell, %d uploads/frame, detail %s",
+                 graphicsQualityLabel(settings.graphicsQuality), tc.lod.pixelsPerCell,
+                 tc.uploadsPerFrame, tc.detailNoise ? "on" : "off");
+    };
     if (terrainSvc) {
         terrainRenderer =
             std::make_unique<world::TerrainRenderer>(window.gl(), window.flavor(), *terrainSvc);
         if (terrainRenderer->init()) {
             renderer.setTerrain(terrainRenderer.get());
-            if (dbg.pixelsPerCell > 0) {
-                world::TerrainRenderConfig tc = terrainRenderer->config();
-                tc.lod.pixelsPerCell = dbg.pixelsPerCell;
-                terrainRenderer->setConfig(tc);
-            }
+            applyGraphicsQuality();
         } else
             terrainRenderer.reset();
     }
@@ -301,6 +312,34 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     AppState state = AppState::Flying;
     bool quitRequested = false;
     // H5: applies edited settings to the running game (HUD color, sticks, FOV, FPS display).
+    // X3: per-pass frame timing, always collected (a few counter reads per frame). The window goes
+    // to the log once a second with show_fps; the session table when the pause menu opens, every
+    // 2 minutes, when the quality preset changes and at exit.
+    const double perfFreq = static_cast<double>(SDL_GetPerformanceFrequency());
+    FrameStats frameStats;
+    PerfFrame perf;
+    PerfTotals shownPerf;  // the last full second, for the on-screen readout
+    std::uint64_t passStart = 0;
+    long perfLoggedFrames = 0;
+    double perfSessionClockS = 0;  // the table also goes to the log every 2 minutes, because
+                                   // Select + Start (gptokeyb) can kill the game before its exit
+    const bool perfSync = settings.perfGpuSync;
+    if (perfSync) LOG_INFO("perf: perf_gpu_sync on (glFinish after each pass)");
+    auto passEnd = [&](PerfPass p) {
+        if (perfSync) window.gl().Finish();
+        const std::uint64_t t = SDL_GetPerformanceCounter();
+        perf.setPass(p, static_cast<double>(t - passStart) * 1000.0 / perfFreq);
+        passStart = t;
+    };
+    // The table is labelled with the quality preset (and the sync mode) it was measured with.
+    auto logPerfSession = [&](long minNewFrames) {
+        if (frameStats.sessionFrames() - perfLoggedFrames < std::max(1L, minNewFrames)) return;
+        perfLoggedFrames = frameStats.sessionFrames();
+        char label[32];
+        std::snprintf(label, sizeof label, "%s%s", graphicsQualityLabel(appliedQuality),
+                      perfSync ? ", gpu sync" : "");
+        LOG_INFO("%s", frameStats.sessionSummary(label).c_str());
+    };
     auto applySettings = [&]() {
         switch (settings.hudColor) {
         case HudColor::White: hudOptions.color = HudPalette::White; break;
@@ -310,12 +349,22 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         hudOptions.baroInHg = settings.pressureUnits == PressureUnits::InHg;
         pilotControls.setStickTuning(settings.stickTuning());
         camera.setLens(settings.fovVerticalDeg);
-        showFps = showFps || settings.showFps;
+        showFps = effectiveShowFps(opt, settings);  // X3: SHOW FPS OFF also hides the readout
+        if (settings.graphicsQuality != appliedQuality) {  // X3: a new timing table per preset
+            logPerfSession(1);
+            frameStats.resetSession();
+            perfLoggedFrames = 0;
+            applyGraphicsQuality();
+        }
         setClouds();                                                           // W7
         audioControl.setVoiceBank(settings.gpwsVoice ? &voiceBank : nullptr);  // S2
     };
+    // X3: frames left out of the timing after the window opens or a flight starts (shader
+    // compiles and the first tile uploads are load time, not the frame rate).
+    int perfSkipFrames = 10;
     // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
     auto flightStarted = [&]() {
+        perfSkipFrames = 10;   // X3
         look.reset();          // I2
         externalView.reset();  // V1
         lowFuel.reset();       // F6
@@ -338,11 +387,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         }
     };
     int frame = 0;
-    int fpsFrames = 0;
     std::uint64_t lastCounter = SDL_GetPerformanceCounter();
     double fpsClockS = 0;
-    const double perfFreq = static_cast<double>(SDL_GetPerformanceFrequency());
-
     if (terrainRenderer) {  // W2: load and build the first view before the first frame
         int pw = 0, ph = 0;
         window.drawableSize(pw, ph);
@@ -361,6 +407,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         const double wallDtS = static_cast<double>(now - lastCounter) / perfFreq;
         lastCounter = now;
         const double dtS = interactive ? std::min(wallDtS, kMaxFrameDtS) : kFixedFrameDtS;
+        passStart = now;  // X3
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) input.handleEvent(event);
@@ -415,6 +462,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             if (actions.pressed[static_cast<int>(Action::Pause)]) {
                 mapShown = false;
                 menu.openPause();
+                logPerfSession(300);  // X3: about 10 s new; usually opened before quitting
             }
         }
         if (quitRequested) break;
@@ -589,12 +637,18 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         }
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(view.altAglFt));
+        passEnd(PerfPass::Update);  // X3
         renderer.render(camera, w, h);
+        passEnd(PerfPass::Terrain);
         airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
+        passEnd(PerfPass::Airports);
         // W7 clouds (blended, no depth writes) before the chase model, so the aircraft stays in
         // view inside a cloud; a layer surface is always farther away than the model.
-        if (state != AppState::Menu && !mapShown) clouds.render(camera, atmosphere);
+        const bool cloudsOn = state != AppState::Menu && !mapShown;
+        if (cloudsOn) clouds.render(camera, atmosphere);
+        passEnd(PerfPass::Clouds);
         if (chase) externalView.render(camera, view, atmosphere.light());  // V1: one draw
+        passEnd(PerfPass::Model);
         {  // W6: route, vertical path, airports, runway outlines (at most 4 draws)
             const bool layersOn = settings.overlayRoute || settings.overlayVpath ||
                                   settings.overlayAirports || settings.overlayRunways;
@@ -613,6 +667,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 worldOverlay.clearFrame();
             }
         }
+        passEnd(PerfPass::Overlay);
+        int hudDraws = 0;  // X3
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
             hudOptions.paused = false;        // H5: the pause menu says PAUSED itself
             hudOptions.externalView = chase;  // V1: status strip and messages only
@@ -647,13 +703,30 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                  settings.hudMiniNavRangeNm);
                 worldOverlay.drawLabels(hud2d);  // W6
             }
+            if (showFps && !opt.glyphSheet && state != AppState::Menu) {  // X3: the device has
+                char line[48];  // no window title, so show_fps also puts the last second here
+                if (shownPerf.frames > 0)
+                    std::snprintf(line, sizeof line, "%.0f FPS %.1f MS", shownPerf.fps(),
+                                  shownPerf.meanFrameMs());
+                else
+                    std::snprintf(line, sizeof line, "-- FPS");
+                const Color c = colors::kWhite.withAlpha(0.85f);
+                hud2d.text(hud2d.leftX() + 16, 36, line, TextSize::S, c);
+                if (shownPerf.frames > 0) {
+                    std::snprintf(line, sizeof line, "CPU %.1f MS", shownPerf.meanCpuMs());
+                    hud2d.text(hud2d.leftX() + 16, 52, line, TextSize::S, c);
+                }
+            }
             hud2d.end();
+            hudDraws = hud2d.stats().drawCalls;  // X3
             if (menu.active()) {  // H5: own batch, so its panels cover the HUD strokes beneath
                 hud2d.begin(w, h);
                 menu.draw(hud2d);
                 hud2d.end();
+                hudDraws += hud2d.stats().drawCalls;
             }
         }
+        passEnd(PerfPass::Hud);
         ++frame;
 
         if (frames > 0 && frame >= frames) {
@@ -665,24 +738,52 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             break;
         }
         window.swap();
+        passEnd(PerfPass::Swap);
 
-        ++fpsFrames;
+        {  // X3: one frame of timing, filed under what it showed
+            perf.frameMs = static_cast<double>(passStart - now) * 1000.0 / perfFreq;
+            perf.scene = state != AppState::Flying ? PerfScene::Menu
+                         : mapShown                ? PerfScene::Map
+                         : chase                   ? PerfScene::Chase
+                                                   : PerfScene::Cockpit;
+            perf.sky = !cloudsOn                          ? PerfSky::Clear
+                       : clouds.lastInsideAlpha() > 0.01f ? PerfSky::Inside
+                       : clouds.lastDrawCalls() > 0       ? PerfSky::Layer
+                                                          : PerfSky::Clear;
+            const world::TerrainRenderStats* ts =
+                terrainRenderer ? &terrainRenderer->stats() : nullptr;
+            perf.terrainTriangles = ts ? ts->triangles : 0;
+            perf.drawCalls = (ts ? ts->drawCalls : 0) + clouds.lastDrawCalls() +
+                             (chase ? externalView.lastDrawCalls() : 0) +
+                             worldOverlay.lastDrawCalls() + hudDraws;
+            if (perfSkipFrames > 0)
+                --perfSkipFrames;
+            else
+                frameStats.add(perf);
+        }
+        perfSessionClockS += wallDtS;
+        if (perfSessionClockS >= 120.0) {
+            perfSessionClockS = 0;
+            logPerfSession(300);
+        }
         fpsClockS += wallDtS;
         if (fpsClockS >= 1.0) {
             if (showFps) {
                 const AircraftState& s = sim.aircraft();
                 char title[160];
                 std::snprintf(title, sizeof title, "Pocket Vectors | %.0f fps | %.0f kt | %.0f ft",
-                              fpsFrames / fpsClockS, s.iasKt, s.altMslFt);
+                              frameStats.window().fps(), s.iasKt, s.altMslFt);
                 window.setTitle(title);
-                LOG_INFO("%.1f fps", fpsFrames / fpsClockS);
+                LOG_INFO("%s", frameStats.windowLine().c_str());  // X3
                 if (terrainRenderer)
                     LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             }
-            fpsFrames = 0;
+            shownPerf = frameStats.window();  // X3: the on-screen readout shows the last second
+            frameStats.resetWindow();
             fpsClockS = 0;
         }
     }
+    logPerfSession(1);  // X3
     return 0;
 }
 
