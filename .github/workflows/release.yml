@@ -9,6 +9,13 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # Re-run the release for a tag that already exists (for example after a workflow fix): this
+  # workflow's steps, the tag's code.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and publish, e.g. v1.1.0"
+        required: true
 
 permissions:
   contents: write
@@ -19,24 +26,26 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
-      - name: Build the device package
+      # build_device.sh runs port/check_package.sh inside the Debian 11 image, where the aarch64
+      # binutils are, and fails on a bad package. The runner itself has no aarch64 objdump, so
+      # a second check here exits 2 (the v1.1.0 run failed that way after a clean build).
+      - name: Build and check the device package
         working-directory: flightsim
         env:
           REQUIRE_MAIN: "1"
         run: tools/build_device.sh --docker --skip-probe
 
-      - name: Check the game zip
-        working-directory: flightsim
-        run: port/check_package.sh dist/flightsim-portmaster.zip
-
       - name: Publish the game zip
         working-directory: flightsim
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
+          tag="${TAG}"
           asset="${RUNNER_TEMP}/pocket-vectors-${tag}-game.zip"
           cp dist/flightsim-portmaster.zip "$asset"
           notes="${RUNNER_TEMP}/notes.md"
