@@ -67,7 +67,8 @@ PlanBuildResult loadPlanFromFmsFile(const std::string& path, const NavDatabase& 
 
 // Plan -> file structure. Approach legs are not exported (the file carries only the APP name);
 // SID/STAR/CYCLE/transition lines are copied from `headerTemplate` if given. Airways are not
-// remembered, every leg is written as DRCT.
+// remembered, every leg is written as DRCT. N8: SID / STAR legs in the plan are not exported
+// either; the plan's sidId / starId (and transitions) are written as the SID / STAR lines.
 FmsFile planToFms(const FlightPlan& plan, const NavDatabase& db,
                   const FmsFile* headerTemplate = nullptr);
 std::string writePlanFmsText(const FlightPlan& plan, const NavDatabase& db,
@@ -133,6 +134,24 @@ bool insertApproach(FlightPlan& plan, std::string_view approachId, ApproachKind 
                     std::string* error = nullptr);
 // Removes the approach and restores the plain destination leg.
 void removeApproach(FlightPlan& plan, const NavDatabase& db);
+
+// ---- SID / STAR insertion (N8) --------------------------------------------------------------
+
+// Puts `sidLegs` (nav/Procedures assembleSidLegs) right after the origin leg, replacing any SID
+// already there (legs tagged LegSource::Sid). An enroute waypoint right after the SID that repeats
+// its last fix is dropped (the SID leg keeps its constraints). Sets sidId / sidTransition. The
+// active leg keeps pointing at the same leg, or moves to the first SID leg if it was a removed
+// one. False (plan unchanged) for an empty leg list or a plan without legs.
+bool insertSid(FlightPlan& plan, std::string_view sidId, std::string_view transition,
+               std::vector<Leg> sidLegs, std::string* error = nullptr);
+void removeSid(FlightPlan& plan);
+// Puts `starLegs` (assembleStarLegs) before the destination leg or the inserted approach,
+// replacing any STAR already there. An enroute waypoint just before the STAR that repeats its
+// first fix is dropped, so the STAR's leg (and its constraints) is the one flown. Sets starId /
+// starTransition.
+bool insertStar(FlightPlan& plan, std::string_view starId, std::string_view transition,
+                std::vector<Leg> starLegs, std::string* error = nullptr);
+void removeStar(FlightPlan& plan);
 
 // ---- distance, time, per-leg data -----------------------------------------------------------
 

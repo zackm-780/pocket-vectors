@@ -28,6 +28,7 @@ const char* screenName(ScreenId id) {
     case ScreenId::FlightPlan: return "flightplan";
     case ScreenId::Confirm: return "confirm";
     case ScreenId::Help: return "help";
+    case ScreenId::Procedure: return "procedure";
     }
     return "?";
 }

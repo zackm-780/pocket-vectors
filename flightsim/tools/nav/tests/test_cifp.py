@@ -365,6 +365,23 @@ class DriverTests(unittest.TestCase):
             self.assertIn("path terminators", (out / "procedures" / "coverage_report.txt").read_text())
             meta, aps = cp.parse_proc((out / "procedures" / "KOTH.proc").read_text(encoding="utf-8"))
             self.assertEqual(len(aps), 7)
+            # N8: SIDs and STARs follow the approaches; the approach reader skips them.
+            kpdx = (out / "procedures" / "KPDX.proc").read_text(encoding="utf-8")
+            _, kpdxAps = cp.parse_proc(kpdx)
+            self.assertEqual(len(kpdxAps), 2)
+            procs = cp.parse_terminal_procedures(kpdx)
+            sids = [p.id for p in procs if p.kind == "SID"]
+            stars = [p.id for p in procs if p.kind == "STAR"]
+            self.assertEqual(sids, ["CASCD4", "HRMNS6", "LAVAA7", "MINNE5", "PTLD2", "WHAMY5"])
+            self.assertEqual(stars, ["HELNS6", "HHOOD6", "KRATR3", "OCITY3", "TMBRS4"])
+            minne = next(p for p in procs if p.id == "MINNE5")
+            self.assertEqual([t.name for t in minne.runway], ["10B", "28L", "28R"])
+            r28l = next(t for t in minne.runway if t.name == "28L")
+            self.assertEqual([l.ident or "-" for l in r28l.legs], ["-", "PEGTY", "KELYY", "DUDRE", "MINNE"])
+            self.assertEqual((r28l.legs[0].type, r28l.legs[0].altKind, r28l.legs[0].alt), ("VA", "ATORABOVE", 540))
+            self.assertEqual([t.name for t in minne.enroute], ["EASON", "FAMUK", "HISKU"])
+            koth = cp.parse_terminal_procedures((out / "procedures" / "KOTH.proc").read_text(encoding="utf-8"))
+            self.assertEqual([p.id for p in koth], ["OTH7"])
 
     def test_unresolved_fix_drops_the_leg_not_the_approach(self):
         with open(FIXTURE, encoding="latin-1") as f:

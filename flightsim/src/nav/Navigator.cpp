@@ -171,6 +171,7 @@ static std::vector<Leg> planLegsFor(const Approach& approach, int transitionInde
 
 bool Navigator::loadApproach(const Approach& approach, int transitionIndex) {
     if (plan_.legs.empty() || approach.finalLegs.empty()) return false;
+    const bool explicitTransition = transitionIndex >= 0;
     if (transitionIndex < 0) {
         LatLon prev = lastPos_;
         const int enrouteEnd = enrouteEndIndex(plan_);
@@ -185,6 +186,14 @@ bool Navigator::loadApproach(const Approach& approach, int transitionIndex) {
                         &error)) {
         LOG_WARN("navigator: cannot insert approach %s: %s", approach.id.c_str(), error.c_str());
         return false;
+    }
+    // N8: remember an explicit choice by name; automatic selection leaves it empty.
+    if (explicitTransition && transitionIndex >= 0 &&
+        static_cast<size_t>(transitionIndex) < approach.transitions.size()) {
+        const std::string& n = approach.transitions[static_cast<size_t>(transitionIndex)].name;
+        plan_.approachTransition = n.empty() ? std::string("VECTORS") : n;
+    } else {
+        plan_.approachTransition.clear();
     }
     approach_ = approach;
     if (approach_->minimumsFt <= 0 && approach_->kind != ApproachKind::Visual) {
@@ -204,7 +213,20 @@ bool Navigator::loadApproachById(std::string_view approachId) {
     if (rwy.empty()) return false;
     auto a = findApproach(db_, plan_.destIdent, rwy, approachId, realProvider_);
     if (!a) return false;
-    return loadApproach(*a);
+    // N8: a transition chosen by name ("VECTORS" = straight to the final segment).
+    int idx = -1;
+    if (!plan_.approachTransition.empty()) {
+        for (size_t i = 0; i < a->transitions.size(); ++i) {
+            const std::string& n = a->transitions[i].name;
+            if ((i == 0 && n.empty() && plan_.approachTransition == "VECTORS") ||
+                (!n.empty() && n == plan_.approachTransition))
+                idx = static_cast<int>(i);
+        }
+        if (idx < 0)
+            LOG_WARN("navigator: approach %s has no transition %s; choosing one", a->id.c_str(),
+                     plan_.approachTransition.c_str());
+    }
+    return loadApproach(*a, idx);
 }
 
 void Navigator::removeApproach() {

@@ -25,6 +25,8 @@ std::unique_ptr<Screen> makeStartTypeScreen(const MenuSystem& menu);
 std::unique_ptr<Screen> makePlanScreen();
 std::unique_ptr<Screen> makePlanFilesScreen(const MenuSystem& menu);
 std::unique_ptr<Screen> makeApproachScreen(ApproachMode mode, const MenuSystem& menu);
+// N8: SIDs (sid = true) or STARs for the plan's departure / arrival runway, then the transition.
+std::unique_ptr<Screen> makeProcedureScreen(bool sid, ApproachMode mode, const MenuSystem& menu);
 std::unique_ptr<Screen> makeSettingsScreen();
 std::unique_ptr<Screen> makePauseScreen();
 std::unique_ptr<Screen> makeFlightPlanScreen(const MenuSystem& menu);

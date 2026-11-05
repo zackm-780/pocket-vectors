@@ -53,8 +53,9 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.endAglFt = ini.getFloat("scenario", "end_agl_ft", 0.f);  // I1
     s.altitudeFt = ini.getDouble("scenario", "altitude_ft", s.altitudeFt);
     s.timeUtc = ini.getString("scenario", "time_utc");
-    s.planPath = ini.getString("scenario", "plan");        // N5
-    s.approachId = ini.getString("scenario", "approach");  // N5
+    s.planPath = ini.getString("scenario", "plan");                           // N5
+    s.approachId = ini.getString("scenario", "approach");                     // N5
+    s.approachTransition = ini.getString("scenario", "approach_transition");  // N8
     s.windFromTrueDeg = ini.getFloat("wind", "from_true_deg", 0.f);
     s.windSpeedKt = ini.getFloat("wind", "speed_kt", 0.f);
     {  // X1: weather. [wind] keeps working; [weather] keys override it.

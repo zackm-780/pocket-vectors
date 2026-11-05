@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "core/Log.h"
+#include "nav/FlightPlan.h"
 
 namespace fsim {
 namespace {
@@ -266,6 +267,9 @@ bool parseProcedures(std::string_view text, ProcedureSet& out, std::string& erro
     enum class Seg { None, Transition, Final, Missed };
     Approach* cur = nullptr;
     ApproachInfo* curInfo = nullptr;
+    // N8: the SID / STAR block being read and the leg list PLEG lines go to.
+    TerminalProcedure* term = nullptr;
+    std::vector<Leg>* termSeg = nullptr;
     Seg seg = Seg::None;
     bool sawFormat = false;
     int lineNo = 0;
@@ -315,6 +319,50 @@ bool parseProcedures(std::string_view text, ProcedureSet& out, std::string& erro
             cur->synthesized = false;
             curInfo->title = std::string(restAfterTokens(line, 4));
             seg = Seg::None;
+        } else if (cur == nullptr && (key == "SID" || key == "STAR")) {  // N8
+            if (t.size() < 2) {
+                error = lineErr(lineNo, std::string(key) + " needs an id");
+                return false;
+            }
+            auto& list = key == "SID" ? out.sids : out.stars;
+            list.emplace_back();
+            term = &list.back();
+            term->id = std::string(t[1]);
+            term->isSid = key == "SID";
+            term->title = t.size() > 2 ? std::string(restAfterTokens(line, 2)) : term->id;
+            termSeg = nullptr;
+        } else if (cur == nullptr &&
+                   (key == "RWYTRANS" || key == "ENRTRANS" || key == "COMMON" || key == "PLEG")) {
+            if (term == nullptr) {
+                error = lineErr(lineNo, std::string(key) + " outside a SID or STAR");
+                return false;
+            }
+            if (key == "COMMON") {
+                termSeg = &term->commonLegs;
+            } else if (key == "PLEG") {
+                if (termSeg == nullptr) {
+                    error = lineErr(lineNo, "PLEG before RWYTRANS, COMMON or ENRTRANS");
+                    return false;
+                }
+                Leg leg;
+                ProcLegExtra extra;
+                std::string e;
+                if (!parseLeg(t, leg, extra, e)) {
+                    error = lineErr(lineNo, e);
+                    return false;
+                }
+                leg.source = term->isSid ? LegSource::Sid : LegSource::Star;
+                termSeg->push_back(std::move(leg));
+            } else {
+                auto& routes =
+                    key == "RWYTRANS" ? term->runwayTransitions : term->enrouteTransitions;
+                routes.emplace_back();
+                routes.back().name = t.size() > 1 ? std::string(t[1]) : std::string();
+                termSeg = &routes.back().legs;
+            }
+        } else if (cur == nullptr && key == "PEND") {
+            term = nullptr;
+            termSeg = nullptr;
         } else if (cur == nullptr) {
             if (key == "LOS" || key == "TRANSITION" || key == "FINAL" || key == "MISSED" ||
                 key == "LEG" || key == "END") {
@@ -372,6 +420,9 @@ bool parseProcedures(std::string_view text, ProcedureSet& out, std::string& erro
         error = "empty procedures file";
         return false;
     }
+    auto byId = [](const TerminalProcedure& a, const TerminalProcedure& b) { return a.id < b.id; };
+    std::stable_sort(out.sids.begin(), out.sids.end(), byId);  // N8
+    std::stable_sort(out.stars.begin(), out.stars.end(), byId);
     // sort by id (stable keeps the order of equal ids), then derive FAF / MAP indexes
     std::vector<size_t> order(out.approaches.size());
     for (size_t i = 0; i < order.size(); ++i) order[i] = i;
@@ -381,6 +432,8 @@ bool parseProcedures(std::string_view text, ProcedureSet& out, std::string& erro
     ProcedureSet sorted;
     sorted.airportIdent = out.airportIdent;
     sorted.cycle = out.cycle;
+    sorted.sids = std::move(out.sids);  // N8
+    sorted.stars = std::move(out.stars);
     for (size_t i : order) {
         sorted.approaches.push_back(std::move(out.approaches[i]));
         sorted.info.push_back(std::move(out.info[i]));
@@ -598,6 +651,163 @@ const ApproachInfo* findApproachInfo(const ProcedureSet& set, std::string_view a
     for (size_t i = 0; i < set.approaches.size(); ++i)
         if (upper(set.approaches[i].id) == want) return &set.info[i];
     return nullptr;
+}
+
+// ---- N8: SIDs and STARs --------------------------------------------------------------------
+
+namespace {
+
+bool equalsNoCase(std::string_view a, std::string_view b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i)
+        if (std::toupper(static_cast<unsigned char>(a[i])) !=
+            std::toupper(static_cast<unsigned char>(b[i])))
+            return false;
+    return true;
+}
+
+// Appends `legs` to `out`: a leading IF on the fix `out` already ends at is dropped (its altitude
+// constraint moves to that leg if it has none), an IF elsewhere becomes a TF.
+void appendRoute(std::vector<Leg>& out, const std::vector<Leg>& legs) {
+    for (size_t i = 0; i < legs.size(); ++i) {
+        Leg l = legs[i];
+        if (i == 0 && l.type == LegType::IF && !out.empty()) {
+            Leg& prev = out.back();
+            if (!prev.to.ident.empty() && prev.to.ident == l.to.ident) {
+                if (prev.alt.kind == AltConstraintKind::None) prev.alt = l.alt;
+                continue;
+            }
+            l.type = LegType::TF;
+        }
+        out.push_back(std::move(l));
+    }
+}
+
+const ProcRoute* findRoute(const std::vector<ProcRoute>& routes, std::string_view name) {
+    for (const ProcRoute& r : routes)
+        if (equalsNoCase(r.name, name)) return &r;
+    return nullptr;
+}
+
+const ProcRoute* findRunwayRoute(const TerminalProcedure& p, std::string_view runway) {
+    for (const ProcRoute& r : p.runwayTransitions)
+        if (equalsNoCase(r.name, runway)) return &r;  // exact first ("10L" before "10B")
+    for (const ProcRoute& r : p.runwayTransitions)
+        if (runwayTransitionMatches(r.name, runway)) return &r;
+    return nullptr;
+}
+
+std::vector<const TerminalProcedure*> forRunway(const std::vector<TerminalProcedure>& list,
+                                                std::string_view runway) {
+    std::vector<const TerminalProcedure*> out;
+    for (const TerminalProcedure& p : list)
+        if (runway.empty() || p.runwayTransitions.empty() || findRunwayRoute(p, runway))
+            out.push_back(&p);
+    return out;
+}
+
+void tag(std::vector<Leg>& legs, LegSource source) {
+    for (Leg& l : legs) l.source = source;
+}
+
+}  // namespace
+
+bool runwayTransitionMatches(std::string_view name, std::string_view runway) {
+    if (equalsNoCase(name, runway) || equalsNoCase(name, "ALL")) return true;
+    // "10B" = both (all) parallels of runway 10.
+    if (name.size() >= 2 && (name.back() == 'B' || name.back() == 'b') && runway.size() >= 2) {
+        const std::string_view num = name.substr(0, name.size() - 1);
+        const char side =
+            static_cast<char>(std::toupper(static_cast<unsigned char>(runway.back())));
+        return (side == 'L' || side == 'R' || side == 'C') &&
+               runway.substr(0, runway.size() - 1) == num;
+    }
+    return false;
+}
+
+const TerminalProcedure* findSid(const ProcedureSet& set, std::string_view id) {
+    for (const TerminalProcedure& p : set.sids)
+        if (equalsNoCase(p.id, id)) return &p;
+    return nullptr;
+}
+
+const TerminalProcedure* findStar(const ProcedureSet& set, std::string_view id) {
+    for (const TerminalProcedure& p : set.stars)
+        if (equalsNoCase(p.id, id)) return &p;
+    return nullptr;
+}
+
+std::vector<const TerminalProcedure*> sidsForRunway(const ProcedureSet& set,
+                                                    std::string_view runwayIdent) {
+    return forRunway(set.sids, runwayIdent);
+}
+
+std::vector<const TerminalProcedure*> starsForRunway(const ProcedureSet& set,
+                                                     std::string_view runwayIdent) {
+    return forRunway(set.stars, runwayIdent);
+}
+
+std::vector<Leg> assembleSidLegs(const TerminalProcedure& sid, std::string_view runwayIdent,
+                                 std::string_view transition, std::string* missing) {
+    std::vector<Leg> out;
+    if (const ProcRoute* rw = findRunwayRoute(sid, runwayIdent))
+        appendRoute(out, rw->legs);
+    else if (!sid.runwayTransitions.empty() && missing)
+        *missing = sid.id + ": no runway transition for " + std::string(runwayIdent);
+    appendRoute(out, sid.commonLegs);
+    if (!transition.empty()) {
+        if (const ProcRoute* en = findRoute(sid.enrouteTransitions, transition))
+            appendRoute(out, en->legs);
+        else if (missing)
+            *missing = sid.id + ": no transition " + std::string(transition);
+    }
+    tag(out, LegSource::Sid);
+    return out;
+}
+
+std::vector<Leg> assembleStarLegs(const TerminalProcedure& star, std::string_view transition,
+                                  std::string_view runwayIdent, std::string* missing) {
+    std::vector<Leg> out;
+    if (!transition.empty()) {
+        if (const ProcRoute* en = findRoute(star.enrouteTransitions, transition))
+            appendRoute(out, en->legs);
+        else if (missing)
+            *missing = star.id + ": no transition " + std::string(transition);
+    }
+    appendRoute(out, star.commonLegs);
+    if (const ProcRoute* rw = findRunwayRoute(star, runwayIdent))
+        appendRoute(out, rw->legs);
+    else if (!star.runwayTransitions.empty() && !runwayIdent.empty() && missing)
+        *missing = star.id + ": no runway transition for " + std::string(runwayIdent);
+    tag(out, LegSource::Star);
+    return out;
+}
+
+std::vector<std::string> applyFmsProcedures(FlightPlan& plan, const FmsFile& file,
+                                            const std::string& navDir) {
+    std::vector<std::string> notes;
+    if (!file.appTrans.empty()) plan.approachTransition = file.appTrans;
+    auto apply = [&](bool sid, const std::string& name, const std::string& trans) {
+        if (name.empty()) return;
+        const std::string& apt = sid ? plan.originIdent : plan.destIdent;
+        const auto set = apt.empty() ? nullptr : loadProcedureSet(navDir, apt);
+        const TerminalProcedure* proc = nullptr;
+        if (set) proc = sid ? findSid(*set, name) : findStar(*set, name);
+        if (!proc) {
+            notes.push_back(std::string(sid ? "SID " : "STAR ") + name + " not found at " + apt);
+            return;
+        }
+        std::string missing, error;
+        std::vector<Leg> legs = sid ? assembleSidLegs(*proc, plan.depRunway, trans, &missing)
+                                    : assembleStarLegs(*proc, trans, plan.arrRunway, &missing);
+        if (!missing.empty()) notes.push_back(missing);
+        const bool ok = sid ? insertSid(plan, proc->id, trans, std::move(legs), &error)
+                            : insertStar(plan, proc->id, trans, std::move(legs), &error);
+        if (!ok) notes.push_back(proc->id + ": " + error);
+    };
+    apply(true, file.sid, file.sidTrans);
+    apply(false, file.star, file.starTrans);
+    return notes;
 }
 
 }  // namespace fsim

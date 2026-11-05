@@ -334,7 +334,8 @@ public:
         }
         nav_.setCount(kActionRows + static_cast<int>(legs_.size()));
         std::vector<char> disabled(static_cast<size_t>(nav_.count()), 0);
-        disabled[2] = hasApproach_ ? 0 : 1;
+        disabled[2] = disabled[3] = legs_.empty() ? 1 : 0;  // N8: ARRIVAL, DEPARTURE
+        disabled[4] = hasApproach_ ? 0 : 1;
         if (!legs_.empty()) disabled[kActionRows] = 1;  // leg 0 is the origin
         nav_.setDisabled(disabled);
         if (plan_.activeLeg >= 1 && plan_.activeLeg < static_cast<int>(legs_.size()))
@@ -362,6 +363,10 @@ public:
         } else if (sel == 1) {
             m.push(makeApproachScreen(ApproachMode::Flight, m));
         } else if (sel == 2) {
+            m.push(makeProcedureScreen(false, ApproachMode::Flight, m));  // N8: STAR
+        } else if (sel == 3) {
+            m.push(makeProcedureScreen(true, ApproachMode::Flight, m));  // N8: SID
+        } else if (sel == 4) {
             MenuResult res;
             if (f.navigator && f.navigator->reenterApproach()) {
                 res.action = MenuAction::ResumeFlight;
@@ -394,8 +399,14 @@ public:
         std::vector<ListRow> rows(static_cast<size_t>(nav_.count()));
         rows[0].label = "DIRECT TO IDENT...";
         rows[1].label = "CHANGE APPROACH...";
-        rows[2].label = "RE-ENTER APPROACH";
-        rows[2].enabled = hasApproach_;
+        rows[2] = {"ARRIVAL (STAR)...",
+                   FlightSetup::procedureText(plan_.starId, plan_.starTransition)};
+        rows[2].enabled = !legs_.empty();
+        rows[3] = {"DEPARTURE (SID)...",
+                   FlightSetup::procedureText(plan_.sidId, plan_.sidTransition)};
+        rows[3].enabled = !legs_.empty();
+        rows[4].label = "RE-ENTER APPROACH";
+        rows[4].enabled = hasApproach_;
         for (size_t i = 0; i < legs_.size(); ++i) {
             const LegSummary& l = legs_[i];
             char b[96];
@@ -420,7 +431,7 @@ public:
     }
 
 private:
-    static constexpr int kActionRows = 3;
+    static constexpr int kActionRows = 5;  // N8: + DEPARTURE / ARRIVAL
     FlightPlan plan_;
     std::vector<LegSummary> legs_;
     double distNm_ = 0;

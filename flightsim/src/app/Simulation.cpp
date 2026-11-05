@@ -117,7 +117,8 @@ bool Simulation::initNavigation(std::string& error) {
     const bool inAir = start_.kind != StartCondition::Kind::Runway;
     if (!scenario_.planPath.empty()) {
         const std::string path = paths_.resolveInputFile(scenario_.planPath);
-        PlanBuildResult r = loadPlanFromFmsFile(path, nav_);
+        FmsFile fmsFile;
+        PlanBuildResult r = loadPlanFromFmsFile(path, nav_, &fmsFile);
         if (!r.ok) {
             error =
                 "scenario plan '" + path + "': " + (r.errors.empty() ? "unreadable" : r.errors[0]);
@@ -129,6 +130,10 @@ bool Simulation::initNavigation(std::string& error) {
             const std::string rwy = runwayFromApproachId(scenario_.approachId);
             if (!rwy.empty()) r.plan.arrRunway = rwy;
         }
+        // N8: the SID / STAR / approach transition the file names (scenario keys win).
+        if (!scenario_.approachTransition.empty()) fmsFile.appTrans = scenario_.approachTransition;
+        for (const std::string& note : applyFmsProcedures(r.plan, fmsFile, paths_.data("nav")))
+            LOG_WARN("scenario plan: %s", note.c_str());
         navigator_.setPlan(std::move(r.plan));
         if (!scenario_.approachId.empty() && navigator_.plan().approachStartLeg < 0) {
             error = "scenario approach '" + scenario_.approachId + "' is not available for " +
@@ -145,7 +150,13 @@ bool Simulation::initNavigation(std::string& error) {
                     scenario_.airportIdent + " " + rwy;
             return false;
         }
-        if (!navigator_.startApproachOnly(*approach, LatLon{start_.latDeg, start_.lonDeg}, 0)) {
+        int transition = 0;  // vectors, unless the scenario names a transition (N8)
+        for (size_t i = 0; i < approach->transitions.size(); ++i)
+            if (!scenario_.approachTransition.empty() &&
+                approach->transitions[i].name == scenario_.approachTransition)
+                transition = static_cast<int>(i);
+        if (!navigator_.startApproachOnly(*approach, LatLon{start_.latDeg, start_.lonDeg},
+                                          transition)) {
             error = "cannot load approach " + scenario_.approachId;
             return false;
         }

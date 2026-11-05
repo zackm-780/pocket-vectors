@@ -294,12 +294,14 @@ enum class AltConstraintKind { None, At, AtOrAbove, AtOrBelow, Between };
 struct AltConstraint { AltConstraintKind kind = AltConstraintKind::None; float altFt = 0, alt2Ft = 0; };
 struct Waypoint { std::string ident; WaypointKind kind = WaypointKind::Fix; double latDeg = 0, lonDeg = 0; };
 enum class LegType { IF, TF, CF, DF, CA, VA, FA, HM, HA, HF, RF };   // ARINC 424 subset (NAVIGATION.md)
+enum class LegSource { Plan, Sid, Star };                              // additive (N8)
 struct Leg {
   LegType type = LegType::TF;  Waypoint to;
   float courseTrueDeg = 0;                 // CF/CA/VA/FA
   AltConstraint alt;  float speedLimitKt = 0;  bool flyOver = false;
   bool  missedApproach = false;
   double arcCenterLatDeg = 0, arcCenterLonDeg = 0; float arcRadiusNm = 0; bool arcRight = true; // RF
+  LegSource source = LegSource::Plan;      // additive (N8): SID / STAR legs can be replaced as a whole
 };
 enum class ApproachKind { None, Ils, Loc, Rnav, Vor, Ndb, Visual };
 struct FlightPlan {
@@ -309,6 +311,7 @@ struct FlightPlan {
   std::vector<Leg> legs;
   int activeLeg = -1;                      // index into legs, -1 = none
   int approachStartLeg = -1;               // first approach leg (legs[approachStartLeg..] = approach+missed), -1 = none (N3)
+  std::string sidId, sidTransition, starId, starTransition, approachTransition;  // additive (N8)
 };
 
 // ---------- core/NavDatabase.h ----------   implemented by nav/ (N2); WP-00 ships SyntheticNavDb (XTST)

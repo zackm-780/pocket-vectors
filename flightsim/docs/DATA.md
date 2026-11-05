@@ -272,6 +272,28 @@ follow. Options, any order:
 puts them into `ApproachInfo`/`ProcLegExtra` (parallel to the leg vectors); N5 should use
 `ApproachInfo::fafFinalLeg` for the APR CDI scaling (2 NM before the FAF).
 
+**SIDs and STARs (N8, still version 1).** After the approaches, outside any APPROACH block, using
+only directives the approach reader does not know, so a 1.0 / 1.1 game reading a newer pack skips
+them and still loads the approaches:
+
+```
+SID MINNE5 MINNE5              (SID|STAR <id> <title...>; CIFP subsections D and E)
+RWYTRANS 28L                   (runway transition: "28L", "10B" = 10L/10C/10R, "ALL")
+PLEG VA - CRS 299.0 ALT ATORABOVE 540
+PLEG DF PEGTY 45.6171417 -122.6715722
+COMMON                         (common route, if any)
+PLEG ...
+ENRTRANS FAMUK                 (enroute transition, named by its CIFP transition ident)
+PLEG IF MINNE 45.2220361 -122.9687778
+PLEG TF FAMUK 44.5000000 -123.1358333
+PEND
+```
+
+`PLEG` has the `LEG` syntax. Route types: SID runway transitions `1 4 F T`, common `2 5 M`, enroute
+`3 6 S V` (engine-out `0` skipped); STAR enroute `1 4 7 F`, common `2 5 8 M`, runway `3 6 9 S`.
+Each segment converts with the approach rules below (VI/VM legs are bridged as for approaches).
+Cycle 2610: KPDX has 6 SIDs and 5 STARs, KOTH the OTH7 departure.
+
 ### 7.3 Conversion rules (`tools/nav/cifp.py`)
 - **Records.** Approach records are section P, subsection F, grouped by approach ident, then
   route type (`A` = approach transition by transition ident; any other letter = the final approach
@@ -319,7 +341,11 @@ puts them into `ApproachInfo`/`ProcLegExtra` (parallel to the leg vectors); N5 s
 `findApproach(approaches, id)` (exact id, or the short form `I05` for `I05-Y`), `approachesForRunway`,
 `assembleApproachLegs(approach, transitionName)` (transition + final + missed, duplicate IF at the
 join dropped, ready for `insertApproach`), and `loadProcedureSet()` for the extras. Parsing all
-3,018 files takes about 120 ms.
+3,018 files takes about 120 ms. N8: `ProcedureSet::sids` / `stars` (`TerminalProcedure`),
+`findSid` / `findStar`, `sidsForRunway` / `starsForRunway`, `runwayTransitionMatches`,
+`assembleSidLegs` / `assembleStarLegs` (legs tagged `LegSource::Sid` / `Star`, a repeated IF at a
+join dropped, a mid-route IF made TF) for `insertSid` / `insertStar` (nav/FlightPlan.h), and
+`applyFmsProcedures(plan, fmsFile, navDir)` for the SID / STAR / APPTRANS lines of an .fms.
 
 ## 8. Pipeline CLIs (to be implemented by W3/N1/N4)
 

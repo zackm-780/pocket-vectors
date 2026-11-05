@@ -642,7 +642,7 @@ device numbers exist. W7, N8 and S2 can follow in 1.3.
 | N7 | Autopilot go-around (TO/GA) and FLC | Sonnet / high | N6 | `src/autopilot/`, `tests/autopilot/` |
 | V1 | External chase view with simple models | Sonnet / high | W2, W5 | `src/world/ExternalView*`, `tests/world/externalview*` |
 | W7 | Cloud layers | Sonnet / medium | W4, X1 | `src/world/Clouds*`, `tests/world/clouds*` |
-| N8 | SIDs and STARs | Sonnet / high | N4, N5, H5 | `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*` |
+| N8 | SIDs, STARs and approach transitions | Sonnet / high | N4, N5, H5 | `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*` |
 | S2 | GPWS voice callouts | Sonnet / medium | S1, X2 | `src/audio/`, `assets/audio/` |
 
 ## I2: 1.1 device-test fixes
@@ -751,8 +751,8 @@ or above; llvmpipe texturing is slow, so the Mali number comes from X3 (the fill
 blended full screen plus the layers' share of it). Not done: cloud shadows and dimmed ground
 light under an overcast.
 
-## N8: SIDs and STARs
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** N4, N5, H5 · **Specs:** NAVIGATION §2–3, DATA §7
+## N8: SIDs, STARs and approach transitions
+**Status:** in review (needs device test: pick MINNE5.FAMUK from 28L at KPDX and an approach transition in the pause menu; a data pack rebuilt with the new cifp.py still loads on 1.1) · **Model / effort:** Sonnet / high · **Depends:** N4, N5, H5 · **Specs:** NAVIGATION §2–3, DATA §7
 
 **Owns:** `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*`; the departure and
 arrival rows on the flight-plan screen (H5, small additive edit).
@@ -762,6 +762,17 @@ them at runtime, and let the flight-plan screen insert a SID after the origin an
 the approach. `.fms` imports keep their SID/STAR names. Leg types as in N4.
 **Acceptance:** the KPDX and KOTH SIDs and STARs parse with the published fixes and altitude
 constraints; the perfect-pilot test flies a KPDX SID into the KPDX-KOTH plan.
+
+Done (PR #11), plus the owner's request to choose approach transitions: `cifp.py` writes CIFP
+subsections D / E as SID / STAR blocks the 1.0 / 1.1 reader skips (DATA §7), the fixtures carry
+the real cycle 2610 KPDX (6 SIDs, 5 STARs) and KOTH (OTH7) records; `Procedures` parses and
+assembles them; `insertSid` / `insertStar` put them into the plan by tag (`Leg::source`,
+additive); `applyFmsProcedures` handles the .fms SID / STAR / APPTRANS lines, which `planToFms`
+now writes. UI: DEPARTURE (SID) and ARRIVAL (STAR) rows on the setup and in-flight FLIGHT PLAN
+screens, and a transition step (AUTO / VECTORS / named) after picking an approach, in setup and in
+flight. Scenario key `approach_transition`. Perfect pilot: KPDX 28L MINNE5.FAMUK, CVO, EUG, OTH
+into the KOTH approach, every fix in order. Not done: airways, SID / STAR speed limits are shown
+in the leg data only.
 
 ## S2: GPWS voice callouts
 **Status:** todo (needs a PLAN decision on the voice source and its licence first) · **Model / effort:** Sonnet / medium · **Depends:** S1, X2

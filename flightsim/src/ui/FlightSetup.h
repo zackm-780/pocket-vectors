@@ -109,6 +109,8 @@ struct FlightSetup {
     // Approach: with a plan it is flown at the plan's destination, without one it is flown from the
     // start airport and runway (practice approach). Empty = none.
     std::string approachId;
+    // N8: approach transition by name ("" = AUTO, "VECTORS" = none), with or without a plan.
+    std::string approachTransition;
 
     bool hasPlan() const { return planKind != PlanKind::None; }
     const std::string& destAirportIdent() const {
@@ -130,6 +132,14 @@ struct FlightSetup {
     // Plan destination runway (rebuilds the plan, drops the approach). No-op without a plan.
     bool setPlanDestRunway(const NavDatabase& db, const std::string& runwayIdentDb);
     void setApproach(const std::string& id);
+    // N8: departure / arrival procedures and the approach transition, by name ("" = none / AUTO,
+    // "VECTORS" = no approach transition). They travel in the .fms (SID / STAR / APPTRANS lines);
+    // the simulation inserts the legs when the flight starts. SID / STAR need a plan (no-ops
+    // without one); the approach transition also works for a practice approach.
+    void setSid(const std::string& id, const std::string& transition);
+    void setStar(const std::string& id, const std::string& transition);
+    void setApproachTransition(const std::string& name);
+    static std::string procedureText(const std::string& id, const std::string& transition);
 
     // Plan facts for display.
     std::string routeText() const;  // "KPDX UBG CVO EUG OTH KOTH"

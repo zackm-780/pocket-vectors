@@ -58,6 +58,8 @@ struct Scenario {
     // `approach` an approach id ("I27", "R28L", "VIS09") loaded into that plan, or, without a
     // plan, a one-approach plan at the scenario's airport.
     std::string planPath, approachId;
+    // N8: [scenario] approach_transition = the approach transition by name ("VECTORS" = none).
+    std::string approachTransition;
 
     // [autopilot] section; applied by the autopilot once N6 lands. Kept so scenarios are final.
     std::vector<std::string> apEngage;

@@ -54,7 +54,19 @@ All geometry is **true** internally. Magnetic is used only for display and user 
   with distance), delete, set an altitude constraint, **direct-to** any plan waypoint or any ident.
 - **Approach selection:** list of available approaches for the destination runway: real (CIFP, US),
   then synthesized ILS / RNAV / visual. Choosing one replaces the plan tail after the last enroute
-  waypoint with transition + final + missed legs.
+  waypoint with transition + final + missed legs. **N8:** then its transition: AUTO (the IAF
+  nearest the route, as before), VECTORS (straight to the final segment) or a named transition,
+  in setup and in flight (pause menu, FLIGHT PLAN, CHANGE APPROACH). The choice is kept in
+  `FlightPlan::approachTransition`, the .fms `APPTRANS` line and the scenario's
+  `approach_transition` key.
+- **SIDs and STARs (N8, US CIFP):** DEPARTURE (SID) and ARRIVAL (STAR) rows on the setup FLIGHT PLAN
+  screen and the in-flight one list the procedures that serve the departure / arrival runway,
+  then their enroute transitions. A SID goes right after the origin (runway transition + common
+  route + enroute transition), a STAR before the approach (enroute transition + common + runway
+  transition). A plan waypoint that repeats the SID's last or the STAR's first fix is replaced by
+  the procedure's leg. The legs are tagged (`Leg::source`), so a new choice replaces the old one
+  and removing it restores the plan. .fms files carry them by name (`SID`, `SIDTRANS`, `STAR`,
+  `STARTRANS`); procedure legs are never written as waypoints.
 - **Plan summary:** total distance, ETE at profile cruise speed, and a list with DTK, distance,
   altitude constraint.
 

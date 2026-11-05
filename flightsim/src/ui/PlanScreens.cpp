@@ -5,7 +5,11 @@
 #include <cctype>
 #include <cstdio>
 
+#include <functional>
+#include <utility>
+
 #include "nav/FlightPlan.h"
+#include "nav/Procedures.h"
 #include "ui/MenuScreens.h"
 
 namespace fsim {
@@ -25,27 +29,29 @@ const char* kFooterList = "UP DOWN MOVE   A SELECT   B BACK";
 
 class PlanScreen : public Screen {
 public:
-    PlanScreen() : nav_(5, kListRows) {}
+    PlanScreen() : nav_(7, kListRows) {}
     ScreenId id() const override { return ScreenId::Plan; }
 
     void update(const MenuInput& in, MenuSystem& m) override {
         FlightSetup& s = m.setup();
         const char off = static_cast<char>(!s.hasPlan());
-        nav_.setDisabled({0, 0, off, 0, off});
+        nav_.setDisabled({0, 0, off, off, off, 0, off});
         nav_.handle(in);
         if (in.back) {
             m.pop();
             return;
         }
-        if (nav_.selected() == 2 && s.hasPlan() && (in.left || in.right))
+        if (nav_.selected() == 4 && s.hasPlan() && (in.left || in.right))
             cycleRunway(m, in.right ? 1 : -1);
         if (!in.accept) return;
         switch (nav_.selected()) {
         case 0: m.push(makePlanFilesScreen(m)); break;
         case 1: m.push(makeSearchScreen(SearchMode::PlanDestination, m)); break;
-        case 2: m.push(makeRunwayScreen(RunwayMode::PlanDest, s.destAirportIdent(), m)); break;
-        case 3: m.push(makeApproachScreen(ApproachMode::Setup, m)); break;
-        case 4: s.clearPlan(); break;
+        case 2: m.push(makeProcedureScreen(true, ApproachMode::Setup, m)); break;   // N8
+        case 3: m.push(makeProcedureScreen(false, ApproachMode::Setup, m)); break;  // N8
+        case 4: m.push(makeRunwayScreen(RunwayMode::PlanDest, s.destAirportIdent(), m)); break;
+        case 5: m.push(makeApproachScreen(ApproachMode::Setup, m)); break;
+        case 6: s.clearPlan(); break;
         }
     }
 
@@ -53,20 +59,33 @@ public:
         drawScreenFrame(r, t, "FLIGHT PLAN", "LOAD AN FMS FILE OR MAKE A DIRECT PLAN",
                         "A SELECT   B BACK   LEFT RIGHT DEST RUNWAY");
         const FlightSetup& s = m.setup();
-        std::vector<ListRow> rows(5);
+        std::vector<ListRow> rows(7);
         rows[0] = {"PLAN FILE", s.planKind == PlanKind::File ? s.planName : "NONE"};
         rows[0].dimValue = s.planKind != PlanKind::File;
         rows[1] = {"QUICK PLAN FROM " + s.airportIdent + " " + s.runwayIdent + " TO",
                    s.planKind == PlanKind::Quick ? s.plan.destIdent : "CHOOSE"};
         rows[1].dimValue = s.planKind != PlanKind::Quick;
-        rows[2] = {"DESTINATION RUNWAY",
-                   s.hasPlan() ? s.plan.destIdent + " " + s.plan.arrRunway : "-"};
-        rows[2].adjustable = s.hasPlan();
+        rows[2] = {"DEPARTURE (SID)",
+                   s.hasPlan() ? FlightSetup::procedureText(s.plan.sidId, s.plan.sidTransition)
+                               : "-"};
         rows[2].enabled = s.hasPlan();
-        rows[3] = {"APPROACH", s.approachId.empty() ? "NONE" : s.approachId};
-        rows[3].dimValue = s.approachId.empty();
-        rows[4].label = "CLEAR PLAN";
+        rows[2].dimValue = s.plan.sidId.empty();
+        rows[3] = {"ARRIVAL (STAR)",
+                   s.hasPlan() ? FlightSetup::procedureText(s.plan.starId, s.plan.starTransition)
+                               : "-"};
+        rows[3].enabled = s.hasPlan();
+        rows[3].dimValue = s.plan.starId.empty();
+        rows[4] = {"DESTINATION RUNWAY",
+                   s.hasPlan() ? s.plan.destIdent + " " + s.plan.arrRunway : "-"};
+        rows[4].adjustable = s.hasPlan();
         rows[4].enabled = s.hasPlan();
+        std::string app = s.approachId.empty() ? "NONE" : s.approachId;
+        if (!s.approachId.empty())
+            app += s.approachTransition.empty() ? " AUTO" : "." + s.approachTransition;
+        rows[5] = {"APPROACH", app};
+        rows[5].dimValue = s.approachId.empty();
+        rows[6].label = "CLEAR PLAN";
+        rows[6].enabled = s.hasPlan();
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, 30, nav_, rows);
 
@@ -171,6 +190,187 @@ private:
     std::vector<PlanFileEntry> files_;
     ListNav nav_;
 };
+
+// ---- N8: generic pick list (procedures, transitions) ----------------------------------------------------------
+
+class PickScreen : public Screen {
+public:
+    using OnPick = std::function<void(MenuSystem&, int)>;
+    PickScreen(std::string title, std::string subtitle, std::vector<std::string> items,
+               int selected, OnPick onPick)
+        : title_(std::move(title)), subtitle_(std::move(subtitle)), items_(std::move(items)),
+          onPick_(std::move(onPick)), nav_(static_cast<int>(items_.size()), kListRows) {
+        if (selected >= 0 && selected < static_cast<int>(items_.size())) nav_.select(selected);
+    }
+    ScreenId id() const override { return ScreenId::Procedure; }
+
+    void update(const MenuInput& in, MenuSystem& m) override {
+        nav_.handle(in);
+        if (in.back) {
+            m.pop();
+            return;
+        }
+        if (in.accept && !items_.empty()) onPick_(m, nav_.selected());
+    }
+
+    void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
+        drawScreenFrame(r, t, title_.c_str(), subtitle_.c_str(), kFooterList);
+        std::vector<ListRow> rows;
+        for (const std::string& s : items_) rows.push_back({s, ""});
+        drawList(r, t, r.centered(kContentX), kListTop, kContentW, kRowH, nav_, rows);
+    }
+
+private:
+    std::string title_, subtitle_;
+    std::vector<std::string> items_;
+    OnPick onPick_;
+    ListNav nav_;
+};
+
+// ---- N8: SID / STAR selection (setup and in flight) -------------------------------------------------------------
+
+// Where the procedure goes: the setup's plan file, or the navigator's plan in flight.
+struct ProcTarget {
+    std::string airport, runway, currentId, currentTransition;
+};
+
+ProcTarget procTarget(bool sid, ApproachMode mode, const MenuSystem& m) {
+    ProcTarget t;
+    if (mode == ApproachMode::Setup) {
+        const FlightSetup& s = m.setup();
+        t.airport = sid ? s.airportIdent : s.plan.destIdent;
+        t.runway = sid ? s.runwayIdent : s.plan.arrRunway;
+        t.currentId = sid ? s.plan.sidId : s.plan.starId;
+        t.currentTransition = sid ? s.plan.sidTransition : s.plan.starTransition;
+    } else if (m.flight().navigator && m.flight().navigator->hasPlan()) {
+        const FlightPlan& p = m.flight().navigator->plan();
+        t.airport = sid ? p.originIdent : p.destIdent;
+        t.runway = sid ? p.depRunway : p.arrRunway;
+        t.currentId = sid ? p.sidId : p.starId;
+        t.currentTransition = sid ? p.sidTransition : p.starTransition;
+    }
+    return t;
+}
+
+// Applies (or with an empty id removes) the procedure; posts the in-flight result.
+void applyProcedure(MenuSystem& m, bool sid, ApproachMode mode, const std::string& id,
+                    const std::string& transition) {
+    const char* what = sid ? "DEPARTURE " : "ARRIVAL ";
+    if (mode == ApproachMode::Setup) {
+        if (sid)
+            m.setup().setSid(id, transition);
+        else
+            m.setup().setStar(id, transition);
+        return;
+    }
+    Navigator* nav = m.flight().navigator;
+    if (!nav || !nav->hasPlan()) return;
+    FlightPlan p = nav->plan();
+    MenuResult res;
+    res.action = MenuAction::ResumeFlight;
+    if (id.empty()) {
+        if (sid)
+            removeSid(p);
+        else
+            removeStar(p);
+        res.message = std::string(what) + "REMOVED";
+    } else {
+        const ProcTarget t = procTarget(sid, mode, m);
+        const auto set = loadProcedureSet(m.env().navDir, t.airport);
+        const TerminalProcedure* proc = nullptr;
+        if (set) proc = sid ? findSid(*set, id) : findStar(*set, id);
+        std::string error;
+        bool ok = false;
+        if (proc) {
+            std::vector<Leg> legs = sid ? assembleSidLegs(*proc, t.runway, transition)
+                                        : assembleStarLegs(*proc, transition, t.runway);
+            ok = sid ? insertSid(p, id, transition, std::move(legs), &error)
+                     : insertStar(p, id, transition, std::move(legs), &error);
+        }
+        if (!ok) {
+            m.push(makeConfirmScreen("CANNOT LOAD " + id, nullptr));
+            return;
+        }
+        res.message = what + FlightSetup::procedureText(id, transition);
+    }
+    nav->setPlan(std::move(p));
+    m.post(std::move(res));
+}
+
+std::unique_ptr<Screen> makeTransitionPick(bool sid, ApproachMode mode,
+                                           const TerminalProcedure& proc,
+                                           const std::string& current) {
+    std::vector<std::string> items{"NONE"};
+    int selected = 0;
+    for (const ProcRoute& r : proc.enrouteTransitions) {
+        if (r.name == current) selected = static_cast<int>(items.size());
+        items.push_back(r.name);
+    }
+    const std::string id = proc.id;
+    std::vector<std::string> names = items;  // the callback's copy (items is moved below)
+    return std::make_unique<PickScreen>(
+        id + " TRANSITION", sid ? "WHERE THE DEPARTURE ENDS" : "WHERE THE ARRIVAL STARTS",
+        std::move(items), selected, [sid, mode, id, names](MenuSystem& m, int i) {
+            applyProcedure(m, sid, mode, id,
+                           i == 0 ? std::string() : names[static_cast<size_t>(i)]);
+            if (mode == ApproachMode::Setup) {
+                m.pop();
+                m.pop();
+            }
+        });
+}
+
+std::unique_ptr<Screen> procedureScreen(bool sid, ApproachMode mode, const MenuSystem& m) {
+    const ProcTarget t = procTarget(sid, mode, m);
+    const auto set = t.airport.empty() ? nullptr : loadProcedureSet(m.env().navDir, t.airport);
+    std::vector<std::string> ids;
+    if (set)
+        for (const TerminalProcedure* p :
+             sid ? sidsForRunway(*set, t.runway) : starsForRunway(*set, t.runway))
+            ids.push_back(p->id);
+    std::vector<std::string> items{"NONE"};
+    int selected = 0;
+    for (const std::string& id : ids) {
+        if (id == t.currentId) selected = static_cast<int>(items.size());
+        items.push_back(id);
+    }
+    const std::string title = sid ? "DEPARTURE (SID)" : "ARRIVAL (STAR)";
+    const std::string sub =
+        (ids.empty() ? "NO PROCEDURES FOR " : (sid ? "FROM " : "TO ")) + t.airport + " " + t.runway;
+    return std::make_unique<PickScreen>(
+        title, sub, std::move(items), selected,
+        [sid, mode, set, ids, cur = t.currentTransition](MenuSystem& m, int i) {
+            if (i == 0) {
+                applyProcedure(m, sid, mode, "", "");
+                if (mode == ApproachMode::Setup) m.pop();
+                return;
+            }
+            const TerminalProcedure* proc = sid ? findSid(*set, ids[static_cast<size_t>(i) - 1])
+                                                : findStar(*set, ids[static_cast<size_t>(i) - 1]);
+            if (!proc) return;
+            if (!proc->enrouteTransitions.empty()) {
+                m.push(makeTransitionPick(sid, mode, *proc, cur));
+                return;
+            }
+            applyProcedure(m, sid, mode, proc->id, "");
+            if (mode == ApproachMode::Setup) m.pop();
+        });
+}
+
+// Approach transition list: AUTO (nearest to the route), VECTORS, then the named transitions.
+std::unique_ptr<Screen> makeApproachTransitionPick(const Approach& approach,
+                                                   const std::string& current,
+                                                   std::function<void(MenuSystem&, int)> onPick) {
+    std::vector<std::string> items{"AUTO", "VECTORS"};
+    int selected = current == "VECTORS" ? 1 : 0;
+    for (size_t i = 1; i < approach.transitions.size(); ++i) {
+        if (approach.transitions[i].name == current) selected = static_cast<int>(items.size());
+        items.push_back(approach.transitions[i].name);
+    }
+    return std::make_unique<PickScreen>(approach.id + " TRANSITION",
+                                        "AUTO PICKS THE ONE NEAREST TO THE ROUTE", std::move(items),
+                                        selected, std::move(onPick));
+}
 
 // ---- approach selection (setup and in flight) -----------------------------------------------------------------
 
@@ -286,7 +486,21 @@ private:
         } else {
             s.setRunway(rwy);
         }
-        s.setApproach(choices_[static_cast<size_t>(sel) - 1].id);
+        const std::string id = choices_[static_cast<size_t>(sel) - 1].id;
+        s.setApproach(id);
+        auto approach = findApproach(m.nav(), airport_, rwy, id, m.approachProvider());
+        if (approach && approach->transitions.size() > 1) {  // N8: pick the transition next
+            m.push(makeApproachTransitionPick(
+                *approach, s.approachTransition, [names = *approach](MenuSystem& mm, int i) {
+                    std::string name;  // AUTO
+                    if (i == 1) name = "VECTORS";
+                    if (i >= 2) name = names.transitions[static_cast<size_t>(i) - 1].name;
+                    mm.setup().setApproachTransition(name);
+                    mm.pop();
+                    mm.pop();
+                }));
+            return;
+        }
         m.pop();
     }
 
@@ -304,6 +518,26 @@ private:
         const ApproachChoice& c = choices_[static_cast<size_t>(sel) - 1];
         const std::string& rwy = runways_[static_cast<size_t>(rwyIdx_)];
         auto approach = findApproach(m.nav(), airport_, rwy, c.id, m.approachProvider());
+        if (approach && approach->transitions.size() > 1 && f.navigator->hasPlan()) {
+            // N8: choose the transition (AUTO = nearest to the route, as before).
+            m.push(makeApproachTransitionPick(
+                *approach, f.navigator->plan().approachTransition,
+                [a = *approach](MenuSystem& mm, int i) {
+                    Navigator* nav = mm.flight().navigator;
+                    if (!nav) return;
+                    const int idx = i == 0 ? -1 : i - 1;  // VECTORS = transitions[0]
+                    MenuResult r;
+                    r.action = MenuAction::ResumeFlight;
+                    if (!nav->loadApproach(a, idx)) {
+                        mm.push(makeConfirmScreen("CANNOT LOAD APPROACH " + a.id, nullptr));
+                        return;
+                    }
+                    const std::string& t = nav->plan().approachTransition;
+                    r.message = "APPROACH " + a.id + (t.empty() ? "" : " VIA " + t);
+                    mm.post(std::move(r));
+                }));
+            return;
+        }
         bool ok = false;
         if (approach) {
             if (f.navigator->hasPlan())
@@ -338,6 +572,9 @@ std::unique_ptr<Screen> makePlanFilesScreen(const MenuSystem& menu) {
 }
 std::unique_ptr<Screen> makeApproachScreen(ApproachMode mode, const MenuSystem& menu) {
     return std::make_unique<ApproachScreen>(mode, menu);
+}
+std::unique_ptr<Screen> makeProcedureScreen(bool sid, ApproachMode mode, const MenuSystem& menu) {
+    return procedureScreen(sid, mode, menu);
 }
 
 }  // namespace fsim

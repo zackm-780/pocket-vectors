@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "core/NavTypes.h"
+#include "nav/Fms.h"
 
 namespace fsim {
 
@@ -59,12 +60,29 @@ struct ApproachInfo {
     int mapFinalLeg = -1;  // index into finalLegs of the MAP (always the last final leg), -1 = none
 };
 
+// N8: a SID or STAR. A SID is flown runway transition + common route + enroute transition, a
+// STAR enroute transition + common route + runway transition (see assembleSidLegs /
+// assembleStarLegs). Runway transitions are named DB style: "28L", "10B" (both 10s), "ALL".
+struct ProcRoute {
+    std::string name;
+    std::vector<Leg> legs;
+};
+struct TerminalProcedure {
+    std::string id;     // "MINNE5", "HHOOD6"
+    std::string title;  // the rest of the SID / STAR line
+    bool isSid = true;  // false = STAR
+    std::vector<ProcRoute> runwayTransitions;
+    std::vector<Leg> commonLegs;
+    std::vector<ProcRoute> enrouteTransitions;
+};
+
 struct ProcedureSet {
     std::string airportIdent;
     std::string cycle;                 // FAA cycle "2610"
     std::vector<Approach> approaches;  // sorted by id
     std::vector<ApproachInfo> info;    // parallel to approaches
     std::vector<std::string> warnings;
+    std::vector<TerminalProcedure> sids, stars;  // N8, sorted by id
 };
 
 // Parses the text of a .proc file. Returns false with a readable message for an unknown format
@@ -116,5 +134,35 @@ int transitionJoinLeg(const Approach& approach, size_t transitionIndex);
 
 // Like ApproachInfo lookup by id for a loaded set; nullptr if absent.
 const ApproachInfo* findApproachInfo(const ProcedureSet& set, std::string_view approachId);
+
+// ---- N8: SIDs and STARs --------------------------------------------------------------------
+
+// True when runway transition `transitionName` serves `runwayIdent`: the same name, "ALL", or
+// "10B" for 10L / 10C / 10R.
+bool runwayTransitionMatches(std::string_view transitionName, std::string_view runwayIdent);
+// Case-insensitive id match; nullptr if absent.
+const TerminalProcedure* findSid(const ProcedureSet& set, std::string_view id);
+const TerminalProcedure* findStar(const ProcedureSet& set, std::string_view id);
+// The SIDs usable from `runwayIdent` (a matching runway transition, or no runway transitions at
+// all) and the STARs that serve it (or have no runway transitions), ordered by id. An empty
+// runway lists them all.
+std::vector<const TerminalProcedure*> sidsForRunway(const ProcedureSet& set,
+                                                    std::string_view runwayIdent);
+std::vector<const TerminalProcedure*> starsForRunway(const ProcedureSet& set,
+                                                     std::string_view runwayIdent);
+// Plan legs of a SID from `runwayIdent` into enroute transition `transition` ("" = none), or of
+// a STAR from `transition` to `runwayIdent`. A leading IF that repeats the previous fix is dropped
+// (its altitude constraint is kept if the previous leg has none); an IF in mid route becomes a TF.
+// Every leg is tagged LegSource::Sid / Star. `missing` (optional) receives a readable note when the
+// runway or the transition was not found (the rest is still assembled).
+std::vector<Leg> assembleSidLegs(const TerminalProcedure& sid, std::string_view runwayIdent,
+                                 std::string_view transition, std::string* missing = nullptr);
+std::vector<Leg> assembleStarLegs(const TerminalProcedure& star, std::string_view transition,
+                                  std::string_view runwayIdent, std::string* missing = nullptr);
+// The procedures an .fms file names: inserts its SID (from the plan's origin and departure runway)
+// and STAR (to the destination and arrival runway) from {navDir}/procedures, and keeps its
+// approach transition in plan.approachTransition. Returns a note for each name not found.
+std::vector<std::string> applyFmsProcedures(FlightPlan& plan, const FmsFile& file,
+                                            const std::string& navDir);
 
 }  // namespace fsim

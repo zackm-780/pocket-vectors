@@ -46,7 +46,8 @@ enum class ScreenId {
     Pause,
     FlightPlan,
     Confirm,
-    Help
+    Help,
+    Procedure  // N8: SID / STAR / transition lists
 };
 const char* screenName(ScreenId id);
 

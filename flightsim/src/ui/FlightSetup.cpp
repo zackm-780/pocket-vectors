@@ -292,6 +292,11 @@ bool FlightSetup::loadPlanFile(const NavDatabase& db, const std::string& path,
     planFile = std::move(file);
     plan = std::move(r.plan);
     approachId = plan.approachId;
+    plan.sidId = planFile.sid;  // N8: names only; the simulation inserts the legs
+    plan.sidTransition = planFile.sidTrans;
+    plan.starId = planFile.star;
+    plan.starTransition = planFile.starTrans;
+    plan.approachTransition = approachTransition = planFile.appTrans;
     if (const Airport* origin = db.findAirport(plan.originIdent)) {
         if (!origin->runways.empty()) {
             airportIdent = origin->ident;
@@ -346,30 +351,61 @@ bool FlightSetup::setPlanDestRunway(const NavDatabase& db, const std::string& ru
     plan = std::move(r.plan);
     plan.arrRunway = runwayIdentDb;
     approachId.clear();
+    planFile.appTrans.clear();  // N8: the transition belonged to the old approach
+    plan.sidId = planFile.sid;
+    plan.sidTransition = planFile.sidTrans;
+    plan.starId = planFile.star;
+    plan.starTransition = planFile.starTrans;
     return true;
 }
 
 void FlightSetup::setApproach(const std::string& id) {
     approachId = id;
+    setApproachTransition("");  // a new approach starts on AUTO
     if (hasPlan()) {
         planFile.app = id;
         plan.approachId = id;
     }
 }
 
+void FlightSetup::setSid(const std::string& id, const std::string& transition) {
+    if (!hasPlan()) return;
+    planFile.sid = plan.sidId = id;
+    planFile.sidTrans = plan.sidTransition = id.empty() ? std::string() : transition;
+}
+
+void FlightSetup::setStar(const std::string& id, const std::string& transition) {
+    if (!hasPlan()) return;
+    planFile.star = plan.starId = id;
+    planFile.starTrans = plan.starTransition = id.empty() ? std::string() : transition;
+}
+
+void FlightSetup::setApproachTransition(const std::string& name) {
+    approachTransition = name;
+    if (hasPlan()) planFile.appTrans = plan.approachTransition = name;
+}
+
+std::string FlightSetup::procedureText(const std::string& id, const std::string& transition) {
+    if (id.empty()) return "NONE";
+    return transition.empty() ? id : id + "." + transition;
+}
+
 std::string FlightSetup::routeText() const {
     std::string s;
+    auto add = [&](const std::string& w) {
+        if (w.empty()) return;
+        if (!s.empty()) s += ' ';
+        s += w;
+    };
     const int end = enrouteEndIndex(plan);
     for (int i = 0; i < end && i < static_cast<int>(plan.legs.size()); ++i) {
-        if (!s.empty()) s += ' ';
         const bool origin = i == 0 && !plan.originIdent.empty();
-        s += origin ? plan.originIdent : plan.legs[static_cast<size_t>(i)].to.ident;
+        add(origin ? plan.originIdent : plan.legs[static_cast<size_t>(i)].to.ident);
+        if (i == 0 && !plan.sidId.empty()) add(procedureText(plan.sidId, plan.sidTransition));
     }
+    if (!plan.starId.empty()) add(procedureText(plan.starId, plan.starTransition));  // N8
     if (plan.approachStartLeg < 0 && end >= static_cast<int>(plan.legs.size())) return s;
-    if (!plan.destIdent.empty()) {
-        if (!s.empty()) s += ' ';
-        s += plan.destIdent;
-    }
+    add(plan.destIdent);
     return s;
 }
 
@@ -403,6 +439,7 @@ Scenario FlightSetup::buildScenario(const std::string& planFilePath) const {
     }
     if (hasPlan()) s.planPath = planFilePath;
     s.approachId = approachId;
+    if (!hasPlan()) s.approachTransition = approachTransition;  // with a plan: in the .fms
     return s;
 }
 
