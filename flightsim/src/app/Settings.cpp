@@ -183,6 +183,7 @@ int Settings::applyText(const std::string& text) {
     flag("overlay_airports", overlayAirports);
     flag("overlay_runways", overlayRunways);
     num("overlay_airport_radius_nm", overlayAirportRadiusNm);
+    flag("external_view", externalView);  // V1
     str("last_aircraft", lastAircraft);
 
     if (ini.has(kSection, "sim_hz") && simHz != 60 && simHz != 120)
@@ -263,6 +264,7 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"overlay_airports", b(s.overlayAirports)},
         {"overlay_runways", b(s.overlayRunways)},
         {"overlay_airport_radius_nm", fmtFloat(s.overlayAirportRadiusNm)},
+        {"external_view", b(s.externalView)},  // V1
         {"last_aircraft", s.lastAircraft},
     };
 }

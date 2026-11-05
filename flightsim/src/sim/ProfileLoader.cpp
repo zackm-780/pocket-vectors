@@ -90,6 +90,9 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
             p.hasEyeOffset = true;
         }
     }
+    p.externalModel = ini.getString("view", "external_model");  // V1
+    p.wingspanM = ini.getFloat("view", "wingspan_m");
+    p.gearHeightM = ini.getFloat("view", "gear_height_m");
     for (const auto& [key, value] : ini.entries("autopilot"))
         p.autopilot[key] = std::strtof(value.c_str(), nullptr);
     for (const auto& [key, value] : ini.entries("properties")) p.properties[key] = value;

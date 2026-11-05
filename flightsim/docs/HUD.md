@@ -122,6 +122,12 @@ Full screen, toggled with Select (or M). Opaque background. Pauses nothing.
 - Info panel: next waypoints with DTK, distance, ETE, and altitude constraint. Direct-to with A on
   a selected waypoint.
 
+## 7a. External chase view (V1)
+L2 + L3 switches to a camera behind and above the aircraft (`external_view` in `settings.ini`,
+default off). The HUD then draws only the status rows, warnings and messages: the ladder, tapes,
+FMA, flight path marker and mini nav are tied to the cockpit eye point and stay hidden. World
+overlays and their labels still draw. The map page and full-screen menus use the cockpit camera.
+
 ## 8. World overlays (W6)
 Drawn in the world, after the airports and before the HUD. Labels share the HUD batch. Every layer
 starts off (`overlay_route`, `overlay_vpath`, `overlay_airports`, `overlay_runways` in

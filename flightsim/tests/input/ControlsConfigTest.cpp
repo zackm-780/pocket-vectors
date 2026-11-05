@@ -61,6 +61,7 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::A, Action::ApToggle));
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::L3, Action::GoAround));  // N7
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::Start, Action::FlcMode));
+    CHECK(hasPadBinding(c, PadLayer::L2, PadInput::L3, Action::ViewToggle));  // V1
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::B, Action::AtToggle));
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::X, Action::HdgMode));
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::Y, Action::NavMode));
@@ -109,6 +110,7 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
     CHECK(hasKeyBinding(c, 0, SDLK_F5, 0, Action::FdToggle));
     CHECK(hasKeyBinding(c, 0, SDLK_F6, 0, Action::GoAround));  // N7
     CHECK(hasKeyBinding(c, 0, SDLK_F7, 0, Action::FlcMode));
+    CHECK(hasKeyBinding(c, 0, SDLK_c, 0, Action::ViewToggle));  // V1
     CHECK(hasKeyBinding(c, 0, SDLK_MINUS, 0, Action::HdgBugDec));
     CHECK(hasKeyBinding(c, 0, SDLK_EQUALS, 0, Action::HdgBugInc));
     CHECK(hasKeyBinding(c, 0, SDLK_9, 0, Action::AltBugDec));

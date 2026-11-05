@@ -48,6 +48,8 @@ struct Settings {
     bool overlayAirports = false;
     bool overlayRunways = false;
     float overlayAirportRadiusNm = 25.0f;
+    // V1: external chase view instead of the cockpit (L2 + L3 toggles and saves it).
+    bool externalView = false;
     std::string lastAircraft;
 
     // Parses settings text onto *this (keys that are absent or invalid keep their current value;

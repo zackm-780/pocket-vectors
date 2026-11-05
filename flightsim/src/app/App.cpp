@@ -44,6 +44,7 @@
 #include "world/AirportGeometry.h"         // W5
 #include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
+#include "world/ExternalView.h"            // V1
 #include "world/Sky.h"                     // W4
 #include "world/TerrainRenderer.h"         // W2
 #include "world/Weather.h"                 // X1
@@ -175,6 +176,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (!airports.init()) return 1;
     world::WorldOverlay worldOverlay(window.gl(), window.flavor());  // W6
     if (!worldOverlay.init()) LOG_WARN("world overlay: shader failed; markers stay hidden");
+    world::ExternalView externalView(window.gl(), window.flavor());  // V1
+    if (!externalView.init()) LOG_WARN("external view: shader failed; no aircraft model");
+    std::string externalViewProfile;  // profile id the model was built for
     airports.setNavDatabase(&sim.navDb());
     airports.setTerrain(&sim.terrain());
     airports.setAtmosphere(&atmosphere);
@@ -280,7 +284,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     };
     // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
     auto flightStarted = [&]() {
-        look.reset();  // I2
+        look.reset();          // I2
+        externalView.reset();  // V1
         if (const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent))
             renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
         setSkyTime();
@@ -415,6 +420,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                     LOG_WARN("settings: cannot write %s", menuEnv.settingsPath.c_str());
                 messages.postf("OVERLAYS %s", world::overlayPresetName(preset));
             }
+            if (interactive && cmdActions.pressed[static_cast<int>(Action::ViewToggle)]) {  // V1
+                settings.externalView = !settings.externalView;
+                externalView.reset();
+                look.reset();
+                if (!menuEnv.settingsPath.empty() && !settings.save(menuEnv.settingsPath))
+                    LOG_WARN("settings: cannot write %s", menuEnv.settingsPath.c_str());
+                messages.post(settings.externalView ? "VIEW CHASE" : "VIEW COCKPIT");
+            }
             if (interactive) {  // X1: altimeter setting (R1 + D-pad up/down, R1 + Select = STD)
                 const bool inHg = settings.pressureUnits == PressureUnits::InHg;
                 auto pr = [&](Action a) { return cmdActions.pressed[static_cast<int>(a)]; };
@@ -525,10 +538,24 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                        static_cast<float>(degToRad(lookHoldPitchDeg)));
         else
             camera.setPoseFromAircraft(view, look.yawRad(), look.pitchRad());
+        // V1: chase view (not on the map page or behind a full-screen menu).
+        const bool chase = settings.externalView && state != AppState::Menu && !mapShown;
+        if (sim.profile().id != externalViewProfile) {
+            externalView.setAircraft(sim.profile());
+            externalViewProfile = sim.profile().id;
+        }
+        if (chase) {
+            const bool held = lookHoldYawDeg != 0 || lookHoldPitchDeg != 0;
+            externalView.placeCamera(
+                camera, view, held ? static_cast<float>(degToRad(lookHoldYawDeg)) : look.yawRad(),
+                held ? static_cast<float>(degToRad(lookHoldPitchDeg)) : look.pitchRad(),
+                &sim.terrain(), dtS);
+        }
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(view.altAglFt));
         renderer.render(camera, w, h);
-        airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
+        airports.render(camera, w, h, sim.aircraft().simTimeS);            // W5: after the ground
+        if (chase) externalView.render(camera, view, atmosphere.light());  // V1: one draw
         {  // W6: route, vertical path, airports, runway outlines (at most 4 draws)
             const bool layersOn = settings.overlayRoute || settings.overlayVpath ||
                                   settings.overlayAirports || settings.overlayRunways;
@@ -548,7 +575,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             }
         }
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
-            hudOptions.paused = false;  // H5: the pause menu says PAUSED itself
+            hudOptions.paused = false;        // H5: the pause menu says PAUSED itself
+            hudOptions.externalView = chase;  // V1: status strip and messages only
             hudOptions.magVarDeg =
                 sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             {  // H3: nav / autopilot state for the overlay (or a canned one with --hud-fake)
@@ -574,7 +602,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             else if (state != AppState::Menu) {
                 hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
                          messages, hudOptions);
-                if (miniNavShown(settings.hudMiniNav, hudOptions.declutter, false))
+                if (!chase && miniNavShown(settings.hudMiniNav, hudOptions.declutter, false))
                     miniNav.draw(hud2d, sim.aircraft(), sim.navState(),
                                  sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
                                  settings.hudMiniNavRangeNm);

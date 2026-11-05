@@ -234,6 +234,10 @@ struct AircraftProfile {
   std::map<std::string, float> autopilot;
   // JSBSim property overrides for non-standard models (F1 defines the keys)
   std::map<std::string, std::string> properties;
+  float eyeOffsetBodyM[3] = {0, 0, 0}; bool hasEyeOffset = false;  // additive (WP-00): [view]
+  std::string externalModel;   // additive (V1): [view] external_model, "" = from category
+  float wingspanM = 0;         // additive (V1): [view] wingspan_m
+  float gearHeightM = 0;       // additive (V1): [view] gear_height_m, reference point above ground
 };
 
 // ---------- core/TerrainQuery.h ----------   implemented by world/terrain (W1); used by sim, renderers, HUD, nav
@@ -378,6 +382,7 @@ enum class Action { TrimNoseUp, TrimNoseDown, FlapsUp, FlapsDown, GearToggle, Br
                     BaroInc, BaroDec, BaroStd,         // additive (I1)
                     OverlayPreset,                     // additive (W6)
                     GoAround, FlcMode,                 // additive (N7): L1 + L3, L1 + Start
+                    ViewToggle,                        // additive (V1): L2 + L3, C
                     Count };
 struct ActionState {
   float axis[(int)Axis::Count] = {};          // -1..1 after deadzone/curve
@@ -400,8 +405,9 @@ struct ActionState {
   desktop). Optional extensions (MSAA, 32-bit indices, anisotropy) are queried at runtime and
   must have fallbacks. Use 16-bit indices for meshes ≤ 65,535 vertices.
 - **Pass order:** sky (full-screen gradient using the inverse view-projection) → terrain → airports
-  (runway surface, then markings with polygon offset, then lights as point sprites) → HUD (2D,
-  depth off) → UI and map overlays.
+  (runway surface, then markings with polygon offset, then lights as point sprites) → external
+  aircraft model in the chase view (V1, one draw, depth tested, back faces culled) → world overlays
+  (W6) → HUD (2D, depth off) → UI and map overlays.
 - **Projection:** vertical FOV setting (default 55°), near 0.5 m, far = max(40 km, horizon distance
   + 20 km), capped at 400 km. 24-bit depth. If far-range precision is insufficient, W2 may split the
   frustum into near and far passes.

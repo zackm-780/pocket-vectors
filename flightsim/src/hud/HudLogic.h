@@ -53,6 +53,9 @@ struct HudOptions {
     float magVarDeg = 0;    // + = east; heading and wind are shown magnetic (true - magVar)
     // OR of warningBit() values raised by other modules: PullUp, Terrain, SinkRate (X2), ApOff (H3).
     std::uint32_t extraWarnings = 0;
+    // V1: external chase view. Only the status rows, warnings and messages are drawn (the
+    // conformal symbology belongs to the cockpit eye point).
+    bool externalView = false;
 };
 
 // What each declutter level shows (HUD.md section 1). Attitude, speed, altitude, FPV, warnings and

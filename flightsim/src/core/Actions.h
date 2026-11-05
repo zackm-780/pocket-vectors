@@ -58,6 +58,8 @@ enum class Action {
     // Additive (N7): TO/GA (L1 + L3) and FLC (L1 + Start); F6 / F7 on the keyboard.
     GoAround,
     FlcMode,
+    // Additive (V1): cockpit <-> external chase view (L2 + L3, C on the keyboard).
+    ViewToggle,
     Count
 };
 

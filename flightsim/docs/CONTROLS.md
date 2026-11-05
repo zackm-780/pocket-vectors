@@ -88,6 +88,7 @@ While the map is open, trim, flaps and gear inputs are ignored.
 | L2 + D-pad ← / → / ↓ | Snap look left 90° / right 90° / back |
 | L2 + D-pad ↑ | Look down 25° over the nose (landing view) |
 | Release L2 | The view eases back to straight ahead in about 0.3 s |
+| L2 + L3 | Cockpit ↔ external chase view (V1, saved as `external_view`). In the chase view the right stick and the D-pad snaps orbit the camera around the aircraft instead. |
 
 While L2 is held, the right stick does **not** affect throttle or rudder, and the D-pad does not
 trim or move the flaps. The look layer is **L2**. R2 is the brakes, so R2 + D-pad is brakes plus
@@ -117,6 +118,7 @@ delete, Start = done, X = space, Y = cycle letters/digits).
 | F3 | HDG | F4 | NAV/APR |
 | F5 | FD | - / = | heading bug |
 | F6 | TO/GA | F7 | FLC |
+| C | cockpit / chase view | | |
 | 9 / 0 | altitude bug −/+ | V + arrows | look |
 | Ctrl+Q | quit | | |
 

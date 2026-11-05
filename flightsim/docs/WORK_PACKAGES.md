@@ -696,7 +696,7 @@ idle overshoots 18 ft. Deviations: the GA speed floor is Vref with flaps out (1.
 737 pitch overshoots the 15 degree command to about 18.6 degrees while TOGA thrust builds.
 
 ## V1: External chase view
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** W2, W5 · **Specs:** PLAN §2 (v2+), D5
+**Status:** in review (needs device test: L2 + L3 toggles the chase view, L2 + right stick orbits, the model costs no visible frame rate; X3 measures it) · **Model / effort:** Sonnet / high · **Depends:** W2, W5 · **Specs:** PLAN §2 (v2+), D5, D5a
 
 **Owns:** `src/world/ExternalView*` (new), `tests/world/externalview*`; a camera-mode toggle
 (integration, proposed in the PR; L2 + L3 is free).
@@ -707,6 +707,18 @@ gear when down, flaps), so no model files or licences are needed. The HUD shows 
 strip and messages in this view. D5 still holds for the cockpit view.
 **Acceptance:** screenshots for each category on the runway and in a bank; the model is one draw
 call; terrain and runway depth stay correct around it; frame cost under 0.5 ms on desktop.
+
+Done (PR #11): `world/ExternalViewModel` (models and chase pose, no GL) and `world/ExternalView`
+(one draw, lit by the W4 sun, back faces culled). Profiles carry `[view] external_model`,
+`wingspan_m` (JSBSim metrics) and `gear_height_m` (the JSBSim reference point's height on the
+wheels, measured: 1.1 m in the 737, 5.7 m in the MD-11) so the wheels touch the runway. The camera
+trails the heading (0.6 s lag) at 1.2 x span + 7 m, 10 degrees above, horizon level, at least 2 m
+above the terrain; the look layer orbits it. `external_view` setting, `Action::ViewToggle`
+(L2 + L3, C), `HudOptions::externalView` (status rows, warnings, messages). Models are 280 (c172p)
+to 630 (747) triangles; a build takes 0.03 ms. Draw cost, CPU about 0.1 ms; with the raster on
+Mesa llvmpipe (a software renderer, the only GL in CI) 0.29 ms (c172p) and 0.40 ms (787) at the
+device's 640 x 480, 0.41 / 0.65 ms at 1280 x 960. A hardware GPU draws it in far less; the device
+number comes with X3.
 
 ## W7: Cloud layers
 **Status:** todo · **Model / effort:** Sonnet / medium · **Depends:** W4, X1 · **Specs:** ARCHITECTURE §6
