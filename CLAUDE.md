@@ -11,6 +11,11 @@ point. Read it fully before touching anything.
 
 ## Read before you write code
 
+**Working from a card?** Work after 1.0 is a set of cards in `flightsim/docs/wp/` (board:
+`flightsim/docs/wp/README.md`). If you were handed a card, read `flightsim/docs/wp/BUILDER.md`
+and your card, and read other docs only where the card points. Skip the list below; it is for
+work without a card, and reading all of it costs about 45k tokens on every turn.
+
 0. `ROADMAP.md`: what is open, and `CONTRIBUTING.md`: how a change is reviewed and merged.
 1. `flightsim/docs/PLAN.md`: what we are building, why, decisions, milestones.
 2. `flightsim/docs/ARCHITECTURE.md`: modules, frames and units, shared contracts, frame loop.
