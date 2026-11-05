@@ -45,7 +45,10 @@ Device facts and the values still to be measured are in [DEVICE.md](DEVICE.md). 
 Allwinner H700 (4× Cortex-A53 @ 1.5 GHz), Mali-G31 MP2, **1 GB RAM**, **640×480** 4" screen,
 two analog sticks, Wi-Fi, 64-bit Linux stock OS with PortMaster.
 
-**Provisional budgets.** These are revised after the P1 probe benchmark runs on the device.
+**Provisional budgets.** These are revised after the P1 probe benchmark runs on the device. X3
+replaces them with numbers from a device flight. The game now records them (DEVICE.md §6), and
+`graphics_quality` LOW / MED / HIGH is the preset X3 tunes. MED draws about 35k terrain triangles
+in 54 draws at KPDX, within the terrain budget below.
 
 | Item | Budget |
 |---|---|
@@ -126,4 +129,4 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 | Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the probe and recorded in DEVICE.md. |
 | Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg is a setting. |
 | Q6 | Do printed X and Y match SDL names on the RG40XXH, the same way A and B do? | Likely yes (DEVICE.md §2). The default table uses that mapping. Needs one more on-device check (ROADMAP). |
-| Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured. `show_fps` in settings writes it to the launch log. |
+| Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured yet. SHOW FPS shows it on screen. The launch log gets a timing table per view and quality preset (X3, DEVICE.md §6). |

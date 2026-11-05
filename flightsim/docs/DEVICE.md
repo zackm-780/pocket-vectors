@@ -86,3 +86,73 @@ The numbers are in the table in section 2. The KEY FACTS block is also in
 `flightsimprobe_launch_log.txt`. The face-button prompts (A, B, X, Y, L1) got no presses because
 each prompt waits only a few seconds. A rerun that presses each button as soon as its prompt
 appears would confirm D1.
+
+## 6. Frame timing (X3)
+The game times every frame, split into its passes, and writes the results to the log
+(`flightsim_launch_log.txt` next to `FlightSim.sh`, and `flightsim/conf/log.txt`). This is the input for
+X3's tuning and for the budgets in PLAN section 3.
+
+**What is recorded.**
+- **On screen**, with Settings → SHOW FPS ON: top left, the frames per second and the mean frame
+  time over the last second, and `CPU` (the frame minus the swap).
+- **Once a second in the log**, with SHOW FPS ON:
+  `29.9 fps | frame 33.4 ms max 41.0 cpu 14.1 | update 2.1 terrain 6.3 airports 0.4 clouds 0.0
+  model 0.0 overlay 0.1 hud 1.2 swap 19.3 | cockpit`, followed by the terrain line (nodes,
+  triangles, draws).
+- **A session table**, whether SHOW FPS is on or not. It is written when the pause menu opens (with at
+  least 10 s of new frames), every 2 minutes, when GRAPHICS QUALITY changes and when the game exits.
+  There is one row per view (cockpit, chase, map, menu, each also "clouds" when a cloud layer is drawn and
+  "in cloud" inside one), with the frame count, fps, mean, 95th percentile and worst frame
+  in ms, the CPU time, each pass's mean in ms, and mean terrain triangles and draw calls. The table
+  is labelled with the quality preset: `perf session (MED): ...`. The first 10 frames after the window
+  opens or a flight starts are left out (shader compiles, first tile uploads).
+
+**Passes.** `update` = input, menus, flight model, GPWS, audio and tile requests. `terrain` = clear,
+sky and terrain. Then `airports`, `clouds`, `model` (chase view), `overlay` (W6), `hud` (HUD, map
+page and menus), and `swap`. A pass's time is when the CPU issued its GL calls. With vsync, `swap`
+holds the GPU work still queued and the wait for the next refresh. So `cpu` above about 16 ms
+means the CPU limits the frame rate, and a low `cpu` at 30 fps means the GPU or vsync does.
+`perf_gpu_sync = true` in `conf/settings.ini` (file only, read at start) calls `glFinish` after each
+pass, so each pass also holds its GPU time. On the Mali this splits the frame into several
+render passes, so the total grows: compare the passes with each other, not with an unsynced run.
+
+**The device run X3 needs.** About 6 minutes:
+1. Settings: SHOW FPS ON, GRAPHICS QUALITY MED.
+2. New flight: any aircraft at KPDX, start IN THE AIR at 3,000 ft. Fly 1 minute in the cockpit
+   view, toward Mt Hood (east) if you can.
+3. L2 + L3: chase view for 30 s, then L2 + L3 back.
+4. Pause → Settings: CLOUDS OVC, CLOUD BASE 4,000 FT (a layer above you). Fly 30 s. Then CLOUD
+   BASE 2,000 FT (you are inside the layer, which is 2,500 ft thick). Fly 30 s. Then CLOUDS AUTO.
+5. Pause → Settings: GRAPHICS QUALITY LOW, fly 30 s; HIGH, fly 30 s. Say which looked acceptable.
+6. Quit from the pause menu (QUIT), not with Select + Start: gptokeyb can kill the game
+   (exit 137) before it writes the last table.
+7. Send `flightsim_launch_log.txt`. The `perf session` tables are the numbers X3 needs. Note the
+   on-screen FPS at each step too, in case the log is cut short.
+
+A second run with `perf_gpu_sync = true` shows which pass costs the GPU the most.
+
+**Desktop reference (not device numbers).** Mesa llvmpipe (software GL, 4 threads on a 2.1 GHz
+Xeon) at 640 × 480 with MSAA 4, 2026-11-05. Terrain is a KPDX–Mt Hood pack (bbox
+-123.1,44.9,-121.3,45.9, levels 7–10) seen from the `FSIM_W2_CAMERA` pose. Means over 389
+frames. "Synced" is the terrain pass with `perf_gpu_sync`, which on llvmpipe is the raster time.
+
+| View | Preset | Triangles | Terrain draws | fps | Terrain pass, synced (ms) |
+|---|---|---|---|---|---|
+| 3,000 ft east of KPDX, toward Mt Hood | LOW | 24,080 | 36 | 59.5 | 13.3 |
+| | MED | 35,600 | 54 | 46.6 | 18.2 |
+| | HIGH | 52,240 | 80 | 39.0 | 23.1 |
+| 9,000 ft near Mt Hood, 6° down | LOW | 26,640 | 40 | 60.1 | 14.3 |
+| | MED | 33,680 | 51 | 52.7 | 18.4 |
+| | HIGH | 43,280 | 66 | 44.2 | 18.6 |
+| 1,500 ft over Portland, west | LOW | 33,680 | 51 | 52.4 | 15.3 |
+| | MED | 35,600 | 54 | 49.8 | 16.8 |
+| | HIGH | 51,600 | 79 | 39.3 | 21.8 |
+
+The same 3,000 ft view at MED, synced (ms): an OVC layer above adds 3.6 ms of clouds; inside the
+layer, 3.3 ms; a BKN top seen from 9,000 ft, 3.6 ms. The chase model is 0.9 ms; the HUD is 2.7–3.1 ms.
+Detail noise is 0.3 ms of the terrain pass in the Mt Hood view and 1.3 ms over Portland (MED's
+detail at LOW's LOD). Near the ground the view is grazing, so LOW saves only about 5 % of the triangles there.
+Most of LOW's saving at low altitude has to come from the shader, and the Mali's cost for it is
+the open question. CPU per frame, unsynced: update 0.05 ms, terrain submit 2.8–5.3 ms (it scales
+with the draws), HUD 0.8–1.3 ms. The A53 is several times slower, so the device's `cpu` column
+matters as much as its fps.

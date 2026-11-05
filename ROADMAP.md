@@ -26,7 +26,7 @@ In review in one pull request, waiting for the owner's device test.
 | N8 | SIDs, STARs and approach transitions | SIDs and STARs need a data pack rebuilt with the new `cifp.py`; older packs still load |
 | S2 | GPWS voice callouts | Synthesized clips (Flite, PLAN D22); the tones stay as the fallback |
 | F6 | Fuel load and planning | FUEL row on the new-flight screen, endurance on the HUD, LOW FUEL |
-| X3 | Device performance pass | Draw-call budget on the Mali-G31; needs frame-rate numbers from a device flight |
+| X3 | Device performance pass | Frame timing in the log, the on-screen FPS and a LOW / MED / HIGH graphics preset are in. Tuning needs the timing from a device flight (DEVICE.md §6) |
 
 ## Later
 

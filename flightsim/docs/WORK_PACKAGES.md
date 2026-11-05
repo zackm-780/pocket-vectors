@@ -459,9 +459,52 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** todo · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer
+**Status:** in progress: instrumentation and the preset are done; tuning waits for a device run (needs device test: the DEVICE.md §6 run, SHOW FPS readout legible at the top left, GRAPHICS QUALITY LOW / HIGH change the terrain at once) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
+
+Done so far (2026-11-05, on the 1.2 branch):
+1. **Frame timing** (`app/FrameStats`). Every frame is split into update, terrain, airports,
+   clouds, model, overlay, HUD and swap, and filed by view: cockpit, chase, map or menu, each
+   clear, with a cloud layer, or in cloud.
+   - Log, with SHOW FPS: one line a second.
+   - Log, always: a session table with fps, mean, p95 and worst frame, CPU time, each pass, terrain
+     triangles and draws. It is written when the pause menu opens, every 2 minutes, when the preset
+     changes and at exit. The 2-minute table is there because Select + Start (gptokeyb) can
+     SIGKILL the game.
+   - `perf_gpu_sync` (settings.ini only) adds a `glFinish` after each pass to split GPU time.
+   - Format and the device steps: DEVICE.md §6.
+2. **On-screen FPS** with SHOW FPS: the device has no window title. Turning SHOW FPS off in the menu
+   now also stops it (it used to stay on until restart).
+3. **GRAPHICS QUALITY** (`graphics_quality`, stored since P3 but unused until now) is a settings row
+   and applies at once:
+
+   | Preset | Terrain px/cell | Uploads per frame | Detail noise |
+   |---|---|---|---|
+   | LOW | 14 | 2 | off |
+   | MED | 10 (as before) | 4 (as before) | on |
+   | HIGH | 8 | 6 | on |
+
+   Clouds, the chase model and airports are not in the preset: each is bounded already, and
+   turning them off changes what the pilot sees.
+4. **Desktop reference** (llvmpipe, KPDX–Mt Hood pack, table in DEVICE.md §6). MED draws 34–36k
+   terrain triangles in 51–54 draws, within PLAN §3's 40k triangles. HIGH reaches 52k. LOW cuts the
+   terrain raster time by about 27 % in the Mt Hood view. Over flat ground at 1,500 ft it saves only
+   about 5 % of the triangles (grazing view); most of its saving there is the detail noise.
+
+Still to do, with the device timing:
+- Pick the preset values from the Mali numbers. LOD, uploads and detail noise are the knobs today.
+  If the `cpu` column is the limit, the terrain submit and the HUD build are the next targets.
+- Decide whether MSAA (4 samples on the device) belongs in LOW (it needs a restart).
+- Set the default preset.
+- Update PLAN §3 with the measured numbers.
+
+Integration edits outside owned paths:
+- `App.cpp`: the timers, readout and preset.
+- `Settings` and `settings_default.ini`: `perf_gpu_sync`.
+- `TerrainRenderer`: an additive `detailNoise` config flag.
+- The settings menu row and its `MenuSystemTest` step.
+- Docs: DEVICE §6, ARCHITECTURE §3, HUD §3, PLAN §3 and Q7, INSTALL, ROADMAP, ui/README.
 
 ## X4: Night lighting (stretch)
 **Status:** done, merged (needs device test: city-light speckle size/shimmer, Mali fragment cost, night HUD legibility) · **Model / effort:** Sonnet / medium · **Depends:** W2, W4, W5

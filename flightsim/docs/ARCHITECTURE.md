@@ -88,6 +88,11 @@ loop:
 - The sim runs at 120 Hz no matter what the frame rate is. If the device can't keep up, the profile
   may set `sim_hz = 60` (validate ground handling first).
 - Pause stops the accumulator. Menus and the map can open while paused.
+- **Frame timing (X3):** `app/FrameStats` gets one record per frame: the CPU time of each pass
+  (update, terrain, airports, clouds, model, overlay, HUD, swap; SDL's performance counter), the
+  view and the cloud state. It writes the log lines and session tables described in DEVICE.md §6.
+  `perf_gpu_sync` adds a `glFinish` after each pass. `graphics_quality` (`app/RenderQuality`) sets
+  the terrain LOD, the uploads per frame and the terrain detail noise, live from the settings menu.
 
 ## 4. Coordinate frames and units
 
