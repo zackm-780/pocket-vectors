@@ -27,3 +27,5 @@ US instrument approaches. Open work is tracked as work packages in
 Cloud layers (W7), SIDs and STARs (N8) and GPWS voice callouts (S2) are specified in
 [flightsim/docs/WORK_PACKAGES.md](flightsim/docs/WORK_PACKAGES.md) (Wave 6). Live METAR refresh on
 the device and the rest of the v2 list are in [flightsim/docs/PLAN.md](flightsim/docs/PLAN.md).
+Online ideas (live traffic, multiplayer, ATC) are explored, not planned, in
+[flightsim/docs/ONLINE.md](flightsim/docs/ONLINE.md).

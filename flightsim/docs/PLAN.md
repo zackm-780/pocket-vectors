@@ -36,6 +36,8 @@ GPWS voice callouts, SIDs/STARs and airways routing, external view with simple m
 
 ### Non-goals
 Photoreal scenery, 3D cockpits, multiplayer, ATC, failures, add-on aircraft authoring.
+[ONLINE.md](ONLINE.md) explores what Wi-Fi features (live weather, real-world traffic, other
+players, rule-based or AI ATC) would take, for a later decision. Nothing there is planned yet.
 
 ## 3. Target platform and budgets
 
