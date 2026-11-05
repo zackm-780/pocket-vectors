@@ -103,6 +103,9 @@ void AudioSynth::startEvent(const AudioEvent& e) {
         v.chirp = clampf(finiteOr(e.chirp01, 0.0f), 0.0f, 1.0f);
         break;
     }
+    case AudioEventType::Voice:
+        startVoice(e.clip, e.priority, clampf(finiteOr(e.gain01, 0.8f), 0.0f, 1.0f));
+        break;
     case AudioEventType::Tone: {
         if (e.repeats <= 0 || !(e.durS > 0.0f) || !(e.freqHz > 0.0f)) break;
         int slot = 0;
@@ -320,6 +323,9 @@ void AudioSynth::render(float* out, int n) {
                 t.tS += kDt;
             }
 
+            // ---- S2 voice callouts (after the sim fade like the alert tones)
+            mix += nextVoiceSample();
+
             // ---- UI click (ignores the pause fade; still follows master volume)
             float click = 0;
             if (clickT_ < 0.03f) {
@@ -334,6 +340,53 @@ void AudioSynth::render(float* out, int n) {
         }
         done += len;
     }
+}
+
+void AudioSynth::startVoice(std::uint8_t clip, std::uint8_t priority, float gain) {
+    const VoiceBank* bank = bank_.load();
+    if (!bank || clip >= kVoiceClipCount || !bank->has(static_cast<VoiceClip>(clip))) return;
+    if (voicePlaying_ && priority <= voicePriority_) {
+        // Wait behind the current clip; a full queue drops the lowest-priority entry.
+        if (voiceQueued_ < kVoiceQueue) {
+            voiceQueue_[voiceQueued_++] = {clip, priority, gain};
+        } else {
+            int low = 0;
+            for (int i = 1; i < kVoiceQueue; ++i)
+                if (voiceQueue_[i].priority < voiceQueue_[low].priority) low = i;
+            if (voiceQueue_[low].priority < priority) voiceQueue_[low] = {clip, priority, gain};
+        }
+        return;
+    }
+    voicePlaying_ = true;  // idle, or a higher priority interrupts at once
+    voiceClip_ = clip;
+    voicePriority_ = priority;
+    voiceGain_ = gain;
+    voicePos_ = 0;
+}
+
+float AudioSynth::nextVoiceSample() {
+    if (!voicePlaying_) return 0.0f;
+    const VoiceBank* bank = bank_.load();
+    if (!bank) {
+        voicePlaying_ = false;
+        return 0.0f;
+    }
+    const std::vector<std::int16_t>& c = bank->clip(static_cast<VoiceClip>(voiceClip_));
+    if (voicePos_ >= c.size()) {
+        voicePlaying_ = false;
+        // Next: the highest priority waiting, oldest first among equals.
+        if (voiceQueued_ > 0) {
+            int best = 0;
+            for (int i = 1; i < voiceQueued_; ++i)
+                if (voiceQueue_[i].priority > voiceQueue_[best].priority) best = i;
+            const QueuedVoice q = voiceQueue_[best];
+            for (int i = best; i + 1 < voiceQueued_; ++i) voiceQueue_[i] = voiceQueue_[i + 1];
+            --voiceQueued_;
+            startVoice(q.clip, q.priority, q.gain);
+        }
+        return 0.0f;
+    }
+    return voiceGain_ * static_cast<float>(c[voicePos_++]) / 32768.0f;
 }
 
 void AudioSynth::renderS16(std::int16_t* out, int n) {

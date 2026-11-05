@@ -24,6 +24,8 @@ public:
     // Once per frame from the game thread.
     void update(const AudioParams& params, const std::vector<AudioEvent>& events);
     void postEvent(const AudioEvent& e);  // e.g. UiClick, GPWS tones (X2 hook)
+    // S2: the clips Voice events play (nullptr = none). Keep the bank alive while it is set.
+    void setVoiceBank(const VoiceBank* bank);
 
     // Underruns cannot be observed through the callback API; this counts callbacks, so a device
     // test can confirm the stream is alive.
@@ -35,6 +37,7 @@ private:
     std::unique_ptr<Impl> impl_;
     unsigned device_ = 0;
     bool first_ = true;
+    const VoiceBank* bank_ = nullptr;
 };
 
 }  // namespace fsim::audio

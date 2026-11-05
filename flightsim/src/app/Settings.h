@@ -54,6 +54,8 @@ struct Settings {
     // ovc = one layer at cloudBaseFt above the field (500..12000).
     world::CloudMode clouds = world::CloudMode::Auto;
     float cloudBaseFt = 2500.0f;
+    // S2: spoken GPWS callouts (off: the X2 tones).
+    bool gpwsVoice = true;
     std::string lastAircraft;
 
     // Parses settings text onto *this (keys that are absent or invalid keep their current value;

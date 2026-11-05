@@ -10,6 +10,7 @@
 #include <mutex>
 
 #include "audio/AudioTypes.h"
+#include "audio/VoiceBank.h"
 
 namespace fsim::audio {
 
@@ -22,6 +23,12 @@ public:
     void snapToParams();
     // Queue a one-shot event. Returns false if the ring is full (event dropped).
     bool post(const AudioEvent& e);
+
+    // S2: the clips Voice events play. Set before the device starts (or between renders); the
+    // bank must outlive the synth and not change while it is set.
+    void setVoiceBank(const VoiceBank* bank) { bank_.store(bank); }
+    // The clip playing now, -1 when the voice channel is idle (tests).
+    int voiceClipPlaying() const { return voicePlaying_ ? static_cast<int>(voiceClip_) : -1; }
 
     // Render n mono samples. Output is finite and within [-1, 1].
     void render(float* out, int n);
@@ -43,6 +50,23 @@ private:
     void startEvent(const AudioEvent& e);
     void updateChunk();
     float nextNoise();
+
+    void startVoice(std::uint8_t clip, std::uint8_t priority, float gain);
+    float nextVoiceSample();
+
+    // S2 voice channel: one clip at a time, a short queue behind it.
+    static constexpr int kVoiceQueue = 4;
+    std::atomic<const VoiceBank*> bank_{nullptr};
+    bool voicePlaying_ = false;
+    std::uint8_t voiceClip_ = 0, voicePriority_ = 0;
+    float voiceGain_ = 0.8f;
+    std::size_t voicePos_ = 0;
+    struct QueuedVoice {
+        std::uint8_t clip, priority;
+        float gain;
+    };
+    QueuedVoice voiceQueue_[kVoiceQueue] = {};
+    int voiceQueued_ = 0;
 
     static constexpr int kChunk = 64;
     static constexpr int kRing = 64;

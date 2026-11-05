@@ -117,6 +117,9 @@ const SettingDef kSettingDefs[] = {
      [](Settings& s, int d) { s.clouds = cycleEnum(s.clouds, d, 6); }},
     {"CLOUD BASE", true, [](const Settings& s) { return fmt("%.0f FT", s.cloudBaseFt); },
      [](Settings& s, int d) { s.cloudBaseFt += 500.0f * static_cast<float>(d); }},
+    {"GPWS VOICE", false,  // S2
+     [](const Settings& s) -> std::string { return s.gpwsVoice ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.gpwsVoice = !s.gpwsVoice; }},
     {"OVERLAY ROUTE", false,
      [](const Settings& s) -> std::string { return s.overlayRoute ? "ON" : "OFF"; },
      [](Settings& s, int) { s.overlayRoute = !s.overlayRoute; }},

@@ -775,7 +775,7 @@ into the KOTH approach, every fix in order. Not done: airways, SID / STAR speed 
 in the leg data only.
 
 ## S2: GPWS voice callouts
-**Status:** todo (needs a PLAN decision on the voice source and its licence first) · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
+**Status:** in review (PLAN D22 proposes the voice source for the owner to confirm; needs device test: clip loudness against the engine on the speaker, PULL UP cutting into a height callout) · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
 
 **Owns:** `src/audio/` (voice playback), `assets/audio/` (clips).
 "MINIMUMS", radio-altitude callouts (500, 100, 50, 40, 30, 20, 10), "SINK RATE", "PULL UP",
@@ -783,3 +783,13 @@ in the leg data only.
 is missing. Small mono 22.05 kHz clips loaded at start.
 **Acceptance:** each GPWS event plays its clip in a scripted approach (audio event log), and the
 memory cost is under 2 MB.
+
+Done (PR #11): `audio/VoiceBank` (WAV loader, 15 clips: MINIMUMS, 2500, 1000, 500, 100, 50,
+40, 30, 20, 10, SINK RATE, PULL UP, TERRAIN, TOO LOW GEAR, TOO LOW FLAPS; 494 KiB in memory),
+`AudioEventType::Voice` (additive) on one voice channel in the synth (PULL UP 5 > TERRAIN 4 >
+SINK RATE 3 > TOO LOW / MINIMUMS 2 > heights 1: higher interrupts, equal waits in a 4-deep
+queue), `audio/Callouts` `alertEvent()` (the GPWS switch moved out of App.cpp: voice when the clip
+is loaded, else the X2 tone), MINIMUMS through AudioControl. Setting `gpws_voice` (menu row GPWS
+VOICE). Clips from `tools/audio/make_voice_clips.py` (Flite, PLAN D22). Tests: the scripted
+approach logs 2500 1000 500 100 50 40 30 20 10, the 2,500 fpm dive SINK RATE, the 3,500 fpm one
+PULL UP, gear up TOO LOW GEAR, each played on the synth.

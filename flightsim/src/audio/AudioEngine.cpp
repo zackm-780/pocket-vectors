@@ -34,6 +34,7 @@ bool AudioEngine::init() {
         return false;
     }
     impl_ = std::make_unique<Impl>();
+    impl_->synth.setVoiceBank(bank_);  // S2
     SDL_AudioSpec want;
     SDL_zero(want);
     want.freq = kSampleRateHz;
@@ -83,6 +84,11 @@ void AudioEngine::postEvent(const AudioEvent& e) {
 
 unsigned long AudioEngine::callbackCount() const {
     return impl_ ? impl_->callbacks.load(std::memory_order_relaxed) : 0;
+}
+
+void AudioEngine::setVoiceBank(const VoiceBank* bank) {
+    bank_ = bank;
+    if (impl_) impl_->synth.setVoiceBank(bank);
 }
 
 }  // namespace fsim::audio

@@ -15,6 +15,8 @@
 #include "app/Simulation.h"
 #include "audio/AudioControl.h"  // S1
 #include "audio/AudioEngine.h"   // S1
+#include "audio/Callouts.h"      // S2
+#include "audio/VoiceBank.h"     // S2
 #include "core/Baro.h"           // X1
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
@@ -283,6 +285,15 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     audioEvents.reserve(16);
     std::vector<audio::AudioEvent> gpwsToneBuf;  // X2: GPWS tones for S1, reused per frame
     gpwsToneBuf.reserve(8);
+    // S2: GPWS voice clips (missing clips fall back to the tones).
+    audio::VoiceBank voiceBank;
+    {
+        const int n = voiceBank.loadDir(paths.asset("assets/audio/voice"));
+        LOG_INFO("voice: %d of %d GPWS clips (%zu KiB)", n, audio::kVoiceClipCount,
+                 voiceBank.bytes() / 1024);
+    }
+    audioEngine.setVoiceBank(&voiceBank);
+    audioControl.setVoiceBank(settings.gpwsVoice ? &voiceBank : nullptr);
     if (interactive) audioEngine.init();
 
     AppState state = AppState::Flying;
@@ -298,7 +309,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         pilotControls.setStickTuning(settings.stickTuning());
         camera.setLens(settings.fovVerticalDeg);
         showFps = showFps || settings.showFps;
-        setClouds();  // W7
+        setClouds();                                                           // W7
+        audioControl.setVoiceBank(settings.gpwsVoice ? &voiceBank : nullptr);  // S2
     };
     // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
     auto flightStarted = [&]() {
@@ -500,22 +512,18 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 if (ev.kind == GpwsEventKind::Callout || ev.kind == GpwsEventKind::TooLowGear ||
                     ev.kind == GpwsEventKind::TooLowFlaps)
                     messages.post(ev.text);
-                switch (ev.kind) {  // freq, duration, repeats, gap, gain, alternate freq
-                case GpwsEventKind::Callout:
-                    gpwsToneBuf.push_back(audio::makeTone(1000, 0.08f));
-                    break;
-                case GpwsEventKind::SinkRate:
-                case GpwsEventKind::Terrain:
-                    gpwsToneBuf.push_back(audio::makeTone(700, 0.2f, 2, 0.12f, 0.6f));
-                    break;
-                case GpwsEventKind::PullUp:
-                    gpwsToneBuf.push_back(audio::makeTone(800, 0.25f, 3, 0.05f, 0.7f, 1200));
-                    break;
-                case GpwsEventKind::TooLowGear:
-                case GpwsEventKind::TooLowFlaps:
-                    gpwsToneBuf.push_back(audio::makeTone(600, 0.15f, 2, 0.1f, 0.6f));
-                    break;
+                // S2: spoken when the clip is loaded (and the voice is on), else the X2 tone.
+                audio::AlertKind kind = audio::AlertKind::Callout;
+                switch (ev.kind) {
+                case GpwsEventKind::Callout: kind = audio::AlertKind::Callout; break;
+                case GpwsEventKind::SinkRate: kind = audio::AlertKind::SinkRate; break;
+                case GpwsEventKind::Terrain: kind = audio::AlertKind::Terrain; break;
+                case GpwsEventKind::PullUp: kind = audio::AlertKind::PullUp; break;
+                case GpwsEventKind::TooLowGear: kind = audio::AlertKind::TooLowGear; break;
+                case GpwsEventKind::TooLowFlaps: kind = audio::AlertKind::TooLowFlaps; break;
                 }
+                gpwsToneBuf.push_back(
+                    audio::alertEvent(kind, ev.valueFt, settings.gpwsVoice ? &voiceBank : nullptr));
             }
         }
         if (audioEngine.deviceOpen()) {  // S1: sim state -> audio params and one-shot events
