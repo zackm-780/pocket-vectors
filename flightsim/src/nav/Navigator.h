@@ -34,6 +34,12 @@ namespace fsim {
 
 enum class NavSourceSelect { Auto, Gps, Loc, Vor };
 
+// Additive (I2), R1 + Y (CONTROLS.md): GPS -> LOC -> VOR -> GPS from the source the HUD shows
+// now (NavState::source), skipping sources that are not available. Leaving LOC for GPS forces
+// GPS, so the automatic GPS -> LOC switch does not take the needle straight back; GPS reached
+// from VOR, or with nothing else available, is Auto again.
+NavSourceSelect nextNavSourceSelect(NavSource shown, bool locAvailable, bool vorTuned);
+
 // Limits the navigator applies (exposed for tests and the HUD).
 struct NavConstants {
     static constexpr float kCdiClamp = 1.25f;   // display clamp, NAVIGATION 3.2
@@ -69,6 +75,10 @@ public:
     void tuneVor(const Navaid& navaid, float obsMagDeg);
     void setVorObs(float obsMagDeg) { vorObsMagDeg_ = obsMagDeg; }
     void clearVor() { vorTuned_ = false; }
+    // Additive (I2): sources R1 + Y can select. LOC needs an ILS or LOC approach in the plan
+    // (valid after the first update following a plan change).
+    bool locAvailable() const { return cache_.valid && cache_.ils != nullptr; }
+    bool vorTuned() const { return vorTuned_; }
 
     // ---- plan -----------------------------------------------------------------------------
     // Takes the plan. A plan that names an approach (approachId) but has no approach legs gets

@@ -3,8 +3,9 @@
 
     python3 make_cifp_fixture.py /path/to/FAACIFP18 cifp_mini.txt
 
-Keeps the cycle header, the approach records of the selected approaches and every waypoint,
-navaid, runway, airport and localizer record they reference. The result is committed as
+Keeps the cycle header, the approach records of the selected approaches, the SID and STAR records
+of SIDSTAR_AIRPORTS (N8) and every waypoint, navaid, runway, airport and localizer record they
+reference. The result is committed as
 ``cifp_mini.txt`` (< 200 KB) and used by test_cifp.py; the pipeline itself never needs this file.
 """
 from __future__ import annotations
@@ -25,6 +26,8 @@ SELECTION = [
     ("KLAX", "I25L"),  # VR
     ("PANC", "I07L"),  # FC (Alaska is area CAN)
 ]
+# N8: every SID (subsection D) and STAR (subsection E) of these airports.
+SIDSTAR_AIRPORTS = {"KPDX", "KOTH"}
 
 
 def main(src: str, dst: str) -> int:
@@ -37,10 +40,11 @@ def main(src: str, dst: str) -> int:
         if l.startswith("HDR"):
             keep.append(l)
             continue
-        if len(l) < 40 or l[4] != "P" or l[12] != "F":
+        if len(l) < 40 or l[4] != "P" or l[12] not in "FDE":
             continue
         apt, ident = l[6:10].strip(), l[13:19].strip()
-        if (apt, ident) in want or (apt, None) in want:
+        wanted = (apt, ident) in want or (apt, None) in want if l[12] == "F" else apt in SIDSTAR_AIRPORTS
+        if wanted:
             keep.append(l)
             apts.add(apt)
             if l[38] in "01":

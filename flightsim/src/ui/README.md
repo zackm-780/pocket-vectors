@@ -35,8 +35,8 @@ the logic: `ListNav`, `OnScreenKeyboard`, `FlightSetup` and the screens are unit
 * Help (main menu and pause menu): live control list from the loaded bindings (one page per layer,
   plus the map and the menus), a button test that can swap A/B or X/Y in `conf/controls.ini`,
   how-to pages from `assets/help/`, and About (credits, build version, data attribution).
-* Settings: HUD color, declutter default, pressure units, show FPS, FOV, volume, throttle mode,
-  assists, stick sensitivity and expo. Saved with P3's safe write when the screen is left.
+* Settings: HUD color, declutter default, pressure units, show FPS, FOV, graphics quality (X3),
+  volume, throttle mode, assists, stick sensitivity and expo. Saved with P3's safe write when the screen is left.
 
 ## `--menu <screen[:arg]>` (screenshots and tests)
 Opens a screen at startup (works with `--frames` / `--screenshot`, and with `--scenario` for the

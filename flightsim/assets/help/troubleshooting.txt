@@ -3,5 +3,6 @@ Read flightsim_launch_log.txt next to FlightSim.sh. It lists the folders it sear
 The game log is flightsim/conf/log.txt.
 Buttons in the wrong place: open Help, Button test, and use Swap A/B or Swap X/Y. That writes flightsim/conf/controls.ini and leaves every other line alone.
 If Select does nothing, set select to back, guide in that file. See INSTALL.md.
-Frame rate: set show_fps in Settings, then read the launch log.
+Frame rate: Settings, SHOW FPS ON shows it at the top left. The launch log also gets a timing table.
+Slow? Settings, GRAPHICS QUALITY LOW draws coarser terrain.
 Quit with Select+Start. That saves settings first. Select+Start is also the PortMaster exit chord.

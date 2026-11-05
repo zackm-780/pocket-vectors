@@ -1,5 +1,7 @@
 #include "app/Scenario.h"
 
+#include "sim/FuelPlan.h"  // F6
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -53,8 +55,18 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.endAglFt = ini.getFloat("scenario", "end_agl_ft", 0.f);  // I1
     s.altitudeFt = ini.getDouble("scenario", "altitude_ft", s.altitudeFt);
     s.timeUtc = ini.getString("scenario", "time_utc");
-    s.planPath = ini.getString("scenario", "plan");        // N5
-    s.approachId = ini.getString("scenario", "approach");  // N5
+    s.planPath = ini.getString("scenario", "plan");                           // N5
+    s.approachId = ini.getString("scenario", "approach");                     // N5
+    s.approachTransition = ini.getString("scenario", "approach_transition");  // N8
+    s.fuel = ini.getString("scenario", "fuel");                               // F6
+    if (!s.fuel.empty()) {
+        FuelSetting fs;
+        if (!parseFuelSetting(s.fuel, fs)) {
+            error = "[scenario] fuel must be default, full, auto, a percentage or pounds (got '" +
+                    s.fuel + "')";
+            return false;
+        }
+    }
     s.windFromTrueDeg = ini.getFloat("wind", "from_true_deg", 0.f);
     s.windSpeedKt = ini.getFloat("wind", "speed_kt", 0.f);
     {  // X1: weather. [wind] keeps working; [weather] keys override it.
@@ -82,6 +94,24 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
                         !ini.has("weather", "wind_from_true_deg") && !ini.has("weather", "gust_kt");
         if (w.windFromTrueDeg) s.windFromTrueDeg = *w.windFromTrueDeg;
         if (w.windKt) s.windSpeedKt = *w.windKt;
+    }
+
+    {  // W7: cloud layers
+        s.clouds = world::CloudSetup{};
+        if (ini.has("clouds", "clear") && ini.getBool("clouds", "clear", false))
+            s.clouds.set = true;
+        for (const char* key : {"layer1", "layer2", "layer3"}) {
+            if (!ini.has("clouds", key)) continue;
+            world::CloudLayerSpec layer;
+            const std::string text = ini.getString("clouds", key);
+            if (!world::parseCloudLayer(text, layer)) {
+                error = std::string("[clouds] ") + key +
+                        ": expected FEW|SCT|BKN|OVC <base ft> [top ft]" + " (got '" + text + "')";
+                return false;
+            }
+            s.clouds.layers.push_back(layer);
+            s.clouds.set = true;
+        }
     }
 
     if (s.startKind != "runway" && s.startKind != "final" && s.startKind != "cruise") {

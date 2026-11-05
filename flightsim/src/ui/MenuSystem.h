@@ -46,7 +46,8 @@ enum class ScreenId {
     Pause,
     FlightPlan,
     Confirm,
-    Help
+    Help,
+    Procedure  // N8: SID / STAR / transition lists
 };
 const char* screenName(ScreenId id);
 
@@ -114,6 +115,9 @@ public:
     // ---- opening -------------------------------------------------------------------------
     void openMain();   // startup menu
     void openPause();  // needs setFlight() first
+    // Additive (I2): L1 + Select with no flight plan opens the direct-to search on its own; B
+    // closes it and the flight resumes. Needs setFlight() first.
+    void openDirectTo();
     // Canned screens for screenshots and tests (documented in src/ui/README.md):
     //   main | setup | aircraft | airport[:TEXT] | runway[:ICAO] | start | plan[:FILE] |
     //   approach[:FILE] | settings | pause | flightplan | confirm

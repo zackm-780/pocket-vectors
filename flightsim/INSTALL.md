@@ -124,9 +124,11 @@ select = back, guide
 You can also rebind one action, for example a `[pad.base]` section with `GearToggle = a`. See the
 comments in `flightsim/assets/controls_default.ini` and `docs/CONTROLS.md`.
 
-Frame rate on the device has not been measured yet. To see it, set `show_fps = true` under
-`[video]` in `flightsim/conf/settings.ini` (or use the Settings menu) and look at
-`flightsim_launch_log.txt`.
+Frame rate on the device has not been measured yet. To see it, turn on Settings → SHOW FPS (or
+set `show_fps = true` under `[settings]` in `flightsim/conf/settings.ini`). The frame rate then
+shows at the top left, and `flightsim_launch_log.txt` gets a line every second. The log also gets a
+timing table per view whether SHOW FPS is on or not (docs/DEVICE.md section 6). If the game feels
+slow, try Settings → GRAPHICS QUALITY LOW (coarser terrain, no terrain detail noise).
 
 ## Linux / SD-card notes
 

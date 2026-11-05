@@ -30,6 +30,9 @@ struct StartCondition {
     int flapDetent = 0;        // profile detent index (Final: approach config)
     bool gearDown = true;
     float windFromTrueDeg = 0, windSpeedKt = 0;
+    // F6: fuel on board at the start. fuelLbs > 0 wins (spread over the tanks by capacity), else
+    // fuelFraction > 0 (of every tank's capacity), else the model's own load.
+    float fuelLbs = 0, fuelFraction = 0;
 };
 
 class FlightModel {

@@ -88,6 +88,11 @@ loop:
 - The sim runs at 120 Hz no matter what the frame rate is. If the device can't keep up, the profile
   may set `sim_hz = 60` (validate ground handling first).
 - Pause stops the accumulator. Menus and the map can open while paused.
+- **Frame timing (X3):** `app/FrameStats` gets one record per frame: the CPU time of each pass
+  (update, terrain, airports, clouds, model, overlay, HUD, swap; SDL's performance counter), the
+  view and the cloud state. It writes the log lines and session tables described in DEVICE.md §6.
+  `perf_gpu_sync` adds a `glFinish` after each pass. `graphics_quality` (`app/RenderQuality`) sets
+  the terrain LOD, the uploads per frame and the terrain detail noise, live from the settings menu.
 
 ## 4. Coordinate frames and units
 
@@ -194,6 +199,7 @@ struct AircraftState {
   int    engineCount = 0;
   EngineState engines[kMaxEngines];
   float  fuelTotalLbs = 0;
+  float  fuelFlowLbsPerHr = 0, fuelCapacityLbs = 0;   // additive (F6): all engines, all tanks
   // warnings
   bool   stallWarning = false, overspeed = false;
   bool   crashed = false;
@@ -234,6 +240,11 @@ struct AircraftProfile {
   std::map<std::string, float> autopilot;
   // JSBSim property overrides for non-standard models (F1 defines the keys)
   std::map<std::string, std::string> properties;
+  float eyeOffsetBodyM[3] = {0, 0, 0}; bool hasEyeOffset = false;  // additive (WP-00): [view]
+  std::string externalModel;   // additive (V1): [view] external_model, "" = from category
+  float wingspanM = 0;         // additive (V1): [view] wingspan_m
+  float gearHeightM = 0;       // additive (V1): [view] gear_height_m, reference point above ground
+  float cruiseFuelFlowLbsHr = 0;  // additive (F6): [cruise] fuel_flow_lbs_hr, all engines, measured
 };
 
 // ---------- core/TerrainQuery.h ----------   implemented by world/terrain (W1); used by sim, renderers, HUD, nav
@@ -290,12 +301,14 @@ enum class AltConstraintKind { None, At, AtOrAbove, AtOrBelow, Between };
 struct AltConstraint { AltConstraintKind kind = AltConstraintKind::None; float altFt = 0, alt2Ft = 0; };
 struct Waypoint { std::string ident; WaypointKind kind = WaypointKind::Fix; double latDeg = 0, lonDeg = 0; };
 enum class LegType { IF, TF, CF, DF, CA, VA, FA, HM, HA, HF, RF };   // ARINC 424 subset (NAVIGATION.md)
+enum class LegSource { Plan, Sid, Star };                              // additive (N8)
 struct Leg {
   LegType type = LegType::TF;  Waypoint to;
   float courseTrueDeg = 0;                 // CF/CA/VA/FA
   AltConstraint alt;  float speedLimitKt = 0;  bool flyOver = false;
   bool  missedApproach = false;
   double arcCenterLatDeg = 0, arcCenterLonDeg = 0; float arcRadiusNm = 0; bool arcRight = true; // RF
+  LegSource source = LegSource::Plan;      // additive (N8): SID / STAR legs can be replaced as a whole
 };
 enum class ApproachKind { None, Ils, Loc, Rnav, Vor, Ndb, Visual };
 struct FlightPlan {
@@ -305,6 +318,7 @@ struct FlightPlan {
   std::vector<Leg> legs;
   int activeLeg = -1;                      // index into legs, -1 = none
   int approachStartLeg = -1;               // first approach leg (legs[approachStartLeg..] = approach+missed), -1 = none (N3)
+  std::string sidId, sidTransition, starId, starTransition, approachTransition;  // additive (N8)
 };
 
 // ---------- core/NavDatabase.h ----------   implemented by nav/ (N2); WP-00 ships SyntheticNavDb (XTST)
@@ -352,8 +366,8 @@ struct NavState {
 
 // ---------- core/AutopilotState.h ----------   produced by autopilot/ (N6), read by HUD
 enum class LatMode  { Off, Roll, Hdg, Nav, Loc };
-enum class VertMode { Off, Pitch, Alt, AltCapture, Vs, Gs, Flc };
-enum class SpdMode  { Off, Speed, Retard };
+enum class VertMode { Off, Pitch, Alt, AltCapture, Vs, Gs, Flc, Ga };  // Ga additive (N7)
+enum class SpdMode  { Off, Speed, Retard, Thrust };                    // Thrust additive (N7)
 struct AutopilotState {
   bool apEngaged = false, fdOn = false, atEngaged = false;
   LatMode latActive = LatMode::Off, latArmed = LatMode::Off;
@@ -362,21 +376,29 @@ struct AutopilotState {
   float hdgBugMagDeg = 0, altBugFt = 0, vsBugFpm = 0, spdBugKt = 0;
   float fdPitchCmdDeg = 0, fdRollCmdDeg = 0; bool fdValid = false;
   bool  disconnectWarning = false;          // flashing AP OFF
+  float thrustTargetNorm = 0;               // additive (N7): SpdMode::Thrust throttle, 1 = TOGA
 };
 
 // ---------- core/Actions.h ----------   semantic input actions (P2 binds physical inputs to these)
-enum class Axis { Pitch, Roll, Rudder, ThrottleRate, LookYaw, LookPitch, Count };
+enum class Axis { Pitch, Roll, Rudder, ThrottleRate, LookYaw, LookPitch, BugRate, Count };  // BugRate (P2)
 enum class Action { TrimNoseUp, TrimNoseDown, FlapsUp, FlapsDown, GearToggle, Brakes, ParkingBrake,
                     SpeedbrakeCycle, ReverseToggle, HudDeclutter, MapToggle, Pause, LookHold,
                     LookLeft, LookRight, LookBack, LookDown,
                     ApToggle, AtToggle, FdToggle, HdgMode, NavMode, AprMode, AltMode, VsMode,
                     HdgBugDec, HdgBugInc, AltBugDec, AltBugInc, SyncBugs, NavSourceCycle, DirectTo,
                     RudderTrimLeft, RudderTrimRight, MenuUp, MenuDown, MenuLeft, MenuRight,
-                    MenuAccept, MenuBack, Screenshot, Count };
+                    MenuAccept, MenuBack, Screenshot,
+                    Quit,                              // additive (P2)
+                    BaroInc, BaroDec, BaroStd,         // additive (I1)
+                    OverlayPreset,                     // additive (W6)
+                    GoAround, FlcMode,                 // additive (N7): L1 + L3, L1 + Start
+                    ViewToggle,                        // additive (V1): L2 + L3, C
+                    Count };
 struct ActionState {
   float axis[(int)Axis::Count] = {};          // -1..1 after deadzone/curve
   bool  down[(int)Action::Count] = {};        // held
   bool  pressed[(int)Action::Count] = {};     // edge this frame (with auto-repeat where bound)
+  int   repeatCount[(int)Action::Count] = {}; // additive (P2): auto-repeats in the current hold
 };
 
 // ---------- core/Log.h, core/Ini.h, core/Csv.h, core/Paths.h ----------
@@ -393,8 +415,12 @@ struct ActionState {
   desktop). Optional extensions (MSAA, 32-bit indices, anisotropy) are queried at runtime and
   must have fallbacks. Use 16-bit indices for meshes ≤ 65,535 vertices.
 - **Pass order:** sky (full-screen gradient using the inverse view-projection) → terrain → airports
-  (runway surface, then markings with polygon offset, then lights as point sprites) → HUD (2D,
-  depth off) → UI and map overlays.
+  (runway surface, then markings with polygon offset, then lights as point sprites) → cloud
+  layers (W7, blended, no depth writes, at most three draws including the in-cloud fade) →
+  external aircraft model in the chase view (V1, one draw, depth tested, back faces culled) → world
+  overlays (W6, so they show through clouds) → HUD (2D, depth off) → UI and map overlays.
+- **Textures:** one, the W7 cloud coverage map (128 x 128 luminance, mip chain built on the CPU).
+  Everything else is untextured.
 - **Projection:** vertical FOV setting (default 55°), near 0.5 m, far = max(40 km, horizon distance
   + 20 km), capped at 400 km. 24-bit depth. If far-range precision is insufficient, W2 may split the
   frustum into near and far passes.
@@ -488,6 +514,8 @@ start = final
 distance_nm = 6
 altitude_ft = 0
 time_utc = 2026-06-21T18:00:00
+; optional fuel (F6): full | auto (plan trip + 10 % + 45 min) | 40% | 9000 (lb); unset = as loaded
+fuel = full
 [wind]
 from_true_deg = 270
 speed_kt = 10

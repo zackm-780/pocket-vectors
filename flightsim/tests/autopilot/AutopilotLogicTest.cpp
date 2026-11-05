@@ -3,10 +3,12 @@
 #include <doctest/doctest.h>
 
 #include <cmath>
+#include <string>
 
 #include "autopilot/Autopilot.h"
 #include "core/SimTime.h"
 #include "core/Units.h"
+#include "hud/NavHudLogic.h"
 
 using namespace fsim;
 
@@ -410,6 +412,32 @@ TEST_CASE("autopilot: ALT mode holds the present altitude; GS stays armed behind
     CHECK(r.ap.state().vertArmed == VertMode::Gs);
 }
 
+TEST_CASE("autopilot: the ALT button in ALT with the bug away climbs or descends toward it") {
+    // 1.1 device test (787): ALT at 8,100 ft with the bug at 14,000 and no way out but a
+    // disconnect, because the pad has no VS button.
+    Rig r;
+    r.ac.altMslFt = 8100;
+    r.engage();
+    r.ap.setAltBugFt(14000);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);  // first press: hold here
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);  // second press: toward the bug
+    CHECK(r.ap.state().vertArmed == VertMode::Alt);
+    CHECK(r.ap.state().vsBugFpm > 0);
+
+    r.ap.setAltBugFt(4000);  // bug below: descend
+    r.ap.selectAltHold(r.ac);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().vsBugFpm < 0);
+
+    r.ap.setAltBugFt(8150);  // bug within 100 ft: stays in ALT
+    r.ap.selectAltHold(r.ac);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
+}
+
 TEST_CASE("autopilot: VS mode picks a sensible initial rate") {
     Rig r;
     r.engage();
@@ -781,4 +809,274 @@ TEST_CASE("autopilot: scenario tokens engage and select modes") {
     q.ap.applyScenario({"fd"}, q.ac, q.nav);
     CHECK(q.ap.state().fdOn);
     CHECK_FALSE(q.ap.state().apEngaged);
+}
+
+// ---------------------------------------------------------------------------------------------
+// N7: TO/GA and FLC
+
+namespace {
+
+// Coupled on the ILS (LOC + GS) at 2,300 ft, minimums 2,200 ft (DA), an A/T aircraft.
+void coupledIls(Rig& r) {
+    setIls(r, 0.0f, 0.0f);
+    r.nav.minimumsFt = 2200;
+    r.nav.minimumsIsDa = true;
+    r.nav.onFinal = true;
+    r.nav.activeLegIndex = 4;
+    r.ac.altMslFt = 2300;
+    r.ac.altAglFt = 300;
+    r.ac.iasKt = r.ac.tasKt = 65;
+    r.ac.vsFpm = -350;
+    r.ac.flapDetent = 2;
+    r.setHeadingDeg(272);
+    r.engage();
+    REQUIRE(r.ap.setAt(true, r.ac));
+    r.ap.setAltBugFt(2300);
+    r.ap.selectApr(r.nav);
+    r.run(0.5);
+    REQUIRE(r.ap.state().latActive == LatMode::Loc);
+    REQUIRE(r.ap.state().vertActive == VertMode::Gs);
+}
+
+FmaText fma(const Rig& r) {
+    FmaText t;
+    buildFma(r.ap.state(), t);
+    return t;
+}
+
+}  // namespace
+
+TEST_CASE("autopilot: TO/GA from a coupled ILS: GA, TOGA, HDG on the present heading, NAV armed") {
+    Rig r(AircraftCategory::Piston, true);
+    r.profile.vrefKt = 60;
+    r.ap.configure(r.profile);
+    coupledIls(r);
+    r.ap.handleActions(press(Action::GoAround), r.ac, r.nav, kSimDtS);
+    const AutopilotState& st = r.ap.state();
+    CHECK(st.vertActive == VertMode::Ga);
+    CHECK(st.latActive == LatMode::Hdg);
+    CHECK(st.hdgBugMagDeg == doctest::Approx(272.f));
+    CHECK(st.latArmed == LatMode::Nav);             // the plan has an active leg
+    CHECK(st.vertArmed != VertMode::Gs);            // LOC / GS arms cleared
+    CHECK(st.altBugFt == doctest::Approx(3300.f));  // 1,000 ft above, rounded to 100
+    CHECK(st.apEngaged);
+    r.nav.source = NavSource::Gps;  // keep NAV armed (not captured) for the checks below
+    r.nav.crossTrackNm = 3.0f;
+    r.ac.vsFpm = 0;
+    r.run(4.0);
+    CHECK(st.spdActive == SpdMode::Thrust);
+    CHECK(st.thrustTargetNorm == doctest::Approx(1.f));
+    CHECK(r.out.throttleNorm[0] == doctest::Approx(1.f));  // slewed up to TOGA
+    const FmaText t = fma(r);
+    CHECK(std::string(t.spd) == "TOGA");
+    CHECK(std::string(t.vert) == "GA");
+    CHECK(std::string(t.vertArmed) == "(ALT)");
+    // A second press changes nothing.
+    r.ap.setHdgBugMagDeg(100);
+    r.ap.selectGoAround(r.ac, r.nav);
+    CHECK(st.hdgBugMagDeg == doctest::Approx(100.f));
+}
+
+TEST_CASE("autopilot: TO/GA below minimums keeps the AP engaged; GS would disconnect") {
+    Rig r(AircraftCategory::Piston, true);
+    coupledIls(r);
+    REQUIRE(r.ap.selectGoAround(r.ac, r.nav));
+    r.ac.altMslFt = 2100;  // below minimums - 50
+    r.run(0.5);
+    CHECK(r.ap.state().apEngaged);
+    CHECK_FALSE(r.ap.state().disconnectWarning);
+}
+
+TEST_CASE("autopilot: TO/GA turns the FD on when nothing was on, is refused on the ground") {
+    Rig r;
+    r.ac.wowAny = true;
+    CHECK_FALSE(r.ap.selectGoAround(r.ac, r.nav));
+    CHECK_FALSE(r.ap.state().fdOn);
+    r.ac.wowAny = false;
+    r.nav.activeLegIndex = -1;
+    CHECK(r.ap.selectGoAround(r.ac, r.nav));
+    CHECK(r.ap.state().fdOn);
+    CHECK_FALSE(r.ap.state().apEngaged);
+    CHECK(r.ap.state().vertActive == VertMode::Ga);
+    CHECK(r.ap.state().latArmed == LatMode::Off);   // no plan leg: nothing to arm
+    CHECK(r.ap.state().spdActive == SpdMode::Off);  // no A/T on this aircraft
+    r.run(0.5);
+    CHECK(r.ap.state().fdValid);
+    CHECK(r.ap.state().fdPitchCmdDeg <= r.ap.config().gaPitchDeg + 1e-3f);
+}
+
+TEST_CASE("autopilot: TO/GA leaves an altitude bug that is already 500 ft or more above") {
+    Rig r;
+    r.engage();
+    r.ap.setAltBugFt(5600);  // 600 ft above
+    r.ap.selectGoAround(r.ac, r.nav);
+    CHECK(r.ap.state().altBugFt == doctest::Approx(5600.f));
+    Rig q;
+    q.engage();
+    q.ap.setAltBugFt(5300);  // only 300 ft above
+    q.ac.altMslFt = 5040;
+    q.ap.selectGoAround(q.ac, q.nav);
+    CHECK(q.ap.state().altBugFt == doctest::Approx(6000.f));
+}
+
+TEST_CASE("autopilot: GA pitch is capped at the go-around attitude when the speed is high") {
+    Rig r(AircraftCategory::Jet);
+    r.engage();
+    r.ap.selectGoAround(r.ac, r.nav);
+    r.ac.iasKt = r.ac.tasKt = 160;  // 60 kt above the GA target: pitch up as far as allowed
+    r.run(10.0);
+    CHECK(r.ap.state().fdPitchCmdDeg == doctest::Approx(r.ap.config().gaPitchDeg));
+    CHECK(r.ap.config().gaPitchDeg == doctest::Approx(15.f));
+    CHECK(r.ap.pitchCmdDeg() <= r.ap.config().gaPitchDeg + 1e-3f);
+}
+
+TEST_CASE("autopilot: GA ends at ALT*, the A/T goes back to SPD without a throttle jump") {
+    Rig r(AircraftCategory::Piston, true);
+    r.engage();
+    REQUIRE(r.ap.setAt(true, r.ac));
+    r.ap.setSpdBugKt(100);
+    r.ap.setAltBugFt(6000);
+    r.ap.selectGoAround(r.ac, r.nav);
+    r.ac.vsFpm = 800;
+    r.run(5.0);
+    REQUIRE(r.ap.state().vertActive == VertMode::Ga);
+    REQUIRE(r.ap.state().spdActive == SpdMode::Thrust);
+    const float thrBefore = r.out.throttleNorm[0];
+    r.ac.altMslFt = 5900;  // inside |VS| / 6 of the bug
+    r.run(kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::AltCapture);
+    r.run(kSimDtS);
+    CHECK(r.ap.state().spdActive == SpdMode::Speed);
+    CHECK(std::fabs(r.out.throttleNorm[0] - thrBefore) < 0.01f);
+}
+
+TEST_CASE("autopilot: another vertical mode ends GA") {
+    Rig r(AircraftCategory::Piston, true);
+    r.engage();
+    REQUIRE(r.ap.setAt(true, r.ac));
+    r.ap.selectGoAround(r.ac, r.nav);
+    r.run(0.5);
+    r.ap.selectVs(r.ac);
+    r.run(0.1);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().spdActive == SpdMode::Speed);
+}
+
+TEST_CASE("autopilot: FLC needs AP or FD, syncs an unset speed bug, holds near the bug") {
+    Rig r;
+    r.ap.selectFlc(r.ac);
+    CHECK(r.ap.state().vertActive == VertMode::Off);
+    r.engage();
+    r.ap.setAltBugFt(9000);
+    r.ac.iasKt = 87.4f;
+    r.ap.handleActions(press(Action::FlcMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Flc);
+    CHECK(r.ap.state().spdBugKt == doctest::Approx(87.f));
+    CHECK(std::string(fma(r).vert) == "FLC");
+    // A second press goes to PIT.
+    r.ap.selectFlc(r.ac);
+    CHECK(r.ap.state().vertActive == VertMode::Pitch);
+    // Within 100 ft of the bug FLC holds the bug altitude.
+    r.ap.setAltBugFt(5080);
+    r.ap.selectFlc(r.ac);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
+}
+
+TEST_CASE("autopilot: FLC with the A/T holds climb thrust up and idle down (THR CLB / IDLE)") {
+    Rig r(AircraftCategory::Jet, true);
+    r.engage();
+    REQUIRE(r.ap.setAt(true, r.ac));
+    r.ap.setSpdBugKt(100);
+    r.ap.setAltBugFt(9000);
+    r.ap.selectFlc(r.ac);
+    r.run(6.0);
+    CHECK(r.ap.state().spdActive == SpdMode::Thrust);
+    CHECK(r.out.throttleNorm[0] == doctest::Approx(0.95f));
+    CHECK(std::string(fma(r).spd) == "THR CLB");
+    CHECK(std::string(fma(r).vertArmed) == "(ALT)");
+    r.ap.setAltBugFt(2000);
+    r.run(6.0);
+    CHECK(r.out.throttleNorm[0] == doctest::Approx(0.f));
+    CHECK(std::string(fma(r).spd) == "THR IDLE");
+}
+
+TEST_CASE("autopilot: FLC flies pitch on speed and never away from the bug") {
+    // Fresh rigs at a fixed IAS (the synthetic VS does not respond, so compare after 0.5 s).
+    auto flcPitch = [](float iasKt, float bugFt) {
+        Rig r;
+        r.ac.iasKt = r.ac.tasKt = iasKt;
+        r.engage();
+        r.ap.setSpdBugKt(100);
+        r.ap.setAltBugFt(bugFt);
+        r.ap.selectFlc(r.ac);
+        r.run(0.5);
+        return r.ap.state().fdPitchCmdDeg;
+    };
+    const float onSpeed = flcPitch(100, 9000);
+    CHECK(flcPitch(110, 9000) > onSpeed + 0.5f);  // fast: nose up
+    CHECK(flcPitch(90, 9000) ==
+          doctest::Approx(onSpeed).epsilon(0.01));  // slow, bug above: no descent
+    CHECK(flcPitch(90, 2000) < onSpeed - 0.5f);     // slow, bug below: nose down
+    CHECK(flcPitch(110, 2000) ==
+          doctest::Approx(onSpeed).epsilon(0.01));  // fast, bug below: no climb
+}
+
+TEST_CASE("autopilot: N7 config keys and category defaults") {
+    AircraftProfile p;
+    p.category = AircraftCategory::Piston;
+    ApConfig c = ApConfig::fromProfile(p);
+    CHECK(c.gaPitchDeg == doctest::Approx(10.f));
+    CHECK(c.climbThrottleNorm == doctest::Approx(1.f));
+    p.category = AircraftCategory::Jet;
+    c = ApConfig::fromProfile(p);
+    CHECK(c.gaPitchDeg == doctest::Approx(15.f));
+    CHECK(c.climbThrottleNorm == doctest::Approx(0.95f));
+    p.autopilot = {{"ga_pitch_deg", 12.f}, {"climb_throttle", 0.9f}, {"spd_tau_s", 7.f}};
+    c = ApConfig::fromProfile(p);
+    CHECK(c.gaPitchDeg == doctest::Approx(12.f));
+    CHECK(c.climbThrottleNorm == doctest::Approx(0.9f));
+    CHECK(c.spdTauS == doctest::Approx(7.f));
+}
+
+TEST_CASE("autopilot: scenario token flc engages the AP in FLC") {
+    Rig r;
+    r.ap.setAltBugFt(8000);
+    r.ap.applyScenario({"flc"}, r.ac, r.nav);
+    CHECK(r.ap.state().apEngaged);
+    CHECK(r.ap.state().vertActive == VertMode::Flc);
+}
+
+TEST_CASE("autopilot: scenario token toga starts a go-around on the FD only") {
+    Rig r;
+    r.ap.applyScenario({"toga"}, r.ac, r.nav);
+    CHECK(r.ap.state().fdOn);
+    CHECK_FALSE(r.ap.state().apEngaged);
+    CHECK(r.ap.state().vertActive == VertMode::Ga);
+}
+
+// 1.1 device test (787): in ALT at 8,100 ft with the bug at 14,000 there was no way to climb on
+// the pad short of disconnecting. The ALT button now leaves ALT toward the bug.
+TEST_CASE("autopilot: ALT button in ALT with the bug away climbs or descends toward it in VS") {
+    Rig r(AircraftCategory::Jet, true);
+    r.ac.altMslFt = 8100;
+    r.engage();
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    REQUIRE(r.ap.state().vertActive == VertMode::Alt);
+    r.ap.setAltBugFt(14000);
+    r.run(1.0);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);  // a bug change alone does not climb
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().vsBugFpm == doctest::Approx(1500.f));  // the jet default rate
+    CHECK(r.ap.state().vertArmed == VertMode::Alt);
+    // Back in ALT, a bug below starts a descent; a bug within 100 ft just holds.
+    r.ap.selectAltHold(r.ac);
+    r.ap.setAltBugFt(6000);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().vsBugFpm == doctest::Approx(-1500.f));
+    r.ap.selectAltHold(r.ac);
+    r.ap.setAltBugFt(8150);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
 }

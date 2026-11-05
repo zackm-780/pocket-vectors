@@ -71,6 +71,7 @@ altitudes, flaps, gear, trim, throttle and engines, brakes, nav, autopilot) must
 | Status row 2 | 0, 456, 640, 18 | Speedbrake, reversers, brakes and parking brake, fuel, wind, flight time |
 | Warnings | centered, y 300 | Highest priority first: `CRASH: <reason>`, `PULL UP`, `STALL`, `TERRAIN`, `SINK RATE`, `OVERSPEED`, `GEAR` (amber), `AP OFF` (amber flash), `PARK BRK` (amber while throttle > 50% and parking brake set), `PAUSED` |
 | Messages | centered, y 330 | Transient feedback (§1) |
+| FPS readout | 16, 27, 140, 26 | Only with SHOW FPS (X3): `30 FPS 33.3 MS` and `CPU 14.1 MS` over the last second, white. Also over the map page and the chase view. |
 | Mini nav | 118, 214, 140, 140 | Track-up route inset (H7), off unless `hud_mini_nav` is on. Aircraft symbol, magenta active leg, other legs white, next-waypoint distance, ETE, cross-track and a range ring. Hidden in MIN declutter and while the map page is open. |
 
 ## 4. Status rows: required fields
@@ -87,7 +88,7 @@ Every field is visible in **FULL** declutter. In STD, row 2 hides FUEL and fligh
 | Speedbrake / spoilers | `speedbrakePosNorm` | `SPDBRK 50%` when > 0. Amber if extended with throttle > 50%. Hidden when the aircraft has none. |
 | Reversers | `engines[].reverserDeployed` | `REV` (amber in flight, green on ground) |
 | Brakes | `brakeLeftNorm/RightNorm`, `parkingBrake` | `BRK` while braking. `PARK` while the parking brake is set. |
-| Fuel | `fuelTotalLbs` | `FUEL 9 840 LB` |
+| Fuel | `fuelTotalLbs`, `fuelFlowLbsPerHr` | `FUEL 9 840 LB`, plus the endurance at the present flow when under 2 h: `FUEL 9 840 LB 1:42` (h:mm; amber under 30 min, red under 15). LOW FUEL messages at 30 and 15 min (F6). |
 | Wind | `windFromTrueDeg`, `windKt` | `WIND 270/15` (direction shown magnetic, as pilots expect) |
 | Flight time | sim time since start | `T+00:42:10` |
 
@@ -122,6 +123,12 @@ Full screen, toggled with Select (or M). Opaque background. Pauses nothing.
 - Info panel: next waypoints with DTK, distance, ETE, and altitude constraint. Direct-to with A on
   a selected waypoint.
 
+## 7a. External chase view (V1)
+L2 + L3 switches to a camera behind and above the aircraft (`external_view` in `settings.ini`,
+default off). The HUD then draws only the status rows, warnings and messages: the ladder, tapes,
+FMA, flight path marker and mini nav are tied to the cockpit eye point and stay hidden. World
+overlays and their labels still draw. The map page and full-screen menus use the cockpit camera.
+
 ## 8. World overlays (W6)
 Drawn in the world, after the airports and before the HUD. Labels share the HUD batch. Every layer
 starts off (`overlay_route`, `overlay_vpath`, `overlay_airports`, `overlay_runways` in
@@ -132,11 +139,13 @@ all. A mix that is not one of those presets shows as CUSTOM.
   pole reaches the waypoint's altitude constraint, otherwise the plan's cruise altitude, otherwise
   a short mast above the ground. The label reads `NAME  12.3 NM`.
 - **Vertical path.** Gates along the active leg at the planned altitude. On an approach leg the
-  gates and the line descend on a glidepath.
+  gates and the line descend on a glidepath, and clear once the eye is less than 250 ft above the
+  end of the leg (the runway).
 - **Airports.** The nearest fields inside the radius (default 25 NM, at most 12), hidden inside
   about 1 NM. Marker at field elevation, label `KPDX  8.4 NM`.
 - **Runways.** A brighter outline of each runway, widened so it stays readable from altitude. The
-  field you are on still gets outlines.
+  outlines of a runway clear once the eye is less than 250 ft above its elevation (height above
+  the field, not distance), so short final and the ground roll show the runway and the sky.
 
 The four layers are separate draw calls (a layer with nothing to draw is skipped). R3 is not used.
 

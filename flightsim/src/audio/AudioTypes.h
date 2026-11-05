@@ -25,7 +25,8 @@ struct AudioParams {
     bool stallHorn = false;  // same condition as the HUD STALL warning
 };
 
-enum class AudioEventType : std::uint8_t { Touchdown, Tone, UiClick };
+// Voice (additive, S2): play a VoiceBank clip (audio/VoiceBank.h) on the single voice channel.
+enum class AudioEventType : std::uint8_t { Touchdown, Tone, UiClick, Voice };
 
 // One-shot event. Which fields matter depends on `type`.
 struct AudioEvent {
@@ -38,6 +39,10 @@ struct AudioEvent {
     float durS = 0.2f, gapS = 0.1f;
     int repeats = 1;
     float gain01 = 0.5f;
+    // Voice (S2): the clip (VoiceClip) and its priority; a higher priority interrupts a lower one,
+    // an equal or lower one waits its turn.
+    std::uint8_t clip = 0;
+    std::uint8_t priority = 0;
 };
 
 // Generic alert tone API (also what X2's GPWS callouts will use).

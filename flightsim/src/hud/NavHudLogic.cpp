@@ -69,6 +69,7 @@ const char* vertModeName(VertMode m) {
     case VertMode::Vs: return "VS";
     case VertMode::Gs: return "G/S";
     case VertMode::Flc: return "FLC";
+    case VertMode::Ga: return "GA";
     case VertMode::Off: break;
     }
     return "";
@@ -78,6 +79,7 @@ const char* spdModeName(SpdMode m) {
     switch (m) {
     case SpdMode::Speed: return "SPD";
     case SpdMode::Retard: return "RETARD";
+    case SpdMode::Thrust: return "THR";
     case SpdMode::Off: break;
     }
     return "";
@@ -95,6 +97,14 @@ void formatVertActive(char* out, int n, VertMode m, float vsBugFpm) {
 void buildFma(const AutopilotState& ap, FmaText& out) {
     out = FmaText{};
     copyText(out.spd, sizeof out.spd, spdModeName(ap.spdActive));
+    if (ap.spdActive == SpdMode::Thrust) {  // N7: fixed thrust, named by what it is for
+        const char* thr = "THR CLB";
+        if (ap.vertActive == VertMode::Ga)
+            thr = "TOGA";
+        else if (ap.thrustTargetNorm < 0.05f)
+            thr = "THR IDLE";
+        copyText(out.spd, sizeof out.spd, thr);
+    }
     copyText(out.lat, sizeof out.lat, latModeName(ap.latActive));
     if (ap.latArmed != LatMode::Off)
         std::snprintf(out.latArmed, sizeof out.latArmed, "(%s)", latModeName(ap.latArmed));

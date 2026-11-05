@@ -26,6 +26,9 @@ struct TerrainRenderConfig {
     LodConfig lod;
     int uploadsPerFrame = 4;  // node meshes built and uploaded per frame (GPU upload budget)
     bool seaDisc = true;
+    // X3: procedural detail noise in the fragment shader (two value-noise octaves near the eye).
+    // Off skips the costliest fragment work on near terrain (graphics_quality = low).
+    bool detailNoise = true;
 };
 
 struct TerrainRenderStats {

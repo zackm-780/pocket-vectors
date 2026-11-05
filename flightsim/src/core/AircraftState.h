@@ -50,6 +50,8 @@ struct AircraftState {
     int engineCount = 0;
     EngineState engines[kMaxEngines];
     float fuelTotalLbs = 0;
+    // Additive (F6): total fuel flow of all engines and the tank capacity, pounds (per hour).
+    float fuelFlowLbsPerHr = 0, fuelCapacityLbs = 0;
     // warnings
     bool stallWarning = false, overspeed = false;
     bool crashed = false;

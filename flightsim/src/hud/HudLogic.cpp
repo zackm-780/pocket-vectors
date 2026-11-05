@@ -1,5 +1,7 @@
 #include "hud/HudLogic.h"
 
+#include "sim/FuelPlan.h"  // F6
+
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -477,7 +479,9 @@ int buildStatusRow2(const StatusInputs& in, StatusField* out) {
     const AircraftProfile& p = *in.profile;
     const int engines = engineCountOf(s, p);
     for (int i = 0; i < kMaxStatusFields; ++i) out[i] = StatusField{};
-    static constexpr int kSlots[kRow2Fields] = {10, 3, 3, 4, 14, 12, 10};
+    // F6: FUEL 19 cells ("FUEL 11 740 LB 1:45"); the widest WIND ("WIND 360/100") still ends
+    // before the flight time on a 4:3 screen.
+    static constexpr int kSlots[kRow2Fields] = {10, 3, 3, 4, 19, 12, 10};
     for (int i = 0; i < kRow2Fields; ++i) out[i].slotCells = kSlots[i];
 
     // Speedbrake / spoilers: shown dim at 0 on aircraft that have them, white when out, amber when
@@ -519,6 +523,16 @@ int buildStatusRow2(const StatusInputs& in, StatusField* out) {
         char num[16];
         formatThousands(num, sizeof num, roundToStep(s.fuelTotalLbs, 10));
         setText(addSeg(f), Role::Normal, "FUEL %s LB", num);
+        // F6: endurance at the present flow when under 2 h (amber below 30 min, red below 15).
+        const float endMin = enduranceMin(s.fuelTotalLbs, s.fuelFlowLbsPerHr);
+        if (endMin < 120.0f) {
+            char e[16];
+            formatEndurance(e, sizeof e, endMin);
+            Role role = Role::Normal;
+            if (endMin < 30.0f) role = Role::Amber;
+            if (endMin < 15.0f) role = Role::Red;
+            setText(addSeg(f), role, "%s", e);
+        }
     }
     {
         StatusField& f = out[kWind];

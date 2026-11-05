@@ -46,6 +46,11 @@ constexpr GLenum GL_VENDOR = 0x1F00, GL_RENDERER = 0x1F01, GL_VERSION = 0x1F02,
                  GL_EXTENSIONS = 0x1F03, GL_SHADING_LANGUAGE_VERSION = 0x8B8C;
 constexpr GLenum GL_PACK_ALIGNMENT = 0x0D05, GL_NO_ERROR = 0;
 constexpr GLenum GL_MAX_TEXTURE_SIZE = 0x0D33;
+// Additive (W7): one small texture for the cloud coverage pattern.
+constexpr GLenum GL_TEXTURE_2D = 0x0DE1, GL_TEXTURE0 = 0x84C0, GL_LUMINANCE = 0x1909,
+                 GL_TEXTURE_MAG_FILTER = 0x2800, GL_TEXTURE_MIN_FILTER = 0x2801,
+                 GL_TEXTURE_WRAP_S = 0x2802, GL_TEXTURE_WRAP_T = 0x2803, GL_LINEAR = 0x2601,
+                 GL_LINEAR_MIPMAP_LINEAR = 0x2703, GL_REPEAT = 0x2901, GL_UNPACK_ALIGNMENT = 0x0CF5;
 // clang-format on
 
 // X(returnType, Name, (params)); the GL entry point is "gl" + Name.
@@ -94,7 +99,14 @@ constexpr GLenum GL_MAX_TEXTURE_SIZE = 0x0D33;
     X(void, DisableVertexAttribArray, (GLuint index))                                     \
     X(void, VertexAttribPointer, (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void* pointer)) \
     X(void, DrawArrays, (GLenum mode, GLint first, GLsizei count))                        \
-    X(void, DrawElements, (GLenum mode, GLsizei count, GLenum type, const void* indices))
+    X(void, DrawElements, (GLenum mode, GLsizei count, GLenum type, const void* indices)) \
+    X(void, GenTextures, (GLsizei n, GLuint* textures))                                   \
+    X(void, DeleteTextures, (GLsizei n, const GLuint* textures))                          \
+    X(void, BindTexture, (GLenum target, GLuint texture))                                 \
+    X(void, ActiveTexture, (GLenum texture))                                              \
+    X(void, TexParameteri, (GLenum target, GLenum pname, GLint param))                    \
+    X(void, TexImage2D, (GLenum target, GLint level, GLint internalformat, GLsizei w, GLsizei h, GLint border, GLenum format, GLenum type, const void* pixels)) \
+    X(void, Uniform1i, (GLint location, GLint v0))
 // clang-format on
 
 struct GlApi {

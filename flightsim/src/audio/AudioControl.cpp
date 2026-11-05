@@ -1,5 +1,7 @@
 #include "audio/AudioControl.h"
 
+#include "audio/Callouts.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -102,7 +104,7 @@ void AudioControl::update(const AudioFrameInput& in, AudioParams& params,
     // ---- tones
     if (apWarn && !prevApWarn_) events.push_back(apDisconnectTone());
     prevApWarn_ = apWarn;
-    if (in.minimumsAlert) events.push_back(minimumsTone());
+    if (in.minimumsAlert) events.push_back(alertEvent(AlertKind::Minimums, 0, bank_));  // S2
 }
 
 }  // namespace fsim::audio

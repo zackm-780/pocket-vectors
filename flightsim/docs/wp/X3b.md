@@ -1,4 +1,4 @@
-Status: blocked (X3a merged and T1 frame numbers)
+Status: done (#11: GRAPHICS QUALITY LOW / MED / HIGH with first values; X3c tunes them)
 # X3b: Quality presets (wire `graphics_quality`)
 
 Phase 2 · Effort: high · Depends: X3a, T1 · Branch: `wp/X3b-quality-presets`

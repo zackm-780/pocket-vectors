@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 
 #include "core/Log.h"
 #include "input/InputCurves.h"
@@ -39,6 +40,12 @@ float approach(float value, float target, float rate, float dtS) {
 }
 
 }  // namespace
+
+void clearButtons(ActionState& actions) {
+    std::fill(std::begin(actions.down), std::end(actions.down), false);
+    std::fill(std::begin(actions.pressed), std::end(actions.pressed), false);
+    std::fill(std::begin(actions.repeatCount), std::end(actions.repeatCount), 0);
+}
 
 InputSystem::InputSystem() {
     const char* platform = std::getenv("FLIGHTSIM_PLATFORM");

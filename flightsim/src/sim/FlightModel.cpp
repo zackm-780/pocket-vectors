@@ -21,6 +21,7 @@
 #include <models/FGPropulsion.h>
 #include <models/atmosphere/FGWinds.h>
 #include <models/propulsion/FGEngine.h>
+#include <models/propulsion/FGTank.h>
 
 #include "core/Baro.h"  // X1
 #include "core/Geo.h"
@@ -129,10 +130,12 @@ struct FlightModel::Impl {
     Prop pVc, pVt, pMach, pAlpha, pBeta, pHdot, pNz, pVg, pVn, pVe, pVd;
     Prop pWindN, pWindE, pGustN, pGustE, pFlap, pGear, pSpeedbrake, pPitchTrim, pRollTrim;
     Prop pYawTrim, pFuel;
+    float fuelCapacityLbs = 0;  // F6
     Prop pLBrake, pRBrake, pCBrake;
     Prop cElevator, cAileron, cRudder, cFlap, cGear, cSpeedbrake, cSpoiler, cSteer;
     struct EngineProps {
         Prop throttleCmd, mixtureCmd, running, n1, n2, rpm, thrust, reverser;
+        Prop fuelFlow;  // F6
         bool turbine = false;
     };
     EngineProps eng[kMaxEngines];
@@ -227,6 +230,7 @@ void FlightModel::Impl::bindProps() {
         e = EngineProps{};
         e.throttleCmd = pathProp("throttle_cmd", "fcs/throttle-cmd-norm[{n}]", i);
         e.mixtureCmd = pathProp("mixture_cmd", "fcs/mixture-cmd-norm[{n}]", i);
+        e.fuelFlow = pathProp("fuel_flow", "propulsion/engine[{n}]/fuel-flow-rate-pps", i);
         e.running = pathProp("engine_running", "propulsion/engine[{n}]/set-running", i);
         e.n1 = pathProp("engine_n1", "propulsion/engine[{n}]/n1", i);
         e.n2 = pathProp("engine_n2", "propulsion/engine[{n}]/n2", i);
@@ -326,6 +330,27 @@ bool FlightModel::Impl::start(const AircraftProfile& prof, const StartCondition&
     if (profile.flapDetents.empty()) {
         LOG_ERROR("profile %s has no flap detents", profile.id.c_str());
         return false;
+    }
+    {  // F6: fuel load before the trim, so the trim flies the right weight.
+        auto prop = fdm->GetPropulsion();
+        double capacity = 0;
+        for (unsigned i = 0; i < prop->GetNumTanks(); ++i)
+            if (prop->GetTank(i)->GetType() == JSBSim::FGTank::ttFUEL)
+                capacity += prop->GetTank(i)->GetCapacity();
+        fuelCapacityLbs = static_cast<float>(capacity);
+        double fraction = -1;
+        if (sc.fuelLbs > 0 && capacity > 0)
+            fraction = std::min(1.0, static_cast<double>(sc.fuelLbs) / capacity);
+        else if (sc.fuelFraction > 0)
+            fraction = std::min(1.0, static_cast<double>(sc.fuelFraction));
+        if (fraction >= 0) {
+            for (unsigned i = 0; i < prop->GetNumTanks(); ++i) {
+                auto tank = prop->GetTank(i);
+                if (tank->GetType() == JSBSim::FGTank::ttFUEL)
+                    tank->SetContents(fraction * tank->GetCapacity());
+            }
+            LOG_INFO("fuel: %.0f of %.0f lb", fraction * capacity, capacity);
+        }
     }
     stepDtS = kSimDtS;
     fdm->Setdt(stepDtS);
@@ -676,6 +701,12 @@ void FlightModel::Impl::refresh(AircraftState& s) {
         e.reverserDeployed = profile.hasReversers && reverserPos > 0.5f;
     }
     s.fuelTotalLbs = static_cast<float>(pFuel.get());
+    {  // F6
+        double pps = 0;
+        for (int i = 0; i < engineCount; ++i) pps += eng[i].fuelFlow.get();
+        s.fuelFlowLbsPerHr = static_cast<float>(pps * 3600.0);
+        s.fuelCapacityLbs = fuelCapacityLbs;
+    }
 
     // Warnings. The stall warning has hysteresis so it does not chatter at the threshold.
     if (profile.stallWarnAlphaDeg > 0 && !s.wowAny) {

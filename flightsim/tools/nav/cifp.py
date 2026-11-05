@@ -328,6 +328,8 @@ class CifpDb:
             "ndb": defaultdict(list), "tndb": defaultdict(list)}
         self.localizers: dict[tuple[str, str], dict] = {}
         self.records: dict[str, list[Record]] = defaultdict(list)  # airport -> approach records
+        # N8: airport -> (subsection 'D' SID | 'E' STAR, record)
+        self.termProcRecords: dict[str, list[tuple[str, Record]]] = defaultdict(list)
         self.counts: Counter = Counter()
 
     # ---- loading
@@ -370,6 +372,13 @@ class CifpDb:
             row = {"apt": apt, "lat": lat, "lon": lon, "magvar": parse_magvar(g[74:79])}
             self.termNdb[(ident, g[19:21])].append(row)
             self._byIdent["tndb"][ident].append(row)
+            return
+        if sub in "DE":  # N8: SID / STAR records share the approach record layout
+            if self.filter is not None and apt not in self.filter:
+                return
+            if g[38] in "01":
+                self.termProcRecords[apt].append((sub, Record(g)))
+                self.counts["sidstar records"] += 1
             return
         if sub == "F":
             if self.filter is not None and apt not in self.filter:
@@ -986,6 +995,48 @@ def build_airport(db: CifpDb, apt: str, stats: Stats) -> list[cp.Approach]:
     return out
 
 
+# ARINC 424 route types of SID (PD) and STAR (PE) records (N8).
+SID_RUNWAY, SID_COMMON, SID_ENROUTE = set("14FT"), set("25M"), set("36SV")
+STAR_ENROUTE, STAR_COMMON, STAR_RUNWAY = set("147F"), set("258M"), set("369S")
+
+
+def build_terminal_procedures(db: CifpDb, apt: str, stats: Stats) -> list[cp.Procedure]:
+    """The SIDs and STARs of one airport (N8). Each route segment converts like an approach
+    segment; runway transitions are named DB style ("10L", "10B" for both parallels, "ALL")."""
+    groups: dict[tuple[str, str], list[Record]] = {}
+    for sub, r in db.termProcRecords.get(apt, []):
+        groups.setdefault((sub, r.ident), []).append(r)
+    out: list[cp.Procedure] = []
+    for (sub, ident) in sorted(groups):
+        kind = "SID" if sub == "D" else "STAR"
+        ctx = Ctx(db, apt, stats, ident)
+        proc = cp.Procedure(ident, kind, ident, apt)
+        parts: dict[tuple[str, str], list[Record]] = {}
+        for r in sorted(groups[(sub, ident)], key=lambda r: r.seq):
+            parts.setdefault((r.rtype, r.trans), []).append(r)
+        runwaySet, commonSet, enrouteSet = ((SID_RUNWAY, SID_COMMON, SID_ENROUTE) if kind == "SID"
+                                            else (STAR_RUNWAY, STAR_COMMON, STAR_ENROUTE))
+        for (rtype, trans) in sorted(parts):
+            if rtype not in runwaySet | commonSet | enrouteSet:
+                continue  # engine-out SIDs and the like
+            legs = convert_segment(ctx, parts[(rtype, trans)])
+            if not legs:
+                continue
+            if rtype in runwaySet:
+                name = trans[2:] if trans.startswith("RW") else (trans or "ALL")
+                proc.runway.append(cp.Transition(name, legs))
+            elif rtype in commonSet:
+                if not proc.common:
+                    proc.common = legs
+                else:
+                    stats.log(f"{apt} {ident}: several common routes; keeping the first")
+            else:
+                proc.enroute.append(cp.Transition(trans or ident, legs))
+        if proc.runway or proc.common or proc.enroute:
+            out.append(proc)
+    return out
+
+
 # --------------------------------------------------------------------------------------------
 # report
 # --------------------------------------------------------------------------------------------
@@ -1112,18 +1163,26 @@ def run(source: str, outDir: Path, airports: set[str] | None = None, offline: bo
         for old in procDir.glob("*.proc"):
             old.unlink()
     written = 0
-    for apt in sorted(db.records):
+    tpStats = Stats()  # N8: SID / STAR conversion, kept out of the approach coverage numbers
+    sids = stars = 0
+    for apt in sorted(set(db.records) | set(db.termProcRecords)):
         if airports is not None and apt not in airports:
             continue
-        approaches = build_airport(db, apt, stats)
+        approaches = build_airport(db, apt, stats) if apt in db.records else []
+        procs = build_terminal_procedures(db, apt, tpStats)
+        sids += sum(1 for p in procs if p.kind == "SID")
+        stars += sum(1 for p in procs if p.kind == "STAR")
         stats.airports += 1
-        if not approaches:
+        if not approaches and not procs:
             continue
-        text = cp.write_proc(apt, approaches, db.cycle, db.effective)
+        text = cp.write_proc(apt, approaches, db.cycle, db.effective, procedures=procs)
         (procDir / f"{apt}.proc").write_text(text, encoding="utf-8")
         written += 1
     seconds = time.time() - t0
     report = format_report(db, stats, seconds, written)
+    report += (f"\nSIDs written: {sids}, STARs written: {stars} "
+               f"({sum(tpStats.records.values())} records, "
+               f"{sum(tpStats.dropped.values())} dropped)\n")
     runwaysCsv = runwaysPath or (outDir / "runways.csv")
     if runwaysCsv.exists():
         report += "\n" + "\n".join(check_against_runways(stats, runwaysCsv)) + "\n"

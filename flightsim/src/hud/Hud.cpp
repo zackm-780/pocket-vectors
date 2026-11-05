@@ -594,6 +594,14 @@ void Hud::draw(Renderer2D& r, const gfx::Camera& camera, const AircraftState& s,
 
     r.setLineWidth(2.0f);
 
+    if (options.externalView) {  // V1: status strip and messages only
+        drawStatusRows(k);
+        drawWarnings(k, warnings_, mask);
+        drawMessages(k, messages);
+        r.setLineWidth(2.0f);
+        return;
+    }
+
     // Attitude (conformal).
     Pt2 hp, hd;
     const bool haveHorizon = projectHorizon(k, hp, hd);

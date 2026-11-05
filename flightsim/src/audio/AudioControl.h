@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "audio/AudioTypes.h"
+#include "audio/VoiceBank.h"
 #include "core/AircraftProfile.h"
 #include "core/AircraftState.h"
 #include "core/AutopilotState.h"
@@ -26,6 +27,8 @@ public:
     // Fills `params` and appends this frame's one-shot events to `events` (not cleared first).
     void update(const AudioFrameInput& in, AudioParams& params, std::vector<AudioEvent>& events);
     void reset();
+    // S2: with a bank holding "minimums", the minimums alert is spoken (nullptr: the tone).
+    void setVoiceBank(const VoiceBank* bank) { bank_ = bank; }
 
     // Linear gain for a volume percentage (quadratic: perceived loudness is roughly linear).
     static float volumeGain(int volumePct);
@@ -43,6 +46,7 @@ private:
     bool prevWow_ = false, prevApWarn_ = false;
     float prevGear_ = 0, prevFlap_ = 0, prevSimTimeS_ = 0, airSinkMps_ = 0;
     float gearHoldS_ = 0, flapHoldS_ = 0;
+    const VoiceBank* bank_ = nullptr;
 };
 
 }  // namespace fsim::audio

@@ -1,8 +1,10 @@
 # Work packages
 
-> **Waves 0–5 (this file) are the history up to and just after 1.0.** New work is on the card
-> board, one file per work package: [wp/README.md](wp/README.md). X3 below is split there into
-> X3a, X3b and X3c.
+> **Waves 0–6 (this file) are the history up to 1.2.** The card board, one file per work package
+> ([wp/README.md](wp/README.md)), plans the work after that. It was written before the owner put
+> Wave 6 into 1.2 (2026-11-04), so some of its cards are done already; their `Status:` lines say
+> which. X3 below is split there into X3a, X3b and X3c. Note the IDs: this file's N8 (SIDs and
+> STARs) is the board's N9, and the board's N8 (airways) is still open.
 
 Each work package (WP) is sized for one contributor or one AI coding tool. The **Model / effort**
 line is a hint for how careful the change is (medium for a well-specified package, high where the
@@ -463,9 +465,52 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** superseded (split into X3a, X3b, X3c on the card board, [wp/README.md](wp/README.md)) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer
+**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b); tuning (X3c) waits for a device run (needs device test: the DEVICE.md §6 run, SHOW FPS readout legible at the top left, GRAPHICS QUALITY LOW / HIGH change the terrain at once) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
+
+Done so far (2026-11-05, on the 1.2 branch):
+1. **Frame timing** (`app/FrameStats`). Every frame is split into update, terrain, airports,
+   clouds, model, overlay, HUD and swap, and filed by view: cockpit, chase, map or menu, each
+   clear, with a cloud layer, or in cloud.
+   - Log, with SHOW FPS: one line a second.
+   - Log, always: a session table with fps, mean, p95 and worst frame, CPU time, each pass, terrain
+     triangles and draws. It is written when the pause menu opens, every 2 minutes, when the preset
+     changes and at exit. The 2-minute table is there because Select + Start (gptokeyb) can
+     SIGKILL the game.
+   - `perf_gpu_sync` (settings.ini only) adds a `glFinish` after each pass to split GPU time.
+   - Format and the device steps: DEVICE.md §6.
+2. **On-screen FPS** with SHOW FPS: the device has no window title. Turning SHOW FPS off in the menu
+   now also stops it (it used to stay on until restart).
+3. **GRAPHICS QUALITY** (`graphics_quality`, stored since P3 but unused until now) is a settings row
+   and applies at once:
+
+   | Preset | Terrain px/cell | Uploads per frame | Detail noise |
+   |---|---|---|---|
+   | LOW | 14 | 2 | off |
+   | MED | 10 (as before) | 4 (as before) | on |
+   | HIGH | 8 | 6 | on |
+
+   Clouds, the chase model and airports are not in the preset: each is bounded already, and
+   turning them off changes what the pilot sees.
+4. **Desktop reference** (llvmpipe, KPDX–Mt Hood pack, table in DEVICE.md §6). MED draws 34–36k
+   terrain triangles in 51–54 draws, within PLAN §3's 40k triangles. HIGH reaches 52k. LOW cuts the
+   terrain raster time by about 27 % in the Mt Hood view. Over flat ground at 1,500 ft it saves only
+   about 5 % of the triangles (grazing view); most of its saving there is the detail noise.
+
+Still to do, with the device timing:
+- Pick the preset values from the Mali numbers. LOD, uploads and detail noise are the knobs today.
+  If the `cpu` column is the limit, the terrain submit and the HUD build are the next targets.
+- Decide whether MSAA (4 samples on the device) belongs in LOW (it needs a restart).
+- Set the default preset.
+- Update PLAN §3 with the measured numbers.
+
+Integration edits outside owned paths:
+- `App.cpp`: the timers, readout and preset.
+- `Settings` and `settings_default.ini`: `perf_gpu_sync`.
+- `TerrainRenderer`: an additive `detailNoise` config flag.
+- The settings menu row and its `MenuSystemTest` step.
+- Docs: DEVICE §6, ARCHITECTURE §3, HUD §3, PLAN §3 and Q7, INSTALL, ROADMAP, ui/README.
 
 ## X4: Night lighting (stretch)
 **Status:** done, merged (needs device test: city-light speckle size/shimmer, Mali fragment cost, night HUD legibility) · **Model / effort:** Sonnet / medium · **Depends:** W2, W4, W5
@@ -628,3 +673,208 @@ Public users should get from nothing to flying with one zip on the SD card:
 
 **Acceptance:** a fresh clone, the release zip, a data pack and one `.fms` produce a zip with the
 script that boots to the main menu on the device (user test); the script's tests pass in CI.
+
+---
+
+# Wave 6: toward 1.2 (after the 1.1 device test, 2026-10-30)
+
+The 1.1 build (`main` `1737feb`) was flown on the RG40XXH. Confirmed working on the device: A/B
+labels, thrust reversers (R1 + A) and the other combos the owner tried. Three problems came back,
+fixed in I2. A code check of every documented combo found two more that did nothing (R1 + Y,
+L1 + Select), also fixed in I2. The rest of the wave is the first part of PLAN section 2's v2
+list plus follow-ups recorded in earlier packages. The owner put the whole wave into 1.2
+(2026-11-04), plus F6 (fuel), which came from the same device test. X3 waits for frame-rate
+numbers from a device flight.
+
+| WP | Title | Model / effort | Depends | Owns (summary) |
+|---|---|---|---|---|
+| I2 | 1.1 device-test fixes: gear, look layer, nav source, direct-to, runway overlay | Sonnet / medium | P2, W6 | small fixes across merged modules (maintainer-assigned) |
+| N7 | Autopilot go-around (TO/GA) and FLC | Sonnet / high | N6 | `src/autopilot/`, `tests/autopilot/` |
+| V1 | External chase view with simple models | Sonnet / high | W2, W5 | `src/world/ExternalView*`, `tests/world/externalview*` |
+| W7 | Cloud layers | Sonnet / medium | W4, X1 | `src/world/Clouds*`, `tests/world/clouds*` |
+| N8 | SIDs, STARs and approach transitions | Sonnet / high | N4, N5, H5 | `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*` |
+| S2 | GPWS voice callouts | Sonnet / medium | S1, X2 | `src/audio/`, `assets/audio/` |
+| F6 | Fuel load and planning | Sonnet / medium | F1, N5, H5 | `src/sim/FuelPlan*`, `tests/sim/fuel*` |
+
+## I2: 1.1 device-test fixes
+**Status:** in review (needs device test: resume from the pause menu with A in flight and the gear stays put; L2 + D-pad snaps and L2 + right stick looks, release recenters; R1 + Y on an ILS plan shows NAV SOURCE LOC / GPS; L1 + Select goes direct to the active waypoint, or opens the direct-to list without a plan; runway outlines and the approach path clear below 250 ft above the field; L1 + R2 in ALT with the bug 1,000 ft away climbs or descends toward it) · **Model / effort:** Sonnet / medium · **Depends:** P2, W6
+1. **Gear moved on its own.** On the pad A is both MenuAccept and GearToggle. The frame a menu
+   closed in (RESUME, or starting a flight with A) also reached `PilotControls`, so the gear
+   toggled; airborne starts and resumes in flight put it up. The keyboard has separate keys, so
+   desktop tests never showed it. A frame the menu owns now gives the flight no buttons
+   (`clearButtons`, axes kept).
+2. **Look-around did nothing.** The L2 layer raised the look actions, but nothing turned them
+   into camera angles. `input/LookControl` does now: D-pad snaps, rate-based right-stick free
+   look, ease back to straight ahead on release (about 0.3 s). The look layer is L2; R2 stays the
+   brakes. Dev hook for screenshots: `FSIM_LOOK_DEG=yaw,pitch`.
+3. **Runway ribbons near the ground.** The runway outlines' vertical fins (at least 14 m tall)
+   boxed in the view on short final and on the runway. Outlines now clear when the eye is less
+   than 250 ft above the runway's elevation; the approach path clears below 250 ft above the end
+   of the approach leg.
+4. **R1 + Y and L1 + Select were unbound in the app.** Nav source cycle (`nextNavSourceSelect`,
+   plus `Navigator::locAvailable` / `vorTuned`, additive) and direct-to the active waypoint
+   (`MenuSystem::openDirectTo`, additive, when there is no plan).
+5. Project version 1.2.0 (the About page showed 0.1.0).
+6. **No way out of ALT on the pad** (owner, 787 on 1.1): with ALT holding 8,100 ft and the bug
+   at 14,000 the AP stayed level, and only a disconnect left ALT, because VS has no pad button.
+   L1 + R2 pressed again in ALT with the bug more than 100 ft away now starts VS toward the bug
+   at the default rate (ALT armed); N7 adds FLC on L1 + Start.
+
+## N7: Autopilot go-around and FLC
+**Status:** in review (needs device test: L1 + L3 on short final goes around with `TOGA | GA`; L1 + Start climbs to the bug in `THR CLB | FLC`) · **Model / effort:** Sonnet / high · **Depends:** N6 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)
+
+**Owns:** `src/autopilot/`, `tests/autopilot/`; one binding each in `assets/controls_default.ini`
+and CONTROLS.md (integration, proposed in the PR; L1 + L3 is free for TO/GA, R3 stays unbound).
+
+N6 left FLC and go-around out. **TO/GA:** pitch to the profile's go-around attitude (FD bars),
+A/T to go-around thrust, lateral mode holds the current track, the navigator sequences into the
+missed approach, and the FMA reads `TOGA | GA`. Pressing it below minimums with the AP on keeps
+the AP engaged. **FLC:** climb or descend to the altitude bug at the speed bug with pitch on
+speed and the A/T at climb or idle thrust, capturing ALT* at the bug.
+**Acceptance (headless, c172p and 737):** a go-around from 200 ft on the XTST ILS climbs through
+1,000 ft AGL without sinking more than 50 ft below the TO/GA point, and the navigator is on the
+missed-approach legs. FLC from 3,000 to 9,000 ft holds the speed bug ±5 kt and captures with less
+than 100 ft overshoot.
+
+Done (PR #11): `VertMode::Ga`, `SpdMode::Thrust`, `AutopilotState::thrustTargetNorm`,
+`Action::GoAround` / `FlcMode` (additive), L1 + L3 / L1 + Start, F6 / F7. Measured (headless,
+10 kt crosswind): go-around at 200 ft AGL sinks 9 ft (c172p) and 36 ft (737) below the TO/GA
+point, then climbs through 1,000 ft AGL on the missed-approach legs with NAV; FLC 3,000 to
+9,000 ft holds the bug within 2 kt and overshoots 16 ft (c172p, leaned 3 % per 1,000 ft: the
+JSBSim c172p stops climbing near 8,700 ft at full rich) and 25 ft (737); a 737 FLC descent at
+idle overshoots 18 ft. Deviations: the GA speed floor is Vref with flaps out (1.25 Vs1 clean is
+190 kt in the 737); FLC never climbs with the bug below or descends with it above; in GA the
+737 pitch overshoots the 15 degree command to about 18.6 degrees while TOGA thrust builds.
+
+## V1: External chase view
+**Status:** in review (needs device test: L2 + L3 toggles the chase view, L2 + right stick orbits, the model costs no visible frame rate; X3 measures it) · **Model / effort:** Sonnet / high · **Depends:** W2, W5 · **Specs:** PLAN §2 (v2+), D5, D5a
+
+**Owns:** `src/world/ExternalView*` (new), `tests/world/externalview*`; a camera-mode toggle
+(integration, proposed in the PR; L2 + L3 is free).
+
+A chase camera behind and above the aircraft (orbit with L2 + right stick) and a simple model
+built in code per category (single, twin, bizjet, airliner, heavy: fuselage, wings, tail, engines,
+gear when down, flaps), so no model files or licences are needed. The HUD shows only the status
+strip and messages in this view. D5 still holds for the cockpit view.
+**Acceptance:** screenshots for each category on the runway and in a bank; the model is one draw
+call; terrain and runway depth stay correct around it; frame cost under 0.5 ms on desktop.
+
+Done (PR #11): `world/ExternalViewModel` (models and chase pose, no GL) and `world/ExternalView`
+(one draw, lit by the W4 sun, back faces culled). Profiles carry `[view] external_model`,
+`wingspan_m` (JSBSim metrics) and `gear_height_m` (the JSBSim reference point's height on the
+wheels, measured: 1.1 m in the 737, 5.7 m in the MD-11) so the wheels touch the runway. The camera
+trails the heading (0.6 s lag) at 1.2 x span + 7 m, 10 degrees above, horizon level, at least 2 m
+above the terrain; the look layer orbits it. `external_view` setting, `Action::ViewToggle`
+(L2 + L3, C), `HudOptions::externalView` (status rows, warnings, messages). Models are 280 (c172p)
+to 630 (747) triangles; a build takes 0.03 ms. Draw cost, CPU about 0.1 ms; with the raster on
+Mesa llvmpipe (a software renderer, the only GL in CI) 0.29 ms (c172p) and 0.40 ms (787) at the
+device's 640 x 480, 0.41 / 0.65 ms at 1280 x 960. A hardware GPU draws it in far less; the device
+number comes with X3.
+
+## W7: Cloud layers
+**Status:** in review (needs device test: OVC from below, inside and above at the device's fill rate; the GLES texture path on the Mali) · **Model / effort:** Sonnet / medium · **Depends:** W4, X1 · **Specs:** ARCHITECTURE §6
+
+**Owns:** `src/world/Clouds*`, `tests/world/clouds*`; a `[clouds]` weather section in scenarios
+and the weather menu (integration).
+
+Up to three layers (FEW / SCT / BKN / OVC with a base and a top) from manual weather or METAR
+ceilings. The layer is drawn from above, from below and inside it (fog to the cloud colour).
+The budget: at most 3 draw calls and a fill cost the Mali can carry (DEVICE.md §2: about 17
+blended full-screen layers per frame in total).
+**Acceptance:** screenshots below, inside and above an OVC 1,500 ft layer at XTST, and a METAR
+fixture that produces a BKN layer.
+
+Done (PR #11): `world/CloudsLogic` (no GL: parsing, resolution, coverage noise, per-frame plan)
+and `world/Clouds`. Sources: `clouds` setting (AUTO / OFF / FEW / SCT / BKN / OVC, with
+`cloud_base_ft` for a manual layer; settings menu rows CLOUDS and CLOUD BASE), then the scenario
+`[clouds]` section (`layer1..3 = OVC 1500 3500`, base and top ft above the field, METAR style
+`BKN015` also works, `clear = true`; written back to last_flight.ini), then the METAR (VV becomes
+OVC). Tops default to 800 / 1,200 / 1,800 / 2,500 ft above the base; layers do not overlap. Each
+layer the eye is outside is one blended disk (50 km, curvature drop, fogged per vertex) at its
+base or top, shaped by one 128 x 128 tiling noise texture sampled at two scales (8 km tiles), with
+the threshold set so each cover hides about its share (tested within 8 %). Inside a layer the view
+fades to the cloud colour over the first 200 ft (one full-screen quad, scaled by the local
+coverage). At most three draws in all and at most three blended full-screen layers. Drawn before
+the chase model. `GlApi` gains the GLES2 texture calls (additive); the mip chain is built on the
+CPU. Fixture: `tests/fixtures/weather/XTST_bkn.txt`; scenario `weather_ovc1500_xtst.ini`. Cost on
+Mesa llvmpipe (software) at 640 x 480: 1.4 ms in cloud, 2.7 to 3.0 ms for a layer seen from below
+or above; llvmpipe texturing is slow, so the Mali number comes from X3 (the fill is at most one
+blended full screen plus the layers' share of it). Not done: cloud shadows and dimmed ground
+light under an overcast.
+
+## N8: SIDs, STARs and approach transitions
+**Status:** in review (needs device test: pick MINNE5.FAMUK from 28L at KPDX and an approach transition in the pause menu; a data pack rebuilt with the new cifp.py still loads on 1.1) · **Model / effort:** Sonnet / high · **Depends:** N4, N5, H5 · **Specs:** NAVIGATION §2–3, DATA §7
+
+**Owns:** `tools/nav/cifp*`, `src/nav/Procedures*`, `tests/nav/procedures*`; the departure and
+arrival rows on the flight-plan screen (H5, small additive edit).
+
+Parse CIFP SID and STAR records (runway and enroute transitions) into the `.proc` files, load
+them at runtime, and let the flight-plan screen insert a SID after the origin and a STAR before
+the approach. `.fms` imports keep their SID/STAR names. Leg types as in N4.
+**Acceptance:** the KPDX and KOTH SIDs and STARs parse with the published fixes and altitude
+constraints; the perfect-pilot test flies a KPDX SID into the KPDX-KOTH plan.
+
+Done (PR #11), plus the owner's request to choose approach transitions: `cifp.py` writes CIFP
+subsections D / E as SID / STAR blocks the 1.0 / 1.1 reader skips (DATA §7), the fixtures carry
+the real cycle 2610 KPDX (6 SIDs, 5 STARs) and KOTH (OTH7) records; `Procedures` parses and
+assembles them; `insertSid` / `insertStar` put them into the plan by tag (`Leg::source`,
+additive); `applyFmsProcedures` handles the .fms SID / STAR / APPTRANS lines, which `planToFms`
+now writes. UI: DEPARTURE (SID) and ARRIVAL (STAR) rows on the setup and in-flight FLIGHT PLAN
+screens, and a transition step (AUTO / VECTORS / named) after picking an approach, in setup and in
+flight. Scenario key `approach_transition`. Perfect pilot: KPDX 28L MINNE5.FAMUK, CVO, EUG, OTH
+into the KOTH approach, every fix in order. Not done: airways, SID / STAR speed limits are shown
+in the leg data only.
+
+## S2: GPWS voice callouts
+**Status:** in review (PLAN D22 proposes the voice source for the owner to confirm; needs device test: clip loudness against the engine on the speaker, PULL UP cutting into a height callout) · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
+
+**Owns:** `src/audio/` (voice playback), `assets/audio/` (clips).
+"MINIMUMS", radio-altitude callouts (500, 100, 50, 40, 30, 20, 10), "SINK RATE", "PULL UP",
+"TERRAIN", "TOO LOW GEAR" in place of the X2 tones, with the tones as the fallback when a clip
+is missing. Small mono 22.05 kHz clips loaded at start.
+**Acceptance:** each GPWS event plays its clip in a scripted approach (audio event log), and the
+memory cost is under 2 MB.
+
+Done (PR #11): `audio/VoiceBank` (WAV loader, 15 clips: MINIMUMS, 2500, 1000, 500, 100, 50,
+40, 30, 20, 10, SINK RATE, PULL UP, TERRAIN, TOO LOW GEAR, TOO LOW FLAPS; 494 KiB in memory),
+`AudioEventType::Voice` (additive) on one voice channel in the synth (PULL UP 5 > TERRAIN 4 >
+SINK RATE 3 > TOO LOW / MINIMUMS 2 > heights 1: higher interrupts, equal waits in a 4-deep
+queue), `audio/Callouts` `alertEvent()` (the GPWS switch moved out of App.cpp: voice when the clip
+is loaded, else the X2 tone), MINIMUMS through AudioControl. Setting `gpws_voice` (menu row GPWS
+VOICE). Clips from `tools/audio/make_voice_clips.py` (Flite, PLAN D22). Tests: the scripted
+approach logs 2500 1000 500 100 50 40 30 20 10, the 2,500 fpm dive SINK RATE, the 3,500 fpm one
+PULL UP, gear up TOO LOW GEAR, each played on the synth.
+
+## F6: Fuel load and planning
+**Status:** in review (needs device test: the FUEL row on the new-flight screen, the HUD
+endurance, LOW FUEL in a long flight) · **Model / effort:** Sonnet / medium · **Depends:** F1,
+N5, H5
+
+**Owns:** `src/sim/FuelPlan*`, `tests/sim/fuel*`; the tank load in `sim/FlightModel`; the
+`[cruise] fuel_flow_lbs_hr` profile key; the FUEL row in `ui/SetupScreens`.
+Every flight used to start with the JSBSim model's own load (full tanks on most aircraft), and
+the HUD showed the pounds on board with no sense of how long they last. The owner asked for fuel
+planning after the 1.1 device test.
+
+Done (PR #11):
+- **Load at the start.** Scenario key `fuel` and the new-flight FUEL row: AS LOADED (the model's
+  own load, as before), FULL, 75 %, 50 %, 25 % or AUTO; a scenario can also give pounds
+  (`fuel = 9000`) or a fraction (`fuel = 40%`). The tanks are set after the model loads and before
+  the trim, so the trim flies the real weight. A load above the capacity fills the tanks.
+- **AUTO** carries the plan's trip at the profile's cruise flow and speed (TAS ~ IAS + 2 % per
+  1,000 ft), plus 10 % and a 45-minute reserve. Without a plan or cruise data it fills the tanks.
+- **Cruise flows**, measured in JSBSim at each profile's `[cruise]` speed and altitude with the
+  AP and A/T level for 30 s, all engines, lb/h: c172p 53, c182 105, pa28 84, c310 120,
+  global5000 4,890, 737 5,870, A320 7,890, 787-8 6,840, B747 25,690, MD11 18,150.
+- **In flight.** `AircraftState` gains `fuelFlowLbsPerHr` (the sum of the engines'
+  `fuel-flow-rate-pps`) and `fuelCapacityLbs` (additive). HUD row 2 adds the endurance at the
+  present flow when it is under 2 h (`FUEL 9 990 LB 1:57`; amber under 30 min, red under 15).
+  The plan page shows `FUEL x LB  h:mm  AT DEST y LB` (fuel left at the destination at the
+  present flow and ground speed). LOW FUEL messages fire once at 30 and once at 15 minutes,
+  airborne only.
+
+Tests (`tests/sim/fuelTest.cpp`): the setting parses and prints back; AUTO arithmetic (160 NM at
+120 kt and 100 lb/h plans 221.7 lb); the c172p and 737 load what the setting asks; AUTO on the
+XTST LNAV plan loads the planned pounds within 3 % and the flow in flight is near the cruise
+figure; LOW FUEL fires once per threshold; the HUD field, its colours and its fit in the slot.
+A 737 cannot start below its tank minimum (about 95 lb unusable), so its test loads 3,000 lb.

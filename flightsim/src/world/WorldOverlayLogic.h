@@ -37,6 +37,11 @@ float metersForPixels(float distM, float px, float viewH, float vFovRad);
 float overlayRunwayHalfWidthM(float trueHalfWidthM, float distM, float minPx, float viewH,
                               float vFovRad);
 
+// Close to the field the runway outlines and the approach path would box in the view: both clear
+// once the eye is less than this height above the runway (or the approach leg's end).
+constexpr float kOverlayNearFieldHideFt = 250.0f;
+bool overlayHiddenNearField(double eyeAltMslM, float fieldElevFt);
+
 // `distNm[i]` is the great-circle distance of candidate i. Keeps (hideInsideNm, radiusNm],
 // nearest first, at most maxCount.
 void selectOverlayAirports(const std::vector<double>& distNm, double radiusNm, double hideInsideNm,

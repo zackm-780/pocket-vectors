@@ -7,13 +7,18 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 
-#include "app/Settings.h"  // P3
+#include "app/FrameStats.h"     // X3
+#include "app/RenderQuality.h"  // X3
+#include "app/Settings.h"       // P3
 #include "app/Simulation.h"
 #include "audio/AudioControl.h"  // S1
 #include "audio/AudioEngine.h"   // S1
+#include "audio/Callouts.h"      // S2
+#include "audio/VoiceBank.h"     // S2
 #include "core/Baro.h"           // X1
 #include "core/FlatTerrain.h"
 #include "core/Log.h"
@@ -34,14 +39,18 @@
 #include "hud/Renderer2D.h"            // H1
 #include "hud/Renderer2DGlyphSheet.h"  // H1
 #include "input/InputSystem.h"         // P2
+#include "input/LookControl.h"         // I2
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
 #include "platform/Window.h"
+#include "sim/FuelPlan.h"                  // F6
 #include "ui/MapPage.h"                    // H4
 #include "ui/MenuSystem.h"                 // H5
 #include "world/AirportGeometry.h"         // W5
 #include "world/AirportRenderer.h"         // W5
 #include "world/Atmosphere.h"              // W4
+#include "world/Clouds.h"                  // W7
+#include "world/ExternalView.h"            // V1
 #include "world/Sky.h"                     // W4
 #include "world/TerrainRenderer.h"         // W2
 #include "world/Weather.h"                 // X1
@@ -140,16 +149,25 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     const world::TerrainDebugOverrides dbg = world::readTerrainDebugEnv();
     if (dbg.visibilityKm > 0) atmosphere.setVisibilityM(dbg.visibilityKm * 1000.0f);
     std::unique_ptr<world::TerrainRenderer> terrainRenderer;
+    // X3: the graphics_quality preset (the FSIM_W2_PX_PER_CELL hook still wins for the LOD).
+    GraphicsQuality appliedQuality = settings.graphicsQuality;
+    auto applyGraphicsQuality = [&]() {
+        appliedQuality = settings.graphicsQuality;
+        if (!terrainRenderer) return;
+        world::TerrainRenderConfig tc = terrainRenderer->config();
+        applyRenderQuality(renderQualityFor(settings.graphicsQuality), tc);
+        if (dbg.pixelsPerCell > 0) tc.lod.pixelsPerCell = dbg.pixelsPerCell;
+        terrainRenderer->setConfig(tc);
+        LOG_INFO("graphics quality %s: terrain %.1f px/cell, %d uploads/frame, detail %s",
+                 graphicsQualityLabel(settings.graphicsQuality), tc.lod.pixelsPerCell,
+                 tc.uploadsPerFrame, tc.detailNoise ? "on" : "off");
+    };
     if (terrainSvc) {
         terrainRenderer =
             std::make_unique<world::TerrainRenderer>(window.gl(), window.flavor(), *terrainSvc);
         if (terrainRenderer->init()) {
             renderer.setTerrain(terrainRenderer.get());
-            if (dbg.pixelsPerCell > 0) {
-                world::TerrainRenderConfig tc = terrainRenderer->config();
-                tc.lod.pixelsPerCell = dbg.pixelsPerCell;
-                terrainRenderer->setConfig(tc);
-            }
+            applyGraphicsQuality();
         } else
             terrainRenderer.reset();
     }
@@ -173,6 +191,25 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (!airports.init()) return 1;
     world::WorldOverlay worldOverlay(window.gl(), window.flavor());  // W6
     if (!worldOverlay.init()) LOG_WARN("world overlay: shader failed; markers stay hidden");
+    world::Clouds clouds(window.gl(), window.flavor());  // W7
+    if (!clouds.init()) LOG_WARN("clouds: shader failed; no cloud layers");
+    // W7: layers from the scenario, the clouds setting or the METAR, above the start airport.
+    auto setClouds = [&]() {
+        const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent);
+        const float fieldFt = ap ? static_cast<float>(ap->elevFt) : 0.0f;
+        const world::CloudDeck deck = world::resolveClouds(
+            sim.scenario().clouds, sim.metar(), settings.clouds, settings.cloudBaseFt, fieldFt);
+        clouds.setDeck(deck, ap ? ap->latDeg : sim.aircraft().latDeg,
+                       ap ? ap->lonDeg : sim.aircraft().lonDeg);
+        if (deck.count > 0)
+            LOG_INFO("clouds (%s): %d layer(s), lowest %s %.0f-%.0f ft", deck.source.c_str(),
+                     deck.count, world::cloudCoverName(deck.layers[0].cover),
+                     deck.layers[0].baseFtMsl, deck.layers[0].topFtMsl);
+    };
+    setClouds();
+    world::ExternalView externalView(window.gl(), window.flavor());  // V1
+    if (!externalView.init()) LOG_WARN("external view: shader failed; no aircraft model");
+    std::string externalViewProfile;  // profile id the model was built for
     airports.setNavDatabase(&sim.navDb());
     airports.setTerrain(&sim.terrain());
     airports.setAtmosphere(&atmosphere);
@@ -190,6 +227,12 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     PilotControls pilotControls;
     pilotControls.setStickTuning(settings.stickTuning());  // P3
     bool showFps = effectiveShowFps(opt, settings);        // P3
+    // I2: L2 look layer -> camera look angles. FSIM_LOOK_DEG=yaw,pitch holds a look for
+    // screenshots (like the FSIM_W2_* hooks).
+    LookControl look;
+    float lookHoldYawDeg = 0, lookHoldPitchDeg = 0;
+    if (const char* env = std::getenv("FSIM_LOOK_DEG"))
+        std::sscanf(env, "%f,%f", &lookHoldYawDeg, &lookHoldPitchDeg);
     MessageQueue messages;
     Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
@@ -253,12 +296,50 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     std::vector<audio::AudioEvent> audioEvents;
     audioEvents.reserve(16);
     std::vector<audio::AudioEvent> gpwsToneBuf;  // X2: GPWS tones for S1, reused per frame
+    LowFuelMonitor lowFuel;                      // F6
     gpwsToneBuf.reserve(8);
+    // S2: GPWS voice clips (missing clips fall back to the tones).
+    audio::VoiceBank voiceBank;
+    {
+        const int n = voiceBank.loadDir(paths.asset("assets/audio/voice"));
+        LOG_INFO("voice: %d of %d GPWS clips (%zu KiB)", n, audio::kVoiceClipCount,
+                 voiceBank.bytes() / 1024);
+    }
+    audioEngine.setVoiceBank(&voiceBank);
+    audioControl.setVoiceBank(settings.gpwsVoice ? &voiceBank : nullptr);
     if (interactive) audioEngine.init();
 
     AppState state = AppState::Flying;
     bool quitRequested = false;
     // H5: applies edited settings to the running game (HUD color, sticks, FOV, FPS display).
+    // X3: per-pass frame timing, always collected (a few counter reads per frame). The window goes
+    // to the log once a second with show_fps; the session table when the pause menu opens, every
+    // 2 minutes, when the quality preset changes and at exit.
+    const double perfFreq = static_cast<double>(SDL_GetPerformanceFrequency());
+    FrameStats frameStats;
+    PerfFrame perf;
+    PerfTotals shownPerf;  // the last full second, for the on-screen readout
+    std::uint64_t passStart = 0;
+    long perfLoggedFrames = 0;
+    double perfSessionClockS = 0;  // the table also goes to the log every 2 minutes, because
+                                   // Select + Start (gptokeyb) can kill the game before its exit
+    const bool perfSync = settings.perfGpuSync;
+    if (perfSync) LOG_INFO("perf: perf_gpu_sync on (glFinish after each pass)");
+    auto passEnd = [&](PerfPass p) {
+        if (perfSync) window.gl().Finish();
+        const std::uint64_t t = SDL_GetPerformanceCounter();
+        perf.setPass(p, static_cast<double>(t - passStart) * 1000.0 / perfFreq);
+        passStart = t;
+    };
+    // The table is labelled with the quality preset (and the sync mode) it was measured with.
+    auto logPerfSession = [&](long minNewFrames) {
+        if (frameStats.sessionFrames() - perfLoggedFrames < std::max(1L, minNewFrames)) return;
+        perfLoggedFrames = frameStats.sessionFrames();
+        char label[32];
+        std::snprintf(label, sizeof label, "%s%s", graphicsQualityLabel(appliedQuality),
+                      perfSync ? ", gpu sync" : "");
+        LOG_INFO("%s", frameStats.sessionSummary(label).c_str());
+    };
     auto applySettings = [&]() {
         switch (settings.hudColor) {
         case HudColor::White: hudOptions.color = HudPalette::White; break;
@@ -268,14 +349,30 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         hudOptions.baroInHg = settings.pressureUnits == PressureUnits::InHg;
         pilotControls.setStickTuning(settings.stickTuning());
         camera.setLens(settings.fovVerticalDeg);
-        showFps = showFps || settings.showFps;
+        showFps = effectiveShowFps(opt, settings);  // X3: SHOW FPS OFF also hides the readout
+        if (settings.graphicsQuality != appliedQuality) {  // X3: a new timing table per preset
+            logPerfSession(1);
+            frameStats.resetSession();
+            perfLoggedFrames = 0;
+            applyGraphicsQuality();
+        }
+        setClouds();                                                           // W7
+        audioControl.setVoiceBank(settings.gpwsVoice ? &voiceBank : nullptr);  // S2
     };
+    // X3: frames left out of the timing after the window opens or a flight starts (shader
+    // compiles and the first tile uploads are load time, not the frame rate).
+    int perfSkipFrames = 10;
     // H5: a flight (re)started: the ground grid, sky time and HUD follow the new airport.
     auto flightStarted = [&]() {
+        perfSkipFrames = 10;   // X3
+        look.reset();          // I2
+        externalView.reset();  // V1
+        lowFuel.reset();       // F6
         if (const Airport* ap = sim.navDb().findAirport(sim.scenario().airportIdent))
             renderer.setWorld(*ap, static_cast<float>(world::airportLowestFlatElevM(*ap)));
         setSkyTime();
         setWeatherVisibility();  // X1
+        setClouds();             // W7
         menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
     };
     auto startOrReport = [&](const Scenario& sc) {
@@ -290,11 +387,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         }
     };
     int frame = 0;
-    int fpsFrames = 0;
     std::uint64_t lastCounter = SDL_GetPerformanceCounter();
     double fpsClockS = 0;
-    const double perfFreq = static_cast<double>(SDL_GetPerformanceFrequency());
-
     if (terrainRenderer) {  // W2: load and build the first view before the first frame
         int pw = 0, ph = 0;
         window.drawableSize(pw, ph);
@@ -313,11 +407,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         const double wallDtS = static_cast<double>(now - lastCounter) / perfFreq;
         lastCounter = now;
         const double dtS = interactive ? std::min(wallDtS, kMaxFrameDtS) : kFixedFrameDtS;
+        passStart = now;  // X3
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) input.handleEvent(event);
         const ActionState& actions = input.update(dtS);  // P2
         messages.tick(dtS);
+        // I2: a frame the menu owns gives the flight no buttons, also when the menu closes in it.
+        const bool menuOwnsFrame = menu.active();
         // H4: the map takes MapToggle; while shown it consumes the D-pad / A / B / Y actions.
         ActionState flightActions = actions;
         if (menu.active()) {
@@ -365,6 +462,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             if (actions.pressed[static_cast<int>(Action::Pause)]) {
                 mapShown = false;
                 menu.openPause();
+                logPerfSession(300);  // X3: about 10 s new; usually opened before quitting
             }
         }
         if (quitRequested) break;
@@ -373,14 +471,23 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         sim.setPaused(state != AppState::Flying);
 
         if (state == AppState::Flying) {
+            // I2: the press that closed a menu stays in the menu. On the pad A is MenuAccept and
+            // GearToggle, so resuming or starting a flight with A used to move the gear.
+            ActionState cmdActions = actions;
+            if (menuOwnsFrame) {
+                clearButtons(flightActions);
+                clearButtons(cmdActions);
+            }
             if (interactive)
                 pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
+            // I2: L2 look layer (frozen while a menu is open, eases back when L2 is released).
+            if (interactive) look.update(flightActions, dtS);
             // N6: AP / FD / A/T engage, mode and bug actions.
             if (interactive)
-                sim.autopilot().handleActions(actions, sim.aircraft(), sim.navState(), dtS);
+                sim.autopilot().handleActions(cmdActions, sim.aircraft(), sim.navState(), dtS);
             if (interactive &&
-                actions.pressed[static_cast<int>(Action::OverlayPreset)]) {  // W6: L3 presets
+                cmdActions.pressed[static_cast<int>(Action::OverlayPreset)]) {  // W6: L3 presets
                 world::OverlayToggles layers;
                 layers.route = settings.overlayRoute;
                 layers.vpath = settings.overlayVpath;
@@ -395,9 +502,17 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                     LOG_WARN("settings: cannot write %s", menuEnv.settingsPath.c_str());
                 messages.postf("OVERLAYS %s", world::overlayPresetName(preset));
             }
+            if (interactive && cmdActions.pressed[static_cast<int>(Action::ViewToggle)]) {  // V1
+                settings.externalView = !settings.externalView;
+                externalView.reset();
+                look.reset();
+                if (!menuEnv.settingsPath.empty() && !settings.save(menuEnv.settingsPath))
+                    LOG_WARN("settings: cannot write %s", menuEnv.settingsPath.c_str());
+                messages.post(settings.externalView ? "VIEW CHASE" : "VIEW COCKPIT");
+            }
             if (interactive) {  // X1: altimeter setting (R1 + D-pad up/down, R1 + Select = STD)
                 const bool inHg = settings.pressureUnits == PressureUnits::InHg;
-                auto pr = [&](Action a) { return actions.pressed[static_cast<int>(a)]; };
+                auto pr = [&](Action a) { return cmdActions.pressed[static_cast<int>(a)]; };
                 if (pr(Action::BaroStd)) sim.setAltimeterSettingHpa(static_cast<float>(kStdQnhHpa));
                 const int steps = (pr(Action::BaroInc) ? 1 : 0) - (pr(Action::BaroDec) ? 1 : 0);
                 if (steps != 0) sim.stepAltimeter(steps, inHg);
@@ -407,7 +522,44 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                     messages.postf("ALTIMETER %s", t);
                 }
             }
+            if (interactive) {  // I2: R1 + Y nav source, L1 + Select direct-to
+                auto pr = [&](Action a) { return cmdActions.pressed[static_cast<int>(a)]; };
+                Navigator& nav = sim.navigator();
+                if (pr(Action::NavSourceCycle)) {
+                    const NavSource shown = sim.navState().source;
+                    const NavSourceSelect next =
+                        nextNavSourceSelect(shown, nav.locAvailable(), nav.vorTuned());
+                    nav.setSourceSelect(next);
+                    const char* text = "NAV SOURCE GPS";
+                    if (next == NavSourceSelect::Loc) text = "NAV SOURCE LOC";
+                    if (next == NavSourceSelect::Vor) text = "NAV SOURCE VOR";
+                    if (shown != NavSource::Loc && shown != NavSource::Vor &&
+                        next == NavSourceSelect::Auto)
+                        text = "NO LOC OR VOR TUNED";
+                    messages.post(text);
+                }
+                if (pr(Action::DirectTo)) {
+                    const int leg = nav.hasPlan() ? nav.plan().activeLeg : -1;
+                    if (leg >= 1 && leg < static_cast<int>(nav.plan().legs.size()) &&
+                        nav.directToLeg(leg)) {
+                        // The plan is now [PPOS, DF target, ...] with the target active.
+                        const FlightPlan& plan = nav.plan();
+                        messages.postf(
+                            "DIRECT TO %s",
+                            plan.legs[static_cast<size_t>(plan.activeLeg)].to.ident.c_str());
+                    } else {  // no plan (or it is flown out): pick a waypoint from the list
+                        mapShown = false;
+                        menu.openDirectTo();
+                    }
+                }
+            }
             sim.advance(dtS);
+        }
+        {  // F6: LOW FUEL at 30 and 15 minutes of endurance
+            const AircraftState& as = sim.aircraft();
+            const int mins = lowFuel.update(enduranceMin(as.fuelTotalLbs, as.fuelFlowLbsPerHr),
+                                            !as.wowAny && as.valid);
+            if (mins > 0) messages.postf("LOW FUEL %d MIN", mins);
         }
         gpwsToneBuf.clear();
         {  // X2: GPWS-lite; text callouts go to the message queue, tones to S1
@@ -417,22 +569,18 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 if (ev.kind == GpwsEventKind::Callout || ev.kind == GpwsEventKind::TooLowGear ||
                     ev.kind == GpwsEventKind::TooLowFlaps)
                     messages.post(ev.text);
-                switch (ev.kind) {  // freq, duration, repeats, gap, gain, alternate freq
-                case GpwsEventKind::Callout:
-                    gpwsToneBuf.push_back(audio::makeTone(1000, 0.08f));
-                    break;
-                case GpwsEventKind::SinkRate:
-                case GpwsEventKind::Terrain:
-                    gpwsToneBuf.push_back(audio::makeTone(700, 0.2f, 2, 0.12f, 0.6f));
-                    break;
-                case GpwsEventKind::PullUp:
-                    gpwsToneBuf.push_back(audio::makeTone(800, 0.25f, 3, 0.05f, 0.7f, 1200));
-                    break;
-                case GpwsEventKind::TooLowGear:
-                case GpwsEventKind::TooLowFlaps:
-                    gpwsToneBuf.push_back(audio::makeTone(600, 0.15f, 2, 0.1f, 0.6f));
-                    break;
+                // S2: spoken when the clip is loaded (and the voice is on), else the X2 tone.
+                audio::AlertKind kind = audio::AlertKind::Callout;
+                switch (ev.kind) {
+                case GpwsEventKind::Callout: kind = audio::AlertKind::Callout; break;
+                case GpwsEventKind::SinkRate: kind = audio::AlertKind::SinkRate; break;
+                case GpwsEventKind::Terrain: kind = audio::AlertKind::Terrain; break;
+                case GpwsEventKind::PullUp: kind = audio::AlertKind::PullUp; break;
+                case GpwsEventKind::TooLowGear: kind = audio::AlertKind::TooLowGear; break;
+                case GpwsEventKind::TooLowFlaps: kind = audio::AlertKind::TooLowFlaps; break;
                 }
+                gpwsToneBuf.push_back(
+                    audio::alertEvent(kind, ev.valueFt, settings.gpwsVoice ? &voiceBank : nullptr));
             }
         }
         if (audioEngine.deviceOpen()) {  // S1: sim state -> audio params and one-shot events
@@ -468,11 +616,39 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         int w = 0, h = 0;
         window.drawableSize(w, h);
         camera.setViewport(w, h);
-        camera.setPoseFromAircraft(view);
+        // I2: the look angles (or the FSIM_LOOK_DEG screenshot hook).
+        if (lookHoldYawDeg != 0 || lookHoldPitchDeg != 0)
+            camera.setPoseFromAircraft(view, static_cast<float>(degToRad(lookHoldYawDeg)),
+                                       static_cast<float>(degToRad(lookHoldPitchDeg)));
+        else
+            camera.setPoseFromAircraft(view, look.yawRad(), look.pitchRad());
+        // V1: chase view (not on the map page or behind a full-screen menu).
+        const bool chase = settings.externalView && state != AppState::Menu && !mapShown;
+        if (sim.profile().id != externalViewProfile) {
+            externalView.setAircraft(sim.profile());
+            externalViewProfile = sim.profile().id;
+        }
+        if (chase) {
+            const bool held = lookHoldYawDeg != 0 || lookHoldPitchDeg != 0;
+            externalView.placeCamera(
+                camera, view, held ? static_cast<float>(degToRad(lookHoldYawDeg)) : look.yawRad(),
+                held ? static_cast<float>(degToRad(lookHoldPitchDeg)) : look.pitchRad(),
+                &sim.terrain(), dtS);
+        }
         atmosphere.setObserver(camera.eyeGeo().latDeg, camera.eyeGeo().lonDeg,  // W4
                                ftToM(view.altAglFt));
+        passEnd(PerfPass::Update);  // X3
         renderer.render(camera, w, h);
+        passEnd(PerfPass::Terrain);
         airports.render(camera, w, h, sim.aircraft().simTimeS);  // W5: after the ground
+        passEnd(PerfPass::Airports);
+        // W7 clouds (blended, no depth writes) before the chase model, so the aircraft stays in
+        // view inside a cloud; a layer surface is always farther away than the model.
+        const bool cloudsOn = state != AppState::Menu && !mapShown;
+        if (cloudsOn) clouds.render(camera, atmosphere);
+        passEnd(PerfPass::Clouds);
+        if (chase) externalView.render(camera, view, atmosphere.light());  // V1: one draw
+        passEnd(PerfPass::Model);
         {  // W6: route, vertical path, airports, runway outlines (at most 4 draws)
             const bool layersOn = settings.overlayRoute || settings.overlayVpath ||
                                   settings.overlayAirports || settings.overlayRunways;
@@ -491,8 +667,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 worldOverlay.clearFrame();
             }
         }
+        passEnd(PerfPass::Overlay);
+        int hudDraws = 0;  // X3
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
-            hudOptions.paused = false;  // H5: the pause menu says PAUSED itself
+            hudOptions.paused = false;        // H5: the pause menu says PAUSED itself
+            hudOptions.externalView = chase;  // V1: status strip and messages only
             hudOptions.magVarDeg =
                 sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             {  // H3: nav / autopilot state for the overlay (or a canned one with --hud-fake)
@@ -518,19 +697,36 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             else if (state != AppState::Menu) {
                 hud.draw(hud2d, camera, sim.aircraft(), sim.finalControls(), sim.profile(),
                          messages, hudOptions);
-                if (miniNavShown(settings.hudMiniNav, hudOptions.declutter, false))
+                if (!chase && miniNavShown(settings.hudMiniNav, hudOptions.declutter, false))
                     miniNav.draw(hud2d, sim.aircraft(), sim.navState(),
                                  sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
                                  settings.hudMiniNavRangeNm);
                 worldOverlay.drawLabels(hud2d);  // W6
             }
+            if (showFps && !opt.glyphSheet && state != AppState::Menu) {  // X3: the device has
+                char line[48];  // no window title, so show_fps also puts the last second here
+                if (shownPerf.frames > 0)
+                    std::snprintf(line, sizeof line, "%.0f FPS %.1f MS", shownPerf.fps(),
+                                  shownPerf.meanFrameMs());
+                else
+                    std::snprintf(line, sizeof line, "-- FPS");
+                const Color c = colors::kWhite.withAlpha(0.85f);
+                hud2d.text(hud2d.leftX() + 16, 36, line, TextSize::S, c);
+                if (shownPerf.frames > 0) {
+                    std::snprintf(line, sizeof line, "CPU %.1f MS", shownPerf.meanCpuMs());
+                    hud2d.text(hud2d.leftX() + 16, 52, line, TextSize::S, c);
+                }
+            }
             hud2d.end();
+            hudDraws = hud2d.stats().drawCalls;  // X3
             if (menu.active()) {  // H5: own batch, so its panels cover the HUD strokes beneath
                 hud2d.begin(w, h);
                 menu.draw(hud2d);
                 hud2d.end();
+                hudDraws += hud2d.stats().drawCalls;
             }
         }
+        passEnd(PerfPass::Hud);
         ++frame;
 
         if (frames > 0 && frame >= frames) {
@@ -542,24 +738,52 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             break;
         }
         window.swap();
+        passEnd(PerfPass::Swap);
 
-        ++fpsFrames;
+        {  // X3: one frame of timing, filed under what it showed
+            perf.frameMs = static_cast<double>(passStart - now) * 1000.0 / perfFreq;
+            perf.scene = state != AppState::Flying ? PerfScene::Menu
+                         : mapShown                ? PerfScene::Map
+                         : chase                   ? PerfScene::Chase
+                                                   : PerfScene::Cockpit;
+            perf.sky = !cloudsOn                          ? PerfSky::Clear
+                       : clouds.lastInsideAlpha() > 0.01f ? PerfSky::Inside
+                       : clouds.lastDrawCalls() > 0       ? PerfSky::Layer
+                                                          : PerfSky::Clear;
+            const world::TerrainRenderStats* ts =
+                terrainRenderer ? &terrainRenderer->stats() : nullptr;
+            perf.terrainTriangles = ts ? ts->triangles : 0;
+            perf.drawCalls = (ts ? ts->drawCalls : 0) + clouds.lastDrawCalls() +
+                             (chase ? externalView.lastDrawCalls() : 0) +
+                             worldOverlay.lastDrawCalls() + hudDraws;
+            if (perfSkipFrames > 0)
+                --perfSkipFrames;
+            else
+                frameStats.add(perf);
+        }
+        perfSessionClockS += wallDtS;
+        if (perfSessionClockS >= 120.0) {
+            perfSessionClockS = 0;
+            logPerfSession(300);
+        }
         fpsClockS += wallDtS;
         if (fpsClockS >= 1.0) {
             if (showFps) {
                 const AircraftState& s = sim.aircraft();
                 char title[160];
                 std::snprintf(title, sizeof title, "Pocket Vectors | %.0f fps | %.0f kt | %.0f ft",
-                              fpsFrames / fpsClockS, s.iasKt, s.altMslFt);
+                              frameStats.window().fps(), s.iasKt, s.altMslFt);
                 window.setTitle(title);
-                LOG_INFO("%.1f fps", fpsFrames / fpsClockS);
+                LOG_INFO("%s", frameStats.windowLine().c_str());  // X3
                 if (terrainRenderer)
                     LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             }
-            fpsFrames = 0;
+            shownPerf = frameStats.window();  // X3: the on-screen readout shows the last second
+            frameStats.resetWindow();
             fpsClockS = 0;
         }
     }
+    logPerfSession(1);  // X3
     return 0;
 }
 

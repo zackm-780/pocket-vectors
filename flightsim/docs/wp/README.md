@@ -5,6 +5,13 @@ This folder is the plan for everything after Pocket Vectors 1.0. Each work packa
 its builder needs: why, what to read, which paths it owns, the steps, the acceptance list and the
 checks for the handheld. Waves 0–5 stay in [../WORK_PACKAGES.md](../WORK_PACKAGES.md) as history.
 
+**State on 2026-11-05.** The owner put Wave 6 of [../WORK_PACKAGES.md](../WORK_PACKAGES.md)
+(I2, N7, V1, W7, N8, S2, F6, plus X3) into 1.2, which is on `main` waiting for its device test. That
+finished N7, N9 (Wave 6 calls it N8), W7, X3b, part B of S2 and most of X3a here; their `Status:`
+lines say so. The external chase view (V1) is in 1.2 too. The next device session tests that build
+(the 1.2 checklist and DEVICE.md §6), which covers what T1 and T2 ask for. The phases below are the
+original plan; take the open cards in that order.
+
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).
 - **The owner** runs the device sessions (T1, T2, T3), answers the decisions below, and approves
@@ -84,5 +91,5 @@ exists. The builder sets `done` in its own pull request, so the merge marks it d
 
 - DHC6 and J3Cub: skipped in F4 (the DHC6 model has no trim; the J3Cub is a tail-dragger
   without flaps).
-- External view with simple models: PLAN §2 "Later", not scheduled.
+- External view with simple models: done in 1.2 (Wave 6 V1, PLAN D5a).
 - Photoreal scenery, 3D cockpits, multiplayer, ATC, failures: PLAN §2 non-goals.

@@ -6,6 +6,7 @@
 
 #include "core/Log.h"
 #include "nav/FlightPlan.h"
+#include "sim/FuelPlan.h"  // F6
 #include "ui/MenuScreens.h"
 #include "world/WorldOverlayLogic.h"
 
@@ -79,6 +80,13 @@ const SettingDef kSettingDefs[] = {
      }},
     {"FIELD OF VIEW", true, [](const Settings& s) { return fmt("%.0f DEG", s.fovVerticalDeg); },
      [](Settings& s, int d) { s.fovVerticalDeg += 5.0f * static_cast<float>(d); }},
+    {"GRAPHICS QUALITY", false,  // X3: terrain detail preset, applied at once
+     [](const Settings& s) -> std::string {
+         return s.graphicsQuality == GraphicsQuality::Low   ? "LOW"
+                : s.graphicsQuality == GraphicsQuality::Med ? "MED"
+                                                            : "HIGH";
+     },
+     [](Settings& s, int d) { s.graphicsQuality = cycleEnum(s.graphicsQuality, d, 3); }},
     {"VOLUME", true, [](const Settings& s) { return fmt("%.0f%%", s.volumePct); },
      [](Settings& s, int d) { s.volumePct += 10 * d; }},
     {"THROTTLE MODE", false,
@@ -109,6 +117,17 @@ const SettingDef kSettingDefs[] = {
      [](Settings& s, int) { s.weatherMetar = !s.weatherMetar; }},
     {"TURBULENCE", true, [](const Settings& s) { return fmt("%.1f", s.weatherTurbulence); },
      [](Settings& s, int d) { s.weatherTurbulence += 0.1f * static_cast<float>(d); }},
+    {"CLOUDS", false,  // W7
+     [](const Settings& s) -> std::string {
+         static const char* const kNames[] = {"AUTO", "OFF", "FEW", "SCT", "BKN", "OVC"};
+         return kNames[static_cast<int>(s.clouds)];
+     },
+     [](Settings& s, int d) { s.clouds = cycleEnum(s.clouds, d, 6); }},
+    {"CLOUD BASE", true, [](const Settings& s) { return fmt("%.0f FT", s.cloudBaseFt); },
+     [](Settings& s, int d) { s.cloudBaseFt += 500.0f * static_cast<float>(d); }},
+    {"GPWS VOICE", false,  // S2
+     [](const Settings& s) -> std::string { return s.gpwsVoice ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.gpwsVoice = !s.gpwsVoice; }},
     {"OVERLAY ROUTE", false,
      [](const Settings& s) -> std::string { return s.overlayRoute ? "ON" : "OFF"; },
      [](Settings& s, int) { s.overlayRoute = !s.overlayRoute; }},
@@ -323,10 +342,23 @@ public:
             legs_ = planSummary(plan_,
                                 [&db](double lat, double lon) { return db.magVarDeg(lat, lon); });
             distNm_ = planDistNm(plan_);
+            if (f.aircraft) {  // F6: fuel on board, endurance, and what is left at the destination
+                const AircraftState& a = *f.aircraft;
+                const double remNm = distRemainingNm(plan_, LatLon{a.latDeg, a.lonDeg}, false);
+                const float gs = std::max(a.gsKt, 60.0f);
+                char e[16], num[16], dest[16];
+                formatEndurance(e, sizeof e, enduranceMin(a.fuelTotalLbs, a.fuelFlowLbsPerHr));
+                std::snprintf(num, sizeof num, "%.0f", a.fuelTotalLbs);
+                std::snprintf(dest, sizeof dest, "%.0f",
+                              fuelAtDestinationLbs(a.fuelTotalLbs, a.fuelFlowLbsPerHr, remNm, gs));
+                std::snprintf(fuelLine_, sizeof fuelLine_, "FUEL %s LB  %s  AT %s %s LB", num, e,
+                              plan_.destIdent.c_str(), dest);
+            }
         }
         nav_.setCount(kActionRows + static_cast<int>(legs_.size()));
         std::vector<char> disabled(static_cast<size_t>(nav_.count()), 0);
-        disabled[2] = hasApproach_ ? 0 : 1;
+        disabled[2] = disabled[3] = legs_.empty() ? 1 : 0;  // N8: ARRIVAL, DEPARTURE
+        disabled[4] = hasApproach_ ? 0 : 1;
         if (!legs_.empty()) disabled[kActionRows] = 1;  // leg 0 is the origin
         nav_.setDisabled(disabled);
         if (plan_.activeLeg >= 1 && plan_.activeLeg < static_cast<int>(legs_.size()))
@@ -354,6 +386,10 @@ public:
         } else if (sel == 1) {
             m.push(makeApproachScreen(ApproachMode::Flight, m));
         } else if (sel == 2) {
+            m.push(makeProcedureScreen(false, ApproachMode::Flight, m));  // N8: STAR
+        } else if (sel == 3) {
+            m.push(makeProcedureScreen(true, ApproachMode::Flight, m));  // N8: SID
+        } else if (sel == 4) {
             MenuResult res;
             if (f.navigator && f.navigator->reenterApproach()) {
                 res.action = MenuAction::ResumeFlight;
@@ -383,11 +419,18 @@ public:
             sub = b;
         }
         drawScreenFrame(r, t, "FLIGHT PLAN", sub, "A SELECT   B BACK   START RESUME");
+        if (fuelLine_[0]) r.text(r.centered(kContentX), 66, fuelLine_, TextSize::S, t.dim);
         std::vector<ListRow> rows(static_cast<size_t>(nav_.count()));
         rows[0].label = "DIRECT TO IDENT...";
         rows[1].label = "CHANGE APPROACH...";
-        rows[2].label = "RE-ENTER APPROACH";
-        rows[2].enabled = hasApproach_;
+        rows[2] = {"ARRIVAL (STAR)...",
+                   FlightSetup::procedureText(plan_.starId, plan_.starTransition)};
+        rows[2].enabled = !legs_.empty();
+        rows[3] = {"DEPARTURE (SID)...",
+                   FlightSetup::procedureText(plan_.sidId, plan_.sidTransition)};
+        rows[3].enabled = !legs_.empty();
+        rows[4].label = "RE-ENTER APPROACH";
+        rows[4].enabled = hasApproach_;
         for (size_t i = 0; i < legs_.size(); ++i) {
             const LegSummary& l = legs_[i];
             char b[96];
@@ -412,9 +455,10 @@ public:
     }
 
 private:
-    static constexpr int kActionRows = 3;
+    static constexpr int kActionRows = 5;  // N8: + DEPARTURE / ARRIVAL
     FlightPlan plan_;
     std::vector<LegSummary> legs_;
+    char fuelLine_[96] = {0};  // F6
     double distNm_ = 0;
     bool hasApproach_ = false;
     ListNav nav_;

@@ -1,4 +1,4 @@
-Status: blocked (T2 numbers)
+Status: blocked (device timing: the DEVICE.md §6 run)
 # X3c: Device tuning to a 30 fps floor
 
 Phase 2b · Effort: high · Depends: T2 · Who: a planner session refines this card from the T2

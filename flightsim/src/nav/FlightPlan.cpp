@@ -375,6 +375,16 @@ FmsFile planToFms(const FlightPlan& plan, const NavDatabase& db, const FmsFile* 
     f.deprwy = plan.depRunway.empty() ? "" : dbRunwayToFms(plan.depRunway);
     f.desrwy = plan.arrRunway.empty() ? "" : dbRunwayToFms(plan.arrRunway);
     f.app = plan.approachId;
+    // N8: procedures in the plan are written by name (their legs are not exported).
+    if (!plan.sidId.empty()) {
+        f.sid = plan.sidId;
+        f.sidTrans = plan.sidTransition;
+    }
+    if (!plan.starId.empty()) {
+        f.star = plan.starId;
+        f.starTrans = plan.starTransition;
+    }
+    if (!plan.approachTransition.empty()) f.appTrans = plan.approachTransition;
 
     auto airportEntry = [&](const std::string& ident, const char* via,
                             const Waypoint* fallback) -> bool {
@@ -404,6 +414,7 @@ FmsFile planToFms(const FlightPlan& plan, const NavDatabase& db, const FmsFile* 
     }
     for (int i = start; i < endIdx; ++i) {
         const Leg& l = plan.legs[static_cast<size_t>(i)];
+        if (l.source != LegSource::Plan) continue;  // N8: SID / STAR legs travel by name
         FmsEntry e;
         e.ident = l.to.ident;
         e.latDeg = l.to.latDeg;
@@ -678,6 +689,117 @@ void removeApproach(FlightPlan& plan, const NavDatabase& db) {
         plan.legs.push_back(makeLeg(LegType::TF, wp));
     if (plan.activeLeg >= static_cast<int>(plan.legs.size()))
         plan.activeLeg = static_cast<int>(plan.legs.size()) - 1;
+}
+
+// ---- SID / STAR (N8) ---------------------------------------------------------------------------
+
+namespace {
+
+// Erases legs [first, last) and keeps activeLeg / approachStartLeg on the same legs. An active leg
+// inside the range moves to `first` (the leg that now sits there).
+void eraseLegs(FlightPlan& plan, int first, int last) {
+    if (first >= last) return;
+    const int n = last - first;
+    plan.legs.erase(plan.legs.begin() + first, plan.legs.begin() + last);
+    if (plan.activeLeg >= last)
+        plan.activeLeg -= n;
+    else if (plan.activeLeg >= first)
+        plan.activeLeg = first;
+    if (plan.approachStartLeg >= last)
+        plan.approachStartLeg -= n;
+    else if (plan.approachStartLeg >= first)
+        plan.approachStartLeg = first;
+    if (plan.activeLeg >= static_cast<int>(plan.legs.size()))
+        plan.activeLeg = static_cast<int>(plan.legs.size()) - 1;
+}
+
+void insertLegs(FlightPlan& plan, int at, std::vector<Leg> legs) {
+    const int n = static_cast<int>(legs.size());
+    plan.legs.insert(plan.legs.begin() + at, std::make_move_iterator(legs.begin()),
+                     std::make_move_iterator(legs.end()));
+    if (plan.activeLeg > at) plan.activeLeg += n;
+    if (plan.approachStartLeg >= at) plan.approachStartLeg += n;
+}
+
+// Removes every leg with the given source (they form one block in practice). Returns the index
+// the first one had, or -1.
+int removeSource(FlightPlan& plan, LegSource source) {
+    int first = -1;
+    for (int i = static_cast<int>(plan.legs.size()) - 1; i >= 0; --i) {
+        if (plan.legs[static_cast<size_t>(i)].source != source) continue;
+        eraseLegs(plan, i, i + 1);
+        first = i;
+    }
+    return first;
+}
+
+}  // namespace
+
+bool insertSid(FlightPlan& plan, std::string_view sidId, std::string_view transition,
+               std::vector<Leg> sidLegs, std::string* error) {
+    if (sidLegs.empty() || plan.legs.empty()) {
+        if (error) *error = sidLegs.empty() ? "SID has no legs" : "plan has no origin";
+        return false;
+    }
+    const int wasActive = plan.activeLeg;
+    const int removedAt = removeSource(plan, LegSource::Sid);
+    for (Leg& l : sidLegs) l.source = LegSource::Sid;
+    // A first leg that only restates the origin (IF RW28L) adds nothing.
+    if (sidLegs.front().type == LegType::IF && sidLegs.front().to.ident == plan.legs[0].to.ident)
+        sidLegs.erase(sidLegs.begin());
+    if (sidLegs.empty()) return true;
+    const std::string lastIdent = sidLegs.back().to.ident;
+    const int n = static_cast<int>(sidLegs.size());
+    insertLegs(plan, 1, std::move(sidLegs));
+    // The enroute waypoint the SID ends at is flown as the SID's last leg.
+    const int after = 1 + n;
+    if (!lastIdent.empty() && after < enrouteEndIndex(plan)) {
+        const Leg& next = plan.legs[static_cast<size_t>(after)];
+        if (next.source == LegSource::Plan && next.to.ident == lastIdent)
+            eraseLegs(plan, after, after + 1);
+    }
+    // On the ground (or before the first enroute leg) the SID is what comes next.
+    if (wasActive >= 0 && (wasActive <= 1 || (removedAt >= 0 && wasActive == removedAt)))
+        plan.activeLeg = 1;
+    plan.sidId = std::string(sidId);
+    plan.sidTransition = std::string(transition);
+    return true;
+}
+
+void removeSid(FlightPlan& plan) {
+    removeSource(plan, LegSource::Sid);
+    plan.sidId.clear();
+    plan.sidTransition.clear();
+}
+
+bool insertStar(FlightPlan& plan, std::string_view starId, std::string_view transition,
+                std::vector<Leg> starLegs, std::string* error) {
+    if (starLegs.empty() || plan.legs.empty()) {
+        if (error) *error = starLegs.empty() ? "STAR has no legs" : "plan has no legs";
+        return false;
+    }
+    removeSource(plan, LegSource::Star);
+    for (Leg& l : starLegs) l.source = LegSource::Star;
+    int at = enrouteEndIndex(plan);
+    // The enroute waypoint the STAR starts at is flown as the STAR's first leg.
+    if (at - 1 >= 1) {
+        const Leg& prev = plan.legs[static_cast<size_t>(at - 1)];
+        if (prev.source == LegSource::Plan && prev.to.ident == starLegs.front().to.ident) {
+            eraseLegs(plan, at - 1, at);
+            --at;
+        }
+    }
+    if (starLegs.front().type == LegType::IF && at >= 1) starLegs.front().type = LegType::TF;
+    insertLegs(plan, at, std::move(starLegs));
+    plan.starId = std::string(starId);
+    plan.starTransition = std::string(transition);
+    return true;
+}
+
+void removeStar(FlightPlan& plan) {
+    removeSource(plan, LegSource::Star);
+    plan.starId.clear();
+    plan.starTransition.clear();
 }
 
 // ---- distance, time, per-leg data -----------------------------------------------------------

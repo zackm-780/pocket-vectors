@@ -3,10 +3,12 @@
 //
 // Generic cascaded controllers driven by AircraftState, NavState and the AutopilotState bugs:
 //   lateral outer  ROL / HDG / NAV / LOC  -> bank command (deg, + = right wing down)
-//   vertical outer PIT / ALT / ALT* / VS / GS -> pitch command (deg, + = nose up)
+//   vertical outer PIT / ALT / ALT* / VS / GS / FLC / GA -> pitch command (deg, + = nose up);
+//                  FLC and GA fly pitch on speed through the VS loop (N7)
 //   inner          bank -> aileron (+ turn-coordination rudder), pitch -> elevator, with
 //                  AP-managed pitch trim (the elevator integrator is offloaded into elevTrimNorm)
-//   speed          SPD (PI on IAS -> all throttles) and RETARD to idle in the flare
+//   speed          SPD (PI on IAS -> all throttles), RETARD to idle in the flare, and THR
+//                  (fixed throttle: TOGA in GA, climb or idle in FLC)
 // With the AP off and the FD on, the same outer loops only produce fdPitchCmdDeg / fdRollCmdDeg.
 //
 // update() is called once per 120 Hz sim step; handleActions() once per frame. Neither
@@ -46,7 +48,8 @@ public:
     void handleActions(const ActionState& actions, const AircraftState& ac, const NavState& nav,
                        double dtS);
 
-    // Scenario [autopilot] section. Tokens (lower case): ap fd at hdg nav apr alt vs rol pit.
+    // Scenario [autopilot] section. Tokens (lower case): ap fd at hdg nav apr alt vs rol pit flc
+    // toga (toga turns the FD on, not the AP).
     // A mode token engages the AP when it is not engaged yet.
     void applyScenario(const std::vector<std::string>& engageTokens, const AircraftState& ac,
                        const NavState& nav);
@@ -64,9 +67,24 @@ public:
     void selectNav(const NavState& nav);          // second press with NAV active/armed -> cancel
     void selectApr(const NavState& nav);          // arms LOC + GS (or NAV on a non-ILS approach)
     void selectAltHold(const AircraftState& ac);  // hold the present altitude
+    // The ALT button (L1 + R2): holds the present altitude; pressed again while in ALT / ALT*
+    // with the bug more than 100 ft away, climbs or descends toward the bug in VS at the default
+    // rate with ALT armed (1.1 device test: there was no way out of ALT on the pad).
+    void selectAltButton(const AircraftState& ac);
     void selectVs(const AircraftState& ac);
     void selectRoll(const AircraftState& ac);
     void selectPitch(const AircraftState& ac);
+    // N7 TO/GA (airborne only): GA pitch on speed (attitude capped at gaPitchDeg) with the IAS at
+    // TO/GA as the target, at least Vref with flaps out or minClimbIasKt clean; A/T to TOGA
+    // when the aircraft has one, HDG on the present heading with NAV armed when the plan has an
+    // active leg, LOC / GS arms cleared, FD on when neither AP nor FD was. The altitude bug moves
+    // to 1,000 ft above (rounded to 100 ft) unless it is already 500 ft or more above. Leaves
+    // the AP engaged below minimums. Returns false on the ground.
+    bool selectGoAround(const AircraftState& ac, const NavState& nav);
+    // N7 FLC: climb or descend to the altitude bug at the speed bug (set to the present IAS when
+    // unset), pitch on speed; with the A/T on it holds climb thrust or idle. Within 100 ft of the
+    // bug it holds the bug altitude instead; a second press with FLC active selects PIT.
+    void selectFlc(const AircraftState& ac);
     void syncBugs(const AircraftState& ac, const NavState& nav);
     void setHdgBugMagDeg(float deg);
     void setAltBugFt(float ft);
@@ -97,7 +115,10 @@ private:
     float lateralBankCmd(const AircraftState& ac, const NavState& nav);
     float turnLawBankDeg(const AircraftState& ac, float errDeg, float tauS) const;
     float verticalPitchCmd(const AircraftState& ac, const NavState& nav, double dtS);
-    float vsLoopPitch(const AircraftState& ac, float vsTargetFpm, double dtS);
+    float vsLoopPitch(const AircraftState& ac, float vsTargetFpm, double dtS, float maxPitchDeg);
+    float speedOnPitchVs(const AircraftState& ac, float targetKt) const;
+    void updateIasAccel(const AircraftState& ac, double dtS);
+    float thrustTargetNorm(const AircraftState& ac) const;
     void armAltitudeCapture(const AircraftState& ac);
     void updateAutothrottle(const ControlInputs& pilot, const AircraftState& ac, double dtS,
                             ControlInputs& out);
@@ -142,6 +163,13 @@ private:
     float hdgStep_ = 0;
     float bugAccumVs_ = 0, bugAccumSpd_ = 0;
     bool retardLatched_ = false;
+
+    // N7: speed-on-pitch (FLC / GA) and fixed thrust
+    float gaSpeedKt_ = 0;     // GA speed target: IAS at TO/GA, at least the floor below
+    float gaFlapsMinKt_ = 0;  // GA floor with flaps out: Vref (1.3 Vs0 without one)
+    bool iasAccelInit_ = false;
+    float apLastIasKt_ = 0, apIasAccelKtps_ = 0;  // AP-side low-passed IAS rate (kt/s)
+    bool thrustWas_ = false;                      // A/T was in THR on the last step
 };
 
 }  // namespace fsim

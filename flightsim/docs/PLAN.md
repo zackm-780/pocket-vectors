@@ -36,6 +36,8 @@ GPWS voice callouts, SIDs/STARs and airways routing, external view with simple m
 
 ### Non-goals
 Photoreal scenery, 3D cockpits, multiplayer, ATC, failures, add-on aircraft authoring.
+[ONLINE.md](ONLINE.md) explores what Wi-Fi features (live weather, real-world traffic, other
+players, rule-based or AI ATC) would take, for a later decision. Nothing there is planned yet.
 
 ## 3. Target platform and budgets
 
@@ -43,7 +45,10 @@ Device facts and the values still to be measured are in [DEVICE.md](DEVICE.md). 
 Allwinner H700 (4× Cortex-A53 @ 1.5 GHz), Mali-G31 MP2, **1 GB RAM**, **640×480** 4" screen,
 two analog sticks, Wi-Fi, 64-bit Linux stock OS with PortMaster.
 
-**Provisional budgets.** These are revised after the P1 probe benchmark runs on the device.
+**Provisional budgets.** These are revised after the P1 probe benchmark runs on the device. X3
+replaces them with numbers from a device flight. The game now records them (DEVICE.md §6), and
+`graphics_quality` LOW / MED / HIGH is the preset X3 tunes. MED draws about 35k terrain triangles
+in 54 draws at KPDX, within the terrain budget below.
 
 | Item | Budget |
 |---|---|
@@ -82,6 +87,8 @@ Append new decisions at the bottom. Don't rewrite old ones; supersede them with 
 | D18 | **Work is split into packages** with a separate review pass (see [AGENTS.md](AGENTS.md)). | One package per pull request, with review before merge. |
 | D19 | **First detailed region = PDX–OTH corridor**, terrain preset `pdx_oth` = bbox lon −124.7..−121.4, lat 43.0..46.3, levels 7–10 (≈ 0.4 GB with land class). It covers KPDX, KOTH, the Oregon coast, the Coast Range, Willamette Valley, Mt Hood and Mt St Helens. **Primary test route: KPDX ⇄ KOTH** (~160 NM via UBG–CVO–EUG–OTH; sample plans in `assets/plans/`). Real-data scenarios, sample plans and acceptance tests use these airports. XTST stays the synthetic test airport for data-free unit tests. | Mountains, coast, valley, ILS and RNAV approaches in one corridor. |
 | D20 | **Licence: Apache-2.0** for the project's own code, with a `NOTICE` file that credits Zack Martin. | Forks may modify and redistribute the code if they keep the copyright and the NOTICE. Compatible with JSBSim (LGPL-2.1, linked as a shared library) and SDL2 (zlib). Data packs keep their sources' terms (ATTRIBUTION.txt). `LICENSE` and `NOTICE` ship in `port/licenses/`. |
+| D5a | **External chase view (V1, 1.2)** with aircraft models built in code from primitives per category (single, twin, bizjet, airliner, heavy), one draw call each. D5 still holds for the cockpit view: no cockpit model. | The v2 list asked for an outside view. Models in code need no files or licences and stay inside the draw-call budget. |
+| D22 | **GPWS voice (S2, 1.2): clips generated offline with CMU Flite 2.2, voice `rms`**, by `tools/audio/make_voice_clips.py`, committed as `assets/audio/voice/*.wav` (15 clips, 16-bit mono 22,050 Hz, about 0.5 MB). Flite is not linked or shipped; its BSD-style licence (keep the notice, mark modifications, no endorsement) travels in `port/licenses/Flite-voice-NOTE.txt`. Missing clips fall back to the X2 tones; `gpws_voice = false` keeps the tones. | Needs no recording session, no paid voice and no runtime dependency; the clips are small and can be regenerated or swapped for recorded ones with the same names. Owner to confirm. |
 | D21 | **Name: Pocket Vectors**, subtitle "Retro Flight Sim with Modern Data". Display name only: folders, scripts and binaries stay `flightsim/`, `FlightSim.sh`, `flightsim.aarch64` so updates keep `conf/` and `data/`. | Display name set 2026-10-21. The on-card folder name stays stable across updates. |
 
 ## 5. Fleet
@@ -122,4 +129,4 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 | Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the probe and recorded in DEVICE.md. |
 | Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg is a setting. |
 | Q6 | Do printed X and Y match SDL names on the RG40XXH, the same way A and B do? | Likely yes (DEVICE.md §2). The default table uses that mapping. Needs one more on-device check (ROADMAP). |
-| Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured. `show_fps` in settings writes it to the launch log. |
+| Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured yet. SHOW FPS shows it on screen. The launch log gets a timing table per view and quality preset (X3, DEVICE.md §6). |

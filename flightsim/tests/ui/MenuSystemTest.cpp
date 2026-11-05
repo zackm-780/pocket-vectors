@@ -211,19 +211,24 @@ TEST_CASE("ui: plan file and approach selection feed the scenario") {
     CHECK(m.setup().runwayIdent == "09");
 
     // Approach list: "no approach", I09, R09, VIS09. It opens on the current one.
-    tap(m, &MenuInput::down, 3);  // APPROACH row
+    tap(m, &MenuInput::down, 5);  // APPROACH row (after DEPARTURE, ARRIVAL, DEST RUNWAY: N8)
     tap(m, &MenuInput::accept);
     REQUIRE(m.top() == ScreenId::Approach);
     tap(m, &MenuInput::down);  // R09
     tap(m, &MenuInput::accept);
+    // N8: then its transition: AUTO, VECTORS, the IAFs.
+    REQUIRE(m.top() == ScreenId::Procedure);
+    tap(m, &MenuInput::down);  // VECTORS
+    tap(m, &MenuInput::accept);
     CHECK(m.top() == ScreenId::Plan);
     CHECK(m.setup().approachId == "R09");
+    CHECK(m.setup().approachTransition == "VECTORS");
 
     // Back on the hub, the START FLIGHT row writes the plan to menu_plan.fms and the scenario
     // references it.
     tap(m, &MenuInput::back);
     REQUIRE(m.top() == ScreenId::Setup);
-    tap(m, &MenuInput::down, 6);
+    tap(m, &MenuInput::down, 7);  // START FLIGHT (after FUEL, F6)
     const MenuResult r = tap(m, &MenuInput::accept);
     REQUIRE(r.action == MenuAction::StartFlight);
     CHECK(r.scenario.planPath == mf.env.menuPlanPath);
@@ -232,6 +237,7 @@ TEST_CASE("ui: plan file and approach selection feed the scenario") {
     std::ifstream in(mf.env.menuPlanPath);
     const std::string text((std::istreambuf_iterator<char>(in)), {});
     CHECK(text.find("APP R09") != std::string::npos);
+    CHECK(text.find("APPTRANS VECTORS") != std::string::npos);  // N8
 
     // ... and the simulation takes it.
     REQUIRE(mf.f.sim.init(r.scenario, "", mf.f.error));
@@ -327,18 +333,18 @@ TEST_CASE("ui: in-flight plan screen: direct-to a leg, re-enter the approach, di
     tap(m, &MenuInput::down);
     tap(m, &MenuInput::accept);  // FLIGHT PLAN
     REQUIRE(m.top() == ScreenId::FlightPlan);
-    // Rows: 3 actions, then the legs. The list opens on the active leg: go to the next one.
+    // Rows: 5 actions, then the legs. The list opens on the active leg: go to the next one.
     tap(m, &MenuInput::down);
     MenuResult r = tap(m, &MenuInput::accept);
     CHECK(r.action == MenuAction::ResumeFlight);
     CHECK(r.message.find("DIRECT TO") == 0);
     CHECK(nav.plan().legs[static_cast<size_t>(nav.plan().activeLeg)].to.ident == fix);
 
-    // Re-enter the approach: the third action row.
+    // Re-enter the approach: the last action row.
     m.openPause();
     tap(m, &MenuInput::down);
     tap(m, &MenuInput::accept);
-    tap(m, &MenuInput::up);  // the active leg is now leg 1 (row 4); row 3 (leg 0) is disabled
+    tap(m, &MenuInput::up);  // the active leg is now leg 1 (row 6); row 5 (leg 0) is disabled
     r = tap(m, &MenuInput::accept);
     CHECK(r.action == MenuAction::ResumeFlight);
     CHECK(r.message == "DIRECT TO APPROACH");
@@ -365,10 +371,23 @@ TEST_CASE("ui: in-flight approach change and removal") {
     m.update(MenuInput{});
     REQUIRE(m.top() == ScreenId::Approach);
     tap(m, &MenuInput::down);  // I09 -> R09
+    tap(m, &MenuInput::accept);
+    REQUIRE(m.top() == ScreenId::Procedure);  // N8: transition, AUTO first
     MenuResult r = tap(m, &MenuInput::accept);
     CHECK(r.action == MenuAction::ResumeFlight);
     CHECK(r.message == "APPROACH R09");
     CHECK(nav.plan().approachId == "R09");
+    CHECK(nav.plan().approachTransition.empty());
+
+    // N8: the same approach again via VECTORS: no transition legs before the final segment.
+    m.push(makeApproachScreen(ApproachMode::Flight, m));
+    m.update(MenuInput{});
+    tap(m, &MenuInput::accept);  // R09 (it opens on the current one)
+    REQUIRE(m.top() == ScreenId::Procedure);
+    tap(m, &MenuInput::down);  // VECTORS
+    r = tap(m, &MenuInput::accept);
+    CHECK(r.message == "APPROACH R09 VIA VECTORS");
+    CHECK(nav.plan().approachTransition == "VECTORS");
 
     m.push(makeApproachScreen(ApproachMode::Flight, m));
     m.update(MenuInput{});
@@ -399,6 +418,9 @@ TEST_CASE("ui: settings are edited and saved when leaving the screen") {
     CHECK(mf.settings.fovVerticalDeg == doctest::Approx(55.0f));
     tap(m, &MenuInput::right, 100);  // clamps at 110
     CHECK(mf.settings.fovVerticalDeg == doctest::Approx(110.0f));
+    tap(m, &MenuInput::down);    // X3: GRAPHICS QUALITY
+    tap(m, &MenuInput::accept);  // MED -> HIGH
+    CHECK(mf.settings.graphicsQuality == GraphicsQuality::High);
     CHECK_FALSE(std::filesystem::exists(mf.env.settingsPath));  // nothing written yet
 
     const MenuResult r = tap(m, &MenuInput::back);
@@ -411,6 +433,7 @@ TEST_CASE("ui: settings are edited and saved when leaving the screen") {
     CHECK(reloaded.showFps);
     CHECK(reloaded.hudMiniNav);
     CHECK(reloaded.fovVerticalDeg == doctest::Approx(110.0f));
+    CHECK(reloaded.graphicsQuality == GraphicsQuality::High);
 
     // Leaving without a change reports nothing.
     REQUIRE(m.openCanned("settings", err));

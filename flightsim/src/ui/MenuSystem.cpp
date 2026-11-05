@@ -28,6 +28,7 @@ const char* screenName(ScreenId id) {
     case ScreenId::FlightPlan: return "flightplan";
     case ScreenId::Confirm: return "confirm";
     case ScreenId::Help: return "help";
+    case ScreenId::Procedure: return "procedure";
     }
     return "?";
 }
@@ -245,6 +246,11 @@ void MenuSystem::openPause() {
     close();
     if (hasFlight_ && flight_.scenario) seedSetupFrom(*flight_.scenario);
     stack_.push_back(makePauseScreen());
+}
+
+void MenuSystem::openDirectTo() {
+    close();
+    stack_.push_back(makeSearchScreen(SearchMode::DirectTo, *this));
 }
 
 MenuResult MenuSystem::update(const MenuInput& in) {

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0 (not released yet: waiting for the device test)
+
+- **1.1 device-test fixes.** The gear no longer moves when a menu closes with A. L2 + D-pad
+  snaps the view and L2 + right stick looks around. R1 + Y cycles the nav source and L1 + Select
+  goes direct to the active waypoint. Runway outlines clear below 250 ft above the field.
+  L1 + R2 in ALT hold climbs or descends toward the altitude bug.
+- **Autopilot TO/GA and FLC:** L1 + L3 goes around and flies the missed approach; L1 + Start
+  climbs or descends on speed to the altitude bug.
+- **Chase view:** L2 + L3 shows the aircraft from behind; L2 + right stick orbits.
+- **Cloud layers** from the CLOUDS setting, the scenario or the METAR.
+- **SIDs, STARs and approach transitions** on the flight-plan screen. They need a data pack built
+  with the new `cifp.py`; older packs still load without them.
+- **Spoken GPWS callouts** (MINIMUMS, 500 … 10, SINK RATE, PULL UP and more). GPWS VOICE OFF
+  keeps the tones.
+- **Fuel:** a FUEL row on the new-flight screen (AS LOADED, FULL, 75 %, 50 %, 25 %, AUTO for the
+  plan plus reserves), endurance on the HUD, and LOW FUEL warnings.
+- **Performance tools:** SHOW FPS shows the frame rate on screen, and the launch log gets timing
+  tables. GRAPHICS QUALITY LOW / MED / HIGH sets the terrain detail (MED is the 1.1 look).
+- The About page shows the real version (the 1.1.0 build still said 0.1.0).
+
 ## 1.1.0
 
 - **Buttons match the printed labels on the RG40XXH.** A = gear, B = brakes, X = speedbrake,

@@ -10,6 +10,7 @@
 #include "nav/ApproachBuilder.h"  // N5
 #include "nav/FlightPlan.h"       // N5
 #include "nav/Procedures.h"       // N4
+#include "sim/FuelPlan.h"         // F6
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
@@ -54,10 +55,12 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
 
     {  // X1: weather. The start wind is the profile wind at the start height (F1 trims in calm
         // air and then switches it on), later steps add gusts and turbulence.
-        world::Metar metar;
+        world::Metar& metar = metar_;  // W7 keeps it for the clouds
+        metar = world::Metar{};
         const bool haveMetar =
             weatherOptions_.useMetar &&
             world::loadMetarFor(paths_.data("weather"), scenario_.airportIdent, metar);
+        haveMetar_ = haveMetar;
         weather_.setConditions(world::resolveWeather(scenario_.weather, weatherOptions_,
                                                      haveMetar ? &metar : nullptr,
                                                      static_cast<float>(start_.headingTrueDeg)));
@@ -74,6 +77,34 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
                  wc.hasVisibility ? wc.visibilityM : -1.0f, wc.qnhHpa);
     }
 
+    {  // F6: fuel on board
+        FuelSetting fs;
+        parseFuelSetting(scenario_.fuel, fs);  // validated by the scenario parser
+        start_.fuelLbs = start_.fuelFraction = 0;
+        switch (fs.kind) {
+        case FuelSetting::Kind::Default: break;
+        case FuelSetting::Kind::Full: start_.fuelFraction = 1; break;
+        case FuelSetting::Kind::Fraction: start_.fuelFraction = fs.value; break;
+        case FuelSetting::Kind::Lbs: start_.fuelLbs = fs.value; break;
+        case FuelSetting::Kind::Auto: {
+            // Trip = the scenario plan's length; cruise TAS ~ IAS + 2 % per 1,000 ft.
+            double tripNm = 0;
+            if (!scenario_.planPath.empty()) {
+                const PlanBuildResult r =
+                    loadPlanFromFmsFile(paths_.resolveInputFile(scenario_.planPath), nav_);
+                if (r.ok) tripNm = planDistNm(r.plan);
+            }
+            const float tasKt = profile_.cruiseKt * (1.0f + 0.02f * profile_.cruiseAltFt / 1000.0f);
+            const float lbs = plannedFuelLbs(tripNm, tasKt, profile_.cruiseFuelFlowLbsHr);
+            if (lbs > 0)
+                start_.fuelLbs = lbs;
+            else
+                start_.fuelFraction = 1;  // no plan or no cruise data: full tanks
+            LOG_INFO("fuel AUTO: %.0f NM trip, %.0f lb planned", tripNm, lbs);
+            break;
+        }
+        }
+    }
     if (!model_.start(profile_, start_)) {
         error = "flight model failed to start " + profile_.id + " (see log)";
         return false;
@@ -115,7 +146,8 @@ bool Simulation::initNavigation(std::string& error) {
     const bool inAir = start_.kind != StartCondition::Kind::Runway;
     if (!scenario_.planPath.empty()) {
         const std::string path = paths_.resolveInputFile(scenario_.planPath);
-        PlanBuildResult r = loadPlanFromFmsFile(path, nav_);
+        FmsFile fmsFile;
+        PlanBuildResult r = loadPlanFromFmsFile(path, nav_, &fmsFile);
         if (!r.ok) {
             error =
                 "scenario plan '" + path + "': " + (r.errors.empty() ? "unreadable" : r.errors[0]);
@@ -127,6 +159,10 @@ bool Simulation::initNavigation(std::string& error) {
             const std::string rwy = runwayFromApproachId(scenario_.approachId);
             if (!rwy.empty()) r.plan.arrRunway = rwy;
         }
+        // N8: the SID / STAR / approach transition the file names (scenario keys win).
+        if (!scenario_.approachTransition.empty()) fmsFile.appTrans = scenario_.approachTransition;
+        for (const std::string& note : applyFmsProcedures(r.plan, fmsFile, paths_.data("nav")))
+            LOG_WARN("scenario plan: %s", note.c_str());
         navigator_.setPlan(std::move(r.plan));
         if (!scenario_.approachId.empty() && navigator_.plan().approachStartLeg < 0) {
             error = "scenario approach '" + scenario_.approachId + "' is not available for " +
@@ -143,7 +179,13 @@ bool Simulation::initNavigation(std::string& error) {
                     scenario_.airportIdent + " " + rwy;
             return false;
         }
-        if (!navigator_.startApproachOnly(*approach, LatLon{start_.latDeg, start_.lonDeg}, 0)) {
+        int transition = 0;  // vectors, unless the scenario names a transition (N8)
+        for (size_t i = 0; i < approach->transitions.size(); ++i)
+            if (!scenario_.approachTransition.empty() &&
+                approach->transitions[i].name == scenario_.approachTransition)
+                transition = static_cast<int>(i);
+        if (!navigator_.startApproachOnly(*approach, LatLon{start_.latDeg, start_.lonDeg},
+                                          transition)) {
             error = "cannot load approach " + scenario_.approachId;
             return false;
         }

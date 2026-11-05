@@ -1,4 +1,4 @@
-Status: ready
+Status: ready (mostly done in #11: per-pass timing, session tables in the log, the on-screen FPS and perf_gpu_sync, DEVICE.md §6. Left: --bench, bench_xtst_final.ini and the over-33 ms share)
 # X3a: Frame timing breakdown and a bench run
 
 Phase 1 · Effort: high · Depends: none · Branch: `wp/X3a-frame-timing`

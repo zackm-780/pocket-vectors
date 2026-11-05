@@ -72,6 +72,9 @@ struct Waypoint {
 
 enum class LegType { IF, TF, CF, DF, CA, VA, FA, HM, HA, HF, RF };  // ARINC 424 subset
 
+// Additive (N8): where a plan leg came from, so a SID or STAR can be replaced as a whole.
+enum class LegSource { Plan, Sid, Star };
+
 struct Leg {
     LegType type = LegType::TF;
     Waypoint to;
@@ -82,7 +85,8 @@ struct Leg {
     bool missedApproach = false;
     double arcCenterLatDeg = 0, arcCenterLonDeg = 0;
     float arcRadiusNm = 0;
-    bool arcRight = true;  // RF
+    bool arcRight = true;                // RF
+    LegSource source = LegSource::Plan;  // additive (N8)
 };
 
 enum class ApproachKind { None, Ils, Loc, Rnav, Vor, Ndb, Visual };
@@ -120,6 +124,9 @@ struct FlightPlan {
     // Index of the first approach leg (transition, final and missed legs run to the end of legs);
     // -1 = no approach inserted. Maintained by nav/FlightPlan insertApproach() (N3).
     int approachStartLeg = -1;
+    // Additive (N8): the departure and arrival procedures in the plan (legs tagged LegSource::Sid
+    // / Star) and their transitions; the approach transition chosen ("" = automatic).
+    std::string sidId, sidTransition, starId, starTransition, approachTransition;
 };
 
 }  // namespace fsim

@@ -15,10 +15,25 @@ controls follow the A/T levers and the AP-managed elevator trim). `ApConfig` hol
 | | LOC | APR arms LOC + GS; LOC captures with the NAV rule plus `|cdi| <= 1` and `source == Loc`; linear XTK law (distance independent), <= 30 deg |
 | Vertical | PIT | holds the pitch at engage |
 | | VS | `vsBugFpm`, PI on vertical speed -> pitch (gains scale with 1/TAS) |
-| | ALT* / ALT | capture starts at `max(100, |VS|/6)` ft toward the bug (from PIT or VS), ALT at <= 25 ft |
+| | ALT* / ALT | capture starts at `max(100, |VS|/6)` ft toward the bug (from PIT, VS, FLC or GA), ALT at <= 25 ft. The ALT button (`selectAltButton`) holds the present altitude; in ALT / ALT* with the bug more than 100 ft away it starts VS toward the bug at `vs_default_fpm` (ALT armed) |
 | | GS | captures when LOC is active and `|gsDeflection| <= 0.5` (1 dot): from below, or within 1 dot; target VS = path VS + height error / 12 s |
+| | FLC (N7) | pitch on speed to the speed bug (synced to the IAS when unset), toward the altitude bug only (no climb with the bug below, no descent with it above); within 100 ft of the bug: ALT on the bug; a second press: PIT |
+| | GA (N7) | TO/GA, airborne only: pitch on speed to the IAS at the press (at least Vref with flaps out, `min_climb_ias_kt` clean), attitude <= `ga_pitch_deg`, no descent while within 5 kt of that speed; ends at ALT* or another vertical mode |
 | Speed | SPD | PI + acceleration term on IAS -> all throttles, slew limited |
 | | RETARD | idle below 30 ft AGL, descending, landing configuration; A/T off at touchdown |
+| | THR (N7) | fixed throttle `thrustTargetNorm`: TOGA (`ga_throttle`) in GA, `climb_throttle` or idle in FLC; SPD takes over at ALT* without a jump |
+
+**Pitch on speed (FLC, GA).** The VS loop flies `VS + 5.311 * TAS * (TAS / IAS) * (a + (IAS - target)
+/ spd_tau_s)`, with `a` the IAS rate low-passed over `spd_accel_tau_s` (the AP keeps its own; the
+A/T's only runs with the A/T on). 5.311 fpm per kt per kt/s is the energy balance `dh/dt + (V / g)
+dV/dt` in fpm and kt; TAS / IAS turns the IAS rate into a TAS rate. The change is clamped to
+`spd_max_delta_vs_fpm` and the result to +/-8,000 fpm; the pitch limits and the AoA cut still apply.
+
+**TO/GA** also sets HDG on the present heading, arms NAV when the plan has an active leg (the
+navigator sequences into the missed approach once the MAP is passed airborne, and NAV flies it),
+clears the LOC / GS arms, engages the A/T on aircraft that have one, turns the FD on when neither
+AP nor FD was, and moves the altitude bug 1,000 ft up (rounded to 100 ft) unless it is already
+500 ft or more above. The pitch command slews at `ga_pitch_rate_degps` in GA.
 
 FD (`fdOn`) runs the same outer loops with the AP off: `fdRollCmdDeg` is the commanded bank and
 `fdPitchCmdDeg` the commanded pitch attitude (deg, + = right wing down / nose up); `fdValid` is set
@@ -26,7 +41,8 @@ when a lateral and a vertical mode are active. Modes are shared between FD and A
 
 ## Disconnects (each sets `disconnectWarning`, cleared by the next AP toggle press or after 5 s)
 Stick > 0.5 for 0.5 s, AP toggle press, stall warning, |bank| > 45 deg, |pitch| > 25 deg, and
-below `minimumsFt - 50` while coupled on an approach (`phase == Approach` and LOC/GS/onFinal).
+below `minimumsFt - 50` while coupled on an approach (`phase == Approach` and LOC/GS/onFinal), but
+not in GA: TO/GA below minimums keeps the AP flying the go-around.
 Weight on wheels disconnects silently. The A/T goes off when the pilot moves the throttle lever
 and at touchdown.
 
@@ -44,9 +60,12 @@ Underspeed (no A/T): VS target reduced by 100 fpm per knot below `min_climb_ias_
 `alpha_limit_deg`, `at_available` (1 = offer the A/T on aircraft without one), `at_kp`, `at_ki`,
 `at_k_accel`, `at_slew_per_s`, `retard_agl_ft`, `retard_slew_per_s`, `stick_disconnect`,
 `stick_disconnect_s`, `bank_disconnect_deg`, `pitch_disconnect_deg`, `spd_bug_min_kt`,
-`spd_bug_max_kt`.
+`spd_bug_max_kt`; N7: `spd_tau_s` (5), `spd_accel_tau_s` (1), `spd_max_delta_vs_fpm` (2,500 piston,
+3,000 turboprop, 4,000 jet), `ga_pitch_deg` (10 / 12 / 15), `ga_pitch_rate_degps` (3),
+`climb_throttle` (1.0 piston, 0.95 turboprop and jet), `ga_throttle` (1.0).
 
 ## Scenario `[autopilot]`
-`engage = ap fd at hdg nav apr alt vs rol pit` (a mode token engages the AP), `hdg_bug_mag_deg`,
+`engage = ap fd at hdg nav apr alt vs rol pit flc toga` (a mode token engages the AP; `toga` only
+turns the FD on), `hdg_bug_mag_deg`,
 `alt_bug_ft`, `vs_bug_fpm`, `spd_bug_kt`. Bugs default to the present heading / altitude.
 `alt` flies toward the altitude bug (VS with capture) or holds it when within 100 ft.

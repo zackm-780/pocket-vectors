@@ -4,8 +4,11 @@
 namespace fsim {
 
 enum class LatMode { Off, Roll, Hdg, Nav, Loc };
-enum class VertMode { Off, Pitch, Alt, AltCapture, Vs, Gs, Flc };
-enum class SpdMode { Off, Speed, Retard };
+// Additive (N7): Ga = go-around (TO/GA), pitch on speed capped at the go-around attitude.
+enum class VertMode { Off, Pitch, Alt, AltCapture, Vs, Gs, Flc, Ga };
+// Additive (N7): Thrust = the A/T holds a fixed throttle (thrustTargetNorm): TOGA in GA, climb or
+// idle in FLC.
+enum class SpdMode { Off, Speed, Retard, Thrust };
 
 struct AutopilotState {
     bool apEngaged = false, fdOn = false, atEngaged = false;
@@ -16,6 +19,8 @@ struct AutopilotState {
     float fdPitchCmdDeg = 0, fdRollCmdDeg = 0;
     bool fdValid = false;
     bool disconnectWarning = false;  // flashing AP OFF
+    // Additive (N7): throttle the A/T drives to in SpdMode::Thrust (0 = idle, 1 = full).
+    float thrustTargetNorm = 0;
 };
 
 }  // namespace fsim

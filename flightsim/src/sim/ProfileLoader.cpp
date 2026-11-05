@@ -81,6 +81,7 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
     p.mmo = ini.getFloat("speeds_kt", "mmo");
     p.cruiseKt = ini.getFloat("cruise", "ias_kt");
     p.cruiseAltFt = ini.getFloat("cruise", "altitude_ft");
+    p.cruiseFuelFlowLbsHr = ini.getFloat("cruise", "fuel_flow_lbs_hr");  // F6
     p.stallWarnAlphaDeg = ini.getFloat("warnings", "stall_warn_alpha_deg");
 
     if (ini.has("view", "eye_offset_m")) {
@@ -90,6 +91,9 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
             p.hasEyeOffset = true;
         }
     }
+    p.externalModel = ini.getString("view", "external_model");  // V1
+    p.wingspanM = ini.getFloat("view", "wingspan_m");
+    p.gearHeightM = ini.getFloat("view", "gear_height_m");
     for (const auto& [key, value] : ini.entries("autopilot"))
         p.autopilot[key] = std::strtof(value.c_str(), nullptr);
     for (const auto& [key, value] : ini.entries("properties")) p.properties[key] = value;

@@ -54,7 +54,19 @@ All geometry is **true** internally. Magnetic is used only for display and user 
   with distance), delete, set an altitude constraint, **direct-to** any plan waypoint or any ident.
 - **Approach selection:** list of available approaches for the destination runway: real (CIFP, US),
   then synthesized ILS / RNAV / visual. Choosing one replaces the plan tail after the last enroute
-  waypoint with transition + final + missed legs.
+  waypoint with transition + final + missed legs. **N8:** then its transition: AUTO (the IAF
+  nearest the route, as before), VECTORS (straight to the final segment) or a named transition,
+  in setup and in flight (pause menu, FLIGHT PLAN, CHANGE APPROACH). The choice is kept in
+  `FlightPlan::approachTransition`, the .fms `APPTRANS` line and the scenario's
+  `approach_transition` key.
+- **SIDs and STARs (N8, US CIFP):** DEPARTURE (SID) and ARRIVAL (STAR) rows on the setup FLIGHT PLAN
+  screen and the in-flight one list the procedures that serve the departure / arrival runway,
+  then their enroute transitions. A SID goes right after the origin (runway transition + common
+  route + enroute transition), a STAR before the approach (enroute transition + common + runway
+  transition). A plan waypoint that repeats the SID's last or the STAR's first fix is replaced by
+  the procedure's leg. The legs are tagged (`Leg::source`), so a new choice replaces the old one
+  and removing it restores the plan. .fms files carry them by name (`SID`, `SIDTRANS`, `STAR`,
+  `STARTRANS`); procedure legs are never written as waypoints.
 - **Plan summary:** total distance, ETE at profile cruise speed, and a list with DTK, distance,
   altitude constraint.
 
@@ -181,9 +193,9 @@ in each profile's `[autopilot]` section, with sane category defaults (piston / t
 |---|---|---|
 | Lateral outer | ROL (hold bank, ≤ 6° → wings level), HDG, NAV (GPS), LOC | HDG: bankCmd = k·headingError, clamp ±25° (jet) / ±20° (light). NAV/LOC: intercept guidance = desired track + correction(xtk or angular deviation), max 45° intercept; LOC gains scale with distance to avoid S-turns near the threshold. |
 | Lateral inner | n/a | Roll attitude PD → aileron. Turn coordination: rudder from yaw rate / lateral acceleration (or the auto-rudder assist). |
-| Vertical outer | PIT, ALT, ALT* (capture), VS, GS, FLC (optional) | ALT capture starts when \|altErr\| < \|VS\|/6 (min 100 ft) and blends to hold. VS: pitch to hit the target VS. GS: pitch to track the glidepath (deviation → target VS = path VS + k·dev). |
+| Vertical outer | PIT, ALT, ALT* (capture), VS, GS, FLC, GA (N7) | ALT capture starts when \|altErr\| < \|VS\|/6 (min 100 ft) and blends to hold. VS: pitch to hit the target VS. GS: pitch to track the glidepath (deviation → target VS = path VS + k·dev). |
 | Vertical inner | n/a | Pitch attitude PI → elevator. **AP-managed pitch trim** offloads sustained elevator into `elevTrimNorm` (rate-limited) so disconnects don't jolt. |
-| Speed | SPD (A/T), RETARD | PI on IAS → throttle (all engines), rate-limited. RETARD to idle below 30 ft RA on landing. A/T disconnects at touchdown. |
+| Speed | SPD (A/T), RETARD, THR (N7) | PI on IAS → throttle (all engines), rate-limited. RETARD to idle below 30 ft RA on landing. A/T disconnects at touchdown. THR holds a fixed throttle: TOGA in GA, climb or idle in FLC. |
 
 - **Engage rules:** AP engage with no mode selected = ROL + PIT (hold current). NAV arms if the plan
   has an active leg. APR arms LOC + GS. Captures happen automatically.
@@ -208,6 +220,19 @@ in each profile's `[autopilot]` section, with sane category defaults (piston / t
   (c172p and c310 use it for speed hold; deviation from "jets only").
 - **Disconnect warning:** cleared by the next AP toggle press (which does not re-engage) or after 5 s.
 - **FD cues:** `fdRollCmdDeg` = commanded bank, `fdPitchCmdDeg` = commanded pitch attitude (absolute, deg).
-- Not implemented in v1: FLC, VOR-source specifics (NAV flies whatever the navigator reports), go-around mode,
-  `DirectTo` / `NavSourceCycle` actions (navigator-owned, not wired).
+- **FLC and TO/GA (N7):** both fly **pitch on speed** through the VS loop: VS target = VS +
+  5.311 · TAS · (TAS / IAS) · (IAS rate + (IAS − target) / `spd_tau_s`), the energy balance
+  ḣ + (V / g) V̇ turned into fpm (TAS and IAS in kt, rates in kt/s). FLC targets the speed bug (synced to the
+  IAS when unset) and never climbs with the altitude bug below or descends with it above; with the A/T on it
+  holds `climb_throttle` (THR CLB) or idle (THR IDLE). Selecting FLC within 100 ft of the bug holds the bug
+  instead. TO/GA (airborne only) targets the IAS at the press, at least Vref with flaps out (1.25 Vs1 clean),
+  caps the attitude at `ga_pitch_deg` (piston 10, turboprop 12, jet 15), never descends while within 5 kt of
+  the target, sets the A/T to TOGA, holds the present heading in HDG with NAV armed on the plan, clears the
+  LOC / GS arms and turns the FD on when neither AP nor FD was. The altitude bug goes 1,000 ft up unless it is
+  already 500 ft or more above. The minimums disconnect does not apply in GA. FLC and GA end at ALT* (the A/T
+  returns to SPD without a jump) or when another vertical mode is selected. The navigator sequences into the
+  missed approach when the MAP is passed airborne; NAV then flies it. FMA: `TOGA | GA`, `THR CLB | FLC`,
+  `THR IDLE | FLC`.
+- `DirectTo` and `NavSourceCycle` are wired in the app (I2). Not implemented: VOR-source specifics (NAV flies
+  whatever the navigator reports).
 
