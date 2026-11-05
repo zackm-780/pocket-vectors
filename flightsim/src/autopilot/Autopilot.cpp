@@ -232,6 +232,20 @@ void Autopilot::selectAltHold(const AircraftState& ac) {
     if (st_.vertArmed == VertMode::Alt) st_.vertArmed = VertMode::Off;
 }
 
+void Autopilot::selectAltButton(const AircraftState& ac) {
+    if (!modesLive()) return;
+    const bool holding = st_.vertActive == VertMode::Alt || st_.vertActive == VertMode::AltCapture;
+    const float toBugFt = st_.altBugFt - altIndFt(ac);
+    if (holding && std::fabs(toBugFt) > cfg_.altCaptureMinFt) {
+        setVsBugFpm((toBugFt > 0.f ? 1.f : -1.f) * cfg_.vsDefaultFpm);
+        st_.vertActive = VertMode::Vs;
+        st_.vertArmed = VertMode::Alt;
+        vsFresh_ = true;
+        return;
+    }
+    selectAltHold(ac);
+}
+
 void Autopilot::selectVs(const AircraftState& ac) {
     if (!modesLive()) return;
     float vs = roundTo(ac.vsFpm, 100.f);
@@ -326,7 +340,7 @@ void Autopilot::handleActions(const ActionState& a, const AircraftState& ac, con
     if (pressed(Action::HdgMode)) selectHdg(ac);
     if (pressed(Action::NavMode)) selectNav(nav);
     if (pressed(Action::AprMode)) selectApr(nav);
-    if (pressed(Action::AltMode)) selectAltHold(ac);
+    if (pressed(Action::AltMode)) selectAltButton(ac);
     if (pressed(Action::VsMode)) selectVs(ac);
     if (pressed(Action::SyncBugs)) syncBugs(ac, nav);
     if (pressed(Action::GoAround)) selectGoAround(ac, nav);

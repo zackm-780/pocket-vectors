@@ -15,7 +15,7 @@ controls follow the A/T levers and the AP-managed elevator trim). `ApConfig` hol
 | | LOC | APR arms LOC + GS; LOC captures with the NAV rule plus `|cdi| <= 1` and `source == Loc`; linear XTK law (distance independent), <= 30 deg |
 | Vertical | PIT | holds the pitch at engage |
 | | VS | `vsBugFpm`, PI on vertical speed -> pitch (gains scale with 1/TAS) |
-| | ALT* / ALT | capture starts at `max(100, |VS|/6)` ft toward the bug (from PIT or VS), ALT at <= 25 ft |
+| | ALT* / ALT | capture starts at `max(100, |VS|/6)` ft toward the bug (from PIT, VS, FLC or GA), ALT at <= 25 ft. The ALT button (`selectAltButton`) holds the present altitude; in ALT / ALT* with the bug more than 100 ft away it starts VS toward the bug at `vs_default_fpm` (ALT armed) |
 | | GS | captures when LOC is active and `|gsDeflection| <= 0.5` (1 dot): from below, or within 1 dot; target VS = path VS + height error / 12 s |
 | | FLC (N7) | pitch on speed to the speed bug (synced to the IAS when unset), toward the altitude bug only (no climb with the bug below, no descent with it above); within 100 ft of the bug: ALT on the bug; a second press: PIT |
 | | GA (N7) | TO/GA, airborne only: pitch on speed to the IAS at the press (at least Vref with flaps out, `min_climb_ias_kt` clean), attitude <= `ga_pitch_deg`, no descent while within 5 kt of that speed; ends at ALT* or another vertical mode |

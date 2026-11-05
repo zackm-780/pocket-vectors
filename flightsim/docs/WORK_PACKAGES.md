@@ -646,7 +646,7 @@ device numbers exist. W7, N8 and S2 can follow in 1.3.
 | S2 | GPWS voice callouts | Sonnet / medium | S1, X2 | `src/audio/`, `assets/audio/` |
 
 ## I2: 1.1 device-test fixes
-**Status:** in review (needs device test: resume from the pause menu with A in flight and the gear stays put; L2 + D-pad snaps and L2 + right stick looks, release recenters; R1 + Y on an ILS plan shows NAV SOURCE LOC / GPS; L1 + Select goes direct to the active waypoint, or opens the direct-to list without a plan; runway outlines and the approach path clear below 250 ft above the field) · **Model / effort:** Sonnet / medium · **Depends:** P2, W6
+**Status:** in review (needs device test: resume from the pause menu with A in flight and the gear stays put; L2 + D-pad snaps and L2 + right stick looks, release recenters; R1 + Y on an ILS plan shows NAV SOURCE LOC / GPS; L1 + Select goes direct to the active waypoint, or opens the direct-to list without a plan; runway outlines and the approach path clear below 250 ft above the field; L1 + R2 in ALT with the bug 1,000 ft away climbs or descends toward it) · **Model / effort:** Sonnet / medium · **Depends:** P2, W6
 1. **Gear moved on its own.** On the pad A is both MenuAccept and GearToggle. The frame a menu
    closed in (RESUME, or starting a flight with A) also reached `PilotControls`, so the gear
    toggled; airborne starts and resumes in flight put it up. The keyboard has separate keys, so
@@ -664,6 +664,10 @@ device numbers exist. W7, N8 and S2 can follow in 1.3.
    plus `Navigator::locAvailable` / `vorTuned`, additive) and direct-to the active waypoint
    (`MenuSystem::openDirectTo`, additive, when there is no plan).
 5. Project version 1.2.0 (the About page showed 0.1.0).
+6. **No way out of ALT on the pad** (owner, 787 on 1.1): with ALT holding 8,100 ft and the bug
+   at 14,000 the AP stayed level, and only a disconnect left ALT, because VS has no pad button.
+   L1 + R2 pressed again in ALT with the bug more than 100 ft away now starts VS toward the bug
+   at the default rate (ALT armed); N7 adds FLC on L1 + Start.
 
 ## N7: Autopilot go-around and FLC
 **Status:** in review (needs device test: L1 + L3 on short final goes around with `TOGA | GA`; L1 + Start climbs to the bug in `THR CLB | FLC`) · **Model / effort:** Sonnet / high · **Depends:** N6 · **Specs:** NAVIGATION §5, CONTROLS (AP layer)

@@ -1027,3 +1027,30 @@ TEST_CASE("autopilot: scenario token toga starts a go-around on the FD only") {
     CHECK_FALSE(r.ap.state().apEngaged);
     CHECK(r.ap.state().vertActive == VertMode::Ga);
 }
+
+// 1.1 device test (787): in ALT at 8,100 ft with the bug at 14,000 there was no way to climb on
+// the pad short of disconnecting. The ALT button now leaves ALT toward the bug.
+TEST_CASE("autopilot: ALT button in ALT with the bug away climbs or descends toward it in VS") {
+    Rig r(AircraftCategory::Jet, true);
+    r.ac.altMslFt = 8100;
+    r.engage();
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    REQUIRE(r.ap.state().vertActive == VertMode::Alt);
+    r.ap.setAltBugFt(14000);
+    r.run(1.0);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);  // a bug change alone does not climb
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().vsBugFpm == doctest::Approx(1500.f));  // the jet default rate
+    CHECK(r.ap.state().vertArmed == VertMode::Alt);
+    // Back in ALT, a bug below starts a descent; a bug within 100 ft just holds.
+    r.ap.selectAltHold(r.ac);
+    r.ap.setAltBugFt(6000);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Vs);
+    CHECK(r.ap.state().vsBugFpm == doctest::Approx(-1500.f));
+    r.ap.selectAltHold(r.ac);
+    r.ap.setAltBugFt(8150);
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
+}

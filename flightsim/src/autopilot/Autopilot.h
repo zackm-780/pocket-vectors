@@ -67,6 +67,10 @@ public:
     void selectNav(const NavState& nav);          // second press with NAV active/armed -> cancel
     void selectApr(const NavState& nav);          // arms LOC + GS (or NAV on a non-ILS approach)
     void selectAltHold(const AircraftState& ac);  // hold the present altitude
+    // The ALT button (L1 + R2): holds the present altitude; pressed again while in ALT / ALT*
+    // with the bug more than 100 ft away, climbs or descends toward the bug in VS at the default
+    // rate with ALT armed (1.1 device test: there was no way out of ALT on the pad).
+    void selectAltButton(const AircraftState& ac);
     void selectVs(const AircraftState& ac);
     void selectRoll(const AircraftState& ac);
     void selectPitch(const AircraftState& ac);
