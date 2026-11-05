@@ -407,6 +407,8 @@ void Autopilot::applyScenario(const std::vector<std::string>& tokens, const Airc
             selectPitch(ac);
         } else if (t == "flc") {
             if (st_.vertActive != VertMode::Flc) selectFlc(ac);
+        } else if (t == "toga") {
+            selectGoAround(ac, nav);  // FD only unless "ap" is given too
         }
     }
 }

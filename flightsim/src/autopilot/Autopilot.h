@@ -48,7 +48,8 @@ public:
     void handleActions(const ActionState& actions, const AircraftState& ac, const NavState& nav,
                        double dtS);
 
-    // Scenario [autopilot] section. Tokens (lower case): ap fd at hdg nav apr alt vs rol pit.
+    // Scenario [autopilot] section. Tokens (lower case): ap fd at hdg nav apr alt vs rol pit flc
+    // toga (toga turns the FD on, not the AP).
     // A mode token engages the AP when it is not engaged yet.
     void applyScenario(const std::vector<std::string>& engageTokens, const AircraftState& ac,
                        const NavState& nav);

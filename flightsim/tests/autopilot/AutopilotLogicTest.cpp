@@ -1019,3 +1019,11 @@ TEST_CASE("autopilot: scenario token flc engages the AP in FLC") {
     CHECK(r.ap.state().apEngaged);
     CHECK(r.ap.state().vertActive == VertMode::Flc);
 }
+
+TEST_CASE("autopilot: scenario token toga starts a go-around on the FD only") {
+    Rig r;
+    r.ap.applyScenario({"toga"}, r.ac, r.nav);
+    CHECK(r.ap.state().fdOn);
+    CHECK_FALSE(r.ap.state().apEngaged);
+    CHECK(r.ap.state().vertActive == VertMode::Ga);
+}

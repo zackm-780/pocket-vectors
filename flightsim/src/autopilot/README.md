@@ -65,6 +65,7 @@ Underspeed (no A/T): VS target reduced by 100 fpm per knot below `min_climb_ias_
 `climb_throttle` (1.0 piston, 0.95 turboprop and jet), `ga_throttle` (1.0).
 
 ## Scenario `[autopilot]`
-`engage = ap fd at hdg nav apr alt vs rol pit flc` (a mode token engages the AP), `hdg_bug_mag_deg`,
+`engage = ap fd at hdg nav apr alt vs rol pit flc toga` (a mode token engages the AP; `toga` only
+turns the FD on), `hdg_bug_mag_deg`,
 `alt_bug_ft`, `vs_bug_fpm`, `spd_bug_kt`. Bugs default to the present heading / altitude.
 `alt` flies toward the altitude bug (VS with capture) or holds it when within 100 ft.
