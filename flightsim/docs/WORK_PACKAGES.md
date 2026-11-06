@@ -833,7 +833,7 @@ into the KOTH approach, every fix in order. Not done: airways, SID / STAR speed 
 in the leg data only.
 
 ## S2: GPWS voice callouts
-**Status:** merged in 1.2 (#11); the board's S2 part A (a 1024-sample audio buffer on the device and the size in the log) is in 1.2.0 (I3). PLAN D22 proposes the voice source for the owner to confirm; needs device test: clip loudness against the engine on the speaker, PULL UP cutting into a height callout · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
+**Status:** merged in 1.2 (#11); the board's S2 part A (a 1024-sample audio buffer on the device and the size in the log) is in 1.2.0 (I3, #12). PLAN D22 proposes the voice source for the owner to confirm; needs device test: clip loudness against the engine on the speaker, PULL UP cutting into a height callout · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
 
 **Owns:** `src/audio/` (voice playback), `assets/audio/` (clips).
 "MINIMUMS", radio-altitude callouts (500, 100, 50, 40, 30, 20, 10), "SINK RATE", "PULL UP",
@@ -889,7 +889,7 @@ A 737 cannot start below its tank minimum (about 95 lb unusable), so its test lo
 # 1.2.0: release fixes (after the 1.2 device test, 2026-11-05)
 
 ## I3: 1.2 device-test fixes and the release
-**Status:** in review (needs device test: listed in the 1.2.0 pull request) · **Effort:** high ·
+**Status:** in review (#12; needs device test: listed there) · **Effort:** high ·
 **Depends:** #11 · **Owns:** small fixes across merged modules (maintainer-assigned),
 `.github/workflows/release.yml`
 

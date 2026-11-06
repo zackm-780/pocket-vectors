@@ -10,7 +10,7 @@ checks for the handheld. Waves 0–5 stay in [../WORK_PACKAGES.md](../WORK_PACKA
 part B of S2 and most of X3a here; their `Status:` lines say so. The external chase view (V1) is
 in 1.2 too. The 2026-11-05 device session (the DEVICE.md §6 timing run) gave T2's frame numbers:
 MED holds 30 fps in the cockpit, LOW 60 (DEVICE.md §3). The PR #11 checklist runs alongside the
-1.2.0 release PR, which adds the session's fixes and S2 part A (WORK_PACKAGES I3). The owner ships 1.2 now (**v1.2.0**)
+1.2.0 release PR (#12), which adds the session's fixes and S2 part A (WORK_PACKAGES I3). The owner ships 1.2 now (**v1.2.0**)
 and takes **X3c next as 1.2.1** (HUD CPU, the GPU clock in the log, MED toward 60). The phases
 below are the original plan; take the open cards in that order.
 
