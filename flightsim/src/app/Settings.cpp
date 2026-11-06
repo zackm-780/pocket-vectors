@@ -113,6 +113,8 @@ void Settings::clampAll() {
         overlayAirportRadiusNm = std::clamp(overlayAirportRadiusNm, 5.0f, 80.0f);
     for (float* e : {&pitchExpo, &rollExpo, &rudderExpo}) fix(*e, 0.0f, 1.0f, 0.0f);
     volumePct = std::clamp(volumePct, 0, 100);
+    if (audioBufferSamples < 0) audioBufferSamples = 0;  // S2: 0 = automatic
+    if (audioBufferSamples > 4096) audioBufferSamples = 4096;
     if (simHz != 60 && simHz != 120) simHz = 120;
 }
 
@@ -191,8 +193,9 @@ int Settings::applyText(const std::string& text) {
     flag("external_view", externalView);  // V1
     choice("clouds", kClouds, clouds);    // W7
     num("cloud_base_ft", cloudBaseFt);
-    flag("gpws_voice", gpwsVoice);       // S2
-    flag("perf_gpu_sync", perfGpuSync);  // X3
+    flag("gpws_voice", gpwsVoice);                        // S2
+    integer("audio_buffer_samples", audioBufferSamples);  // S2 part A
+    flag("perf_gpu_sync", perfGpuSync);                   // X3
     str("last_aircraft", lastAircraft);
 
     if (ini.has(kSection, "sim_hz") && simHz != 60 && simHz != 120)
@@ -276,8 +279,9 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"external_view", b(s.externalView)},     // V1
         {"clouds", enumText(kClouds, s.clouds)},  // W7
         {"cloud_base_ft", fmtFloat(s.cloudBaseFt)},
-        {"gpws_voice", b(s.gpwsVoice)},       // S2
-        {"perf_gpu_sync", b(s.perfGpuSync)},  // X3
+        {"gpws_voice", b(s.gpwsVoice)},                                  // S2
+        {"audio_buffer_samples", std::to_string(s.audioBufferSamples)},  // S2 part A
+        {"perf_gpu_sync", b(s.perfGpuSync)},                             // X3
         {"last_aircraft", s.lastAircraft},
     };
 }
