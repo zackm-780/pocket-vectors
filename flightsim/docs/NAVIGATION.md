@@ -198,7 +198,8 @@ in each profile's `[autopilot]` section, with sane category defaults (piston / t
 | Speed | SPD (A/T), RETARD, THR (N7) | PI on IAS → throttle (all engines), rate-limited. RETARD to idle below 30 ft RA on landing. A/T disconnects at touchdown. THR holds a fixed throttle: TOGA in GA, climb or idle in FLC. |
 
 - **Engage rules:** AP engage with no mode selected = ROL + PIT (hold current). NAV arms if the plan
-  has an active leg. APR arms LOC + GS. Captures happen automatically.
+  has an active leg. APR arms LOC + GS. Captures happen automatically. A mode button (HDG, NAV, APR,
+  ALT, VS, FLC) pressed with the AP and the FD both off turns the FD on first (1.2.0), like TO/GA.
 - **Disconnects:** pilot stick deflection > 0.5 for > 0.5 s, AP toggle, stall warning, bank > 45° or
   pitch beyond ±25°, and below minimums − 50 ft (no autoland in v1). Each disconnect sets
   `disconnectWarning`.

@@ -672,10 +672,8 @@ TEST_CASE("autopilot: bug actions") {
     CHECK(r.ap.state().altBugFt == doctest::Approx(6000.f));
 }
 
-TEST_CASE("autopilot: mode actions need AP or FD, then select modes") {
+TEST_CASE("autopilot: mode actions select modes on the FD, then carry over to the AP") {
     Rig r;
-    r.ap.handleActions(press(Action::HdgMode), r.ac, r.nav, kSimDtS);
-    CHECK(r.ap.state().latActive == LatMode::Off);  // nothing engaged: ignored
     r.ap.handleActions(press(Action::FdToggle), r.ac, r.nav, kSimDtS);
     CHECK(r.ap.state().fdOn);
     r.ap.handleActions(press(Action::HdgMode), r.ac, r.nav, kSimDtS);
@@ -1079,4 +1077,44 @@ TEST_CASE("autopilot: ALT button in ALT with the bug away climbs or descends tow
     r.ap.setAltBugFt(8150);
     r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
     CHECK(r.ap.state().vertActive == VertMode::Alt);
+}
+
+TEST_CASE("autopilot: a mode button with AP and FD off turns the FD on, like TO/GA") {
+    struct Case {
+        Action action;
+        LatMode lat;
+        VertMode vert;
+    };
+    const Case cases[] = {
+        {Action::HdgMode, LatMode::Hdg, VertMode::Pitch},
+        {Action::NavMode, LatMode::Roll, VertMode::Pitch},  // NAV arms (checked below)
+        {Action::AprMode, LatMode::Roll, VertMode::Pitch},  // no approach loaded: ROL / PIT
+        {Action::AltMode, LatMode::Roll, VertMode::Alt},
+        {Action::VsMode, LatMode::Roll, VertMode::Vs},
+        {Action::FlcMode, LatMode::Roll, VertMode::Flc},
+    };
+    for (const Case& c : cases) {
+        Rig r;
+        r.ap.setAltBugFt(8000);  // FLC needs a bug away from the present altitude
+        REQUIRE_FALSE(r.ap.state().fdOn);
+        r.ap.handleActions(press(c.action), r.ac, r.nav, kSimDtS);
+        CAPTURE(static_cast<int>(c.action));
+        CHECK(r.ap.state().fdOn);
+        CHECK_FALSE(r.ap.state().apEngaged);
+        CHECK(r.ap.state().latActive == c.lat);
+        CHECK(r.ap.state().vertActive == c.vert);
+        if (c.action == Action::NavMode) CHECK(r.ap.state().latArmed == LatMode::Nav);
+    }
+    // ALT on the FD is the ALT the device test pressed (L1 + R2): it holds, and the AP keeps it.
+    Rig r;
+    r.ap.handleActions(press(Action::AltMode), r.ac, r.nav, kSimDtS);
+    r.ap.handleActions(press(Action::ApToggle), r.ac, r.nav, kSimDtS);
+    CHECK(r.ap.state().apEngaged);
+    CHECK(r.ap.state().vertActive == VertMode::Alt);
+    // A crashed aircraft does not get an FD.
+    Rig q;
+    q.ac.crashed = true;
+    q.ap.handleActions(press(Action::HdgMode), q.ac, q.nav, kSimDtS);
+    CHECK_FALSE(q.ap.state().fdOn);
+    CHECK(q.ap.state().latActive == LatMode::Off);
 }
