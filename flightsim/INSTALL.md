@@ -44,6 +44,10 @@ The 1.0 release also carries two smaller zips, for when you do not want to copy 
   inside it to `Roms/PORTS/flightsim/`, so you get `Roms/PORTS/flightsim/data/terrain/` and
   `Roms/PORTS/flightsim/data/nav/`.
 
+From 1.2 the release also attaches `pocket-vectors-vX.Y.Z-data-pdx_oth.zip`, a pack built with
+SIDs and STARs. To get them on an existing install, copy its `data/nav/` folder over
+`flightsim/data/nav/` (the SIDs and STARs are there), or replace the whole `data/` folder.
+
 To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/settings.ini`
 (created on first launch).
 
