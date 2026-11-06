@@ -25,6 +25,13 @@ std::string upper(std::string s) {
     return s;
 }
 
+// Dot files: macOS writes an AppleDouble "._<name>" next to every file it copies onto a FAT SD
+// card, plus .DS_Store and .Trashes. They are never assets.
+bool isDotFile(const std::filesystem::path& p) {
+    const std::string name = p.filename().string();
+    return !name.empty() && name[0] == '.';
+}
+
 bool endsWithFms(const std::string& name) {
     if (name.size() < 4) return false;
     return upper(name.substr(name.size() - 4)) == ".FMS";
@@ -108,6 +115,7 @@ std::vector<AircraftEntry> discoverAircraft(const std::string& aircraftDir) {
     std::vector<AircraftEntry> out;
     std::error_code ec;
     for (const auto& de : std::filesystem::directory_iterator(aircraftDir, ec)) {
+        if (isDotFile(de.path())) continue;
         if (!de.is_regular_file(ec) || de.path().extension() != ".ini") continue;
         AircraftProfile p;
         std::string err;
@@ -136,7 +144,7 @@ std::vector<PlanFileEntry> discoverPlanFiles(const std::vector<std::string>& dir
     for (const std::string& dir : dirs) {
         std::error_code ec;
         for (const auto& de : std::filesystem::directory_iterator(dir, ec)) {
-            if (!de.is_regular_file(ec)) continue;
+            if (isDotFile(de.path()) || !de.is_regular_file(ec)) continue;
             const std::string name = de.path().filename().string();
             if (!endsWithFms(name)) continue;
             byName.emplace(name, de.path().string());  // emplace keeps the earlier directory
