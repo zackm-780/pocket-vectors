@@ -2,6 +2,7 @@
 
 #include <SDL.h>
 
+#include <algorithm>
 #include <atomic>
 
 #include "core/Log.h"
@@ -27,7 +28,16 @@ AudioEngine::~AudioEngine() {
     shutdown();
 }
 
-bool AudioEngine::init() {
+int audioBufferSamples(int settingSamples, bool portMaster) {
+    if (settingSamples <= 0)
+        return portMaster ? AudioEngine::kPortMasterBufferSamples
+                          : AudioEngine::kDefaultBufferSamples;
+    int n = 256;
+    while (n < 4096 && n * 3 / 2 < settingSamples) n *= 2;  // nearest power of two, rounding up
+    return n;
+}
+
+bool AudioEngine::init(int bufferSamples) {
     if (device_ != 0) return true;
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         LOG_WARN("audio: SDL audio init failed (%s); running silent", SDL_GetError());
@@ -40,12 +50,19 @@ bool AudioEngine::init() {
     want.freq = kSampleRateHz;
     want.format = AUDIO_S16SYS;
     want.channels = 1;
-    want.samples = 512;
+    want.samples = static_cast<Uint16>(std::clamp(bufferSamples, 64, 8192));
     want.callback = sdlCallback;
     want.userdata = impl_.get();
     SDL_AudioSpec have;
     SDL_zero(have);
-    const SDL_AudioDeviceID dev = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
+    // Let the driver report the buffer it really uses (ALSA rounds the period to what the
+    // hardware takes); without this SDL re-blocks to `want.samples` and hides that size. The
+    // callback handles any length.
+    int allowed = 0;
+#ifdef SDL_AUDIO_ALLOW_SAMPLES_CHANGE
+    allowed = SDL_AUDIO_ALLOW_SAMPLES_CHANGE;
+#endif
+    const SDL_AudioDeviceID dev = SDL_OpenAudioDevice(nullptr, 0, &want, &have, allowed);
     if (dev == 0) {
         LOG_WARN("audio: no audio device (%s); running silent", SDL_GetError());
         impl_.reset();
@@ -54,8 +71,11 @@ bool AudioEngine::init() {
     }
     device_ = dev;
     first_ = true;
-    LOG_INFO("audio: driver %s, %d Hz, %d ch, %d samples", SDL_GetCurrentAudioDriver(), have.freq,
-             static_cast<int>(have.channels), static_cast<int>(have.samples));
+    bufferObtained_ = static_cast<int>(have.samples);
+    const double bufferMs = have.freq > 0 ? 1000.0 * have.samples / have.freq : 0.0;
+    LOG_INFO("audio: driver %s, %d Hz, %d ch, buffer %d samples (%.0f ms; asked %d)",
+             SDL_GetCurrentAudioDriver(), have.freq, static_cast<int>(have.channels),
+             bufferObtained_, bufferMs, static_cast<int>(want.samples));
     SDL_PauseAudioDevice(dev, 0);
     return true;
 }
@@ -64,6 +84,7 @@ void AudioEngine::shutdown() {
     if (device_ == 0) return;
     SDL_CloseAudioDevice(device_);  // waits for the callback thread to finish
     device_ = 0;
+    bufferObtained_ = 0;
     impl_.reset();
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }

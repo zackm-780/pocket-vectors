@@ -45,10 +45,9 @@ Device facts and the values still to be measured are in [DEVICE.md](DEVICE.md). 
 Allwinner H700 (4× Cortex-A53 @ 1.5 GHz), Mali-G31 MP2, **1 GB RAM**, **640×480** 4" screen,
 two analog sticks, Wi-Fi, 64-bit Linux stock OS with PortMaster.
 
-**Provisional budgets.** These are revised after the P1 probe benchmark runs on the device. X3
-replaces them with numbers from a device flight. The game now records them (DEVICE.md §6), and
-`graphics_quality` LOW / MED / HIGH is the preset X3 tunes. MED draws about 35k terrain triangles
-in 54 draws at KPDX, within the terrain budget below.
+**Budgets.** Set before the device was measured; the first device flight (1.2, 2026-11-05,
+DEVICE.md §3) measured the numbers below them. `graphics_quality` LOW / MED / HIGH is the preset
+X3 tunes; MED stays the default (owner, 2026-11-06).
 
 | Item | Budget |
 |---|---|
@@ -60,6 +59,18 @@ in 54 draws at KPDX, within the terrain budget below.
 | Memory | Process RSS ≤ 350 MB; GPU textures and buffers ≤ 128 MB; terrain cache ≤ 128 MB |
 | Load time | Menu → flying ≤ 15 s |
 | Storage | Unconstrained (user has plenty). Data packs live on the SD card. |
+
+**Measured on the RG40XXH** (Mali-G31, 1.2 build, 2026-11-05, DEVICE.md §3):
+
+| Case | fps | CPU per frame | HUD | Terrain | Against the budget |
+|---|---|---|---|---|---|
+| MED, cockpit | 30 locked (33.5 ms) | 11.6 ms | 8.0 ms | 44k tris, 70 draws | 30 fps met; GPU-bound (swap 22 ms); HUD 4× its 2 ms; terrain 10 % over 40k |
+| MED, chase | 30, 20 while orbiting | 4.5 ms | 0.7 ms | | the orbit dips are GPU |
+| MED, inside OVC | 30 ↔ 60 (avg 55) | | | 47k tris | GPU at the 16.7 ms edge, or GPU DVFS |
+| LOW, cockpit | 60 locked (p95 17.0 ms) | 9.4 ms | 6.6 ms | 37k tris | the 60 fps stretch met |
+| HIGH, cockpit | 30 | | | | |
+
+X3c (1.2.1) works on the HUD's CPU time, logs the GPU clock and moves MED toward 60 fps.
 
 ## 4. Decision log
 
@@ -129,4 +140,4 @@ Each milestone is done when its exit criteria pass on desktop and, where marked 
 | Q4 | On-device facts: glibc, SDL video driver, GLES version, whether L2/R2 are analog, whether L3/R3 exist. | Measured by the probe and recorded in DEVICE.md. |
 | Q5 | Units: aviation standard (kt, ft, NM, inHg/hPa)? | kt / ft / NM / fpm. Pressure in hPa or inHg is a setting. |
 | Q6 | Do printed X and Y match SDL names on the RG40XXH, the same way A and B do? | Likely yes (DEVICE.md §2). The default table uses that mapping. Needs one more on-device check (ROADMAP). |
-| Q7 | What frame rate does a flight hold on the RG40XXH? | Not measured yet. SHOW FPS shows it on screen. The launch log gets a timing table per view and quality preset (X3, DEVICE.md §6). |
+| Q7 | What frame rate does a flight hold on the RG40XXH? | **Measured (2026-11-05, DEVICE.md §3):** MED holds a locked 30 fps in the cockpit (GPU-bound; the HUD takes 8 of 11.6 ms CPU), LOW a locked 60, HIGH 30. The chase view dips to 20 fps while orbiting. X3c (1.2.1) aims MED toward 60. |

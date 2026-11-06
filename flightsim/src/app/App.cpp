@@ -307,7 +307,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     }
     audioEngine.setVoiceBank(&voiceBank);
     audioControl.setVoiceBank(settings.gpwsVoice ? &voiceBank : nullptr);
-    if (interactive) audioEngine.init();
+    if (interactive)
+        audioEngine.init(
+            audio::audioBufferSamples(settings.audioBufferSamples, isPortMasterPlatform()));
 
     AppState state = AppState::Flying;
     bool quitRequested = false;

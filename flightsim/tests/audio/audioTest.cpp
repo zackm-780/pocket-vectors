@@ -408,6 +408,30 @@ TEST_CASE("audio: engine runs without a device (null sink) and with the dummy dr
     CHECK_FALSE(eng.deviceOpen());
 }
 
+TEST_CASE("audio: buffer size is 1024 under PortMaster, 512 elsewhere, or the setting") {
+    CHECK(audioBufferSamples(0, true) == 1024);  // S2 part A: 512 underran on the RG40XXH
+    CHECK(audioBufferSamples(0, false) == 512);
+    CHECK(audioBufferSamples(-5, true) == 1024);
+    CHECK(audioBufferSamples(2048, true) == 2048);
+    CHECK(audioBufferSamples(256, false) == 256);
+    CHECK(audioBufferSamples(1000, false) == 1024);  // rounded to a power of two
+    CHECK(audioBufferSamples(600, false) == 512);
+    CHECK(audioBufferSamples(100, false) == 256);
+    CHECK(audioBufferSamples(99999, false) == 4096);
+}
+
+TEST_CASE("audio: the engine reports the buffer the driver gave") {
+    setenv("SDL_AUDIODRIVER", "dummy", 0);
+    AudioEngine eng;
+    CHECK(eng.bufferSamplesObtained() == 0);
+    if (eng.init(1024)) {
+        CHECK(eng.bufferSamplesObtained() > 0);
+        MESSAGE("dummy driver buffer: ", eng.bufferSamplesObtained(), " samples (asked 1024)");
+    }
+    eng.shutdown();
+    CHECK(eng.bufferSamplesObtained() == 0);
+}
+
 TEST_CASE("audio: takeoff sequence WAV (only when FSIM_AUDIO_WAV is set)") {
     const char* path = std::getenv("FSIM_AUDIO_WAV");
     if (!path) return;

@@ -84,6 +84,7 @@ TEST_CASE("settings: round trip of every key") {
     s.pitchExpo = 0.25f;
     s.rollExpo = 0.5f;
     s.rudderExpo = 1.0f;
+    s.audioBufferSamples = 2048;
     s.lastAircraft = "737";
     REQUIRE(s.save(t.file("settings.ini")));
 
@@ -96,6 +97,7 @@ TEST_CASE("settings: round trip of every key") {
     CHECK(r.simHz == 60);
     CHECK(r.throttleMode == ThrottleMode::Absolute);
     CHECK(r.rudderExpo == doctest::Approx(1.0f));
+    CHECK(r.audioBufferSamples == 2048);
     CHECK(r.lastAircraft == "737");
 }
 
@@ -112,7 +114,8 @@ TEST_CASE("settings: out-of-range and invalid values are clamped or rejected") {
                                      "sim_hz = 90\n"
                                      "hud_color = purple\n"
                                      "show_fps = maybe\n"
-                                     "graphics_quality = HIGH\n");
+                                     "graphics_quality = HIGH\n"
+                                     "audio_buffer_samples = -64\n");
     log::setStderrEnabled(true);
     CHECK(s.fovVerticalDeg == doctest::Approx(110.0f));
     CHECK(s.volumePct == 0);
@@ -124,6 +127,7 @@ TEST_CASE("settings: out-of-range and invalid values are clamped or rejected") {
     CHECK(s.hudColor == HudColor::Green);  // invalid keeps the default
     CHECK(s.showFps == false);
     CHECK(s.graphicsQuality == GraphicsQuality::High);  // case-insensitive
+    CHECK(s.audioBufferSamples == 0);                   // negative: automatic
     CHECK(rejected == 3);                               // sim_hz, hud_color, show_fps
 }
 

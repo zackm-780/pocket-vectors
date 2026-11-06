@@ -28,8 +28,26 @@ void overlayApplyPreset(OverlayToggles& t, int preset);
 int overlayCycle(OverlayToggles& t);
 
 // Constraint altitude when one is set, else cruise when it is clearly above the ground, else a
-// short pole (ground + 400 ft).
+// short pole (ground + 400 ft). The route uses it only as the ceiling of overlayRouteProfileFt.
 float overlayMarkerAltFt(const AltConstraint& alt, float cruiseFt, float groundFt);
+
+// The leg the plan lands on: the last leg before the missed approach when an approach is loaded,
+// else the last leg when it ends at an airport or runway. -1 when the plan ends at a fix.
+int overlayLandingLeg(const FlightPlan& plan);
+
+// Route and path slope between the fixed altitudes of overlayRouteProfileFt (the 3 degree
+// glidepath), and the height over the threshold when the landing leg has no altitude.
+constexpr float kOverlayPathDeg = 3.0f;
+constexpr float kOverlayLandingAboveFt = 50.0f;
+
+// One altitude (ft MSL) per leg end, so the route climbs and descends instead of jumping between
+// cruise and the ground. Fixed: the departure runway (its ground), the landing leg (its constraint,
+// else ground + 50 ft), every AT constraint and every constraint on an approach leg. Other legs
+// sit on the lowest 3 degree line through the fixed ones, capped at cruise; AT OR ABOVE /
+// AT OR BELOW / BETWEEN outside the approach clamp that, and free legs stay 400 ft above their
+// ground. groundFt[i] is the terrain under leg i's fix (missing entries count as 0).
+void overlayRouteProfileFt(const FlightPlan& plan, const std::vector<float>& groundFt,
+                           std::vector<float>& outAltFt);
 
 // World length, in meters, of `px` vertical pixels at `distM` for this lens.
 float metersForPixels(float distM, float px, float viewH, float vFovRad);
@@ -37,8 +55,9 @@ float metersForPixels(float distM, float px, float viewH, float vFovRad);
 float overlayRunwayHalfWidthM(float trueHalfWidthM, float distM, float minPx, float viewH,
                               float vFovRad);
 
-// Close to the field the runway outlines and the approach path would box in the view: both clear
-// once the eye is less than this height above the runway (or the approach leg's end).
+// Close to the field the runway outlines, the approach path and the route would box in the view:
+// they clear once the eye is less than this height above the runway (or the approach leg's end;
+// for the route, the landing leg's end while flying the approach or the landing leg).
 constexpr float kOverlayNearFieldHideFt = 250.0f;
 bool overlayHiddenNearField(double eyeAltMslM, float fieldElevFt);
 
@@ -81,6 +100,8 @@ struct OverlayAirportRef {
 };
 
 // Appends triangles into the four batches (caller keeps the capacity). Writes labels[0, count).
+// The route follows overlayRouteProfileFt, shows the missed approach only once a missed approach
+// leg is active, and clears near the field on the approach (kOverlayNearFieldHideFt).
 // Returns how many of the four batches received triangles (0..4).
 int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
                       const OverlayAirportRef* airports, int airportCount,

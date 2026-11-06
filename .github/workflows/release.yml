@@ -1,10 +1,12 @@
 name: release
 
 # On a v* tag, build the RG40XXH game (no probe, no data pack) and attach it to the GitHub
-# Release. Data packs stay off the release: build one with the datapack workflow or
-# tools/datapack/build_datapack.sh, then combine it with tools/sdcard/make_sdcard_zip.py.
-# Copernicus DEM and ESA WorldCover may be redistributed with the attribution in ATTRIBUTION.txt
-# (DATA.md section 2). This workflow does not upload a pack.
+# Release, together with the pdx_oth data pack from a datapack workflow run (DATA_RUN_ID and
+# DATA_ARTIFACT below). Workflow artifacts expire after 30 days; a release asset stays, so the
+# release keeps the pack. Copernicus DEM and ESA WorldCover may be redistributed with the
+# attribution in ATTRIBUTION.txt (DATA.md section 2), which the pack carries. If the artifact is
+# gone, the release still publishes and its notes link the 1.0 pack (no SIDs or STARs) with a
+# warning; re-run it for the tag with a newer datapack run.
 
 on:
   push:
@@ -16,14 +18,29 @@ on:
       tag:
         description: "Existing tag to build and publish, e.g. v1.1.0"
         required: true
+      data_run_id:
+        description: "datapack workflow run whose pack to attach (empty: the default in this file)"
+        required: false
+        default: ""
+      data_artifact:
+        description: "Artifact name in that run (empty: the default in this file)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
+  actions: read  # download the data pack artifact from the datapack run
 
 jobs:
   release:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    env:
+      # The pdx_oth pack for this release: built from main 84554f0 by datapack run 42155295255,
+      # with SIDs and STARs (FAA CIFP 2611). The artifact expires on 2026-12-06. For a later
+      # release, run the datapack workflow on main and put its run id and artifact name here.
+      DATA_RUN_ID: ${{ inputs.data_run_id || '42155295255' }}
+      DATA_ARTIFACT: ${{ inputs.data_artifact || 'flightsim-data-pdx_oth-20261106' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,21 +72,59 @@ jobs:
           REQUIRE_MAIN: "1"
         run: tools/build_device.sh --docker --skip-probe
 
-      - name: Publish the game zip
-        working-directory: flightsim
+      # The data pack goes on the release as pocket-vectors-<tag>-data-pdx_oth.zip with data/ at
+      # the top, like the 1.0 pack. It must have the nav database, terrain, ATTRIBUTION.txt and
+      # SIDs (a pack built before 1.2's cifp.py has none).
+      - name: Fetch the data pack
+        id: pack
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          dir="${RUNNER_TEMP}/datapack"
+          out="${RUNNER_TEMP}/pocket-vectors-${TAG}-data-pdx_oth.zip"
+          if ! gh run download "$DATA_RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$DATA_ARTIFACT" -D "$dir"; then
+            echo "::warning::Data pack ${DATA_ARTIFACT} (run ${DATA_RUN_ID}) is missing or expired. The notes link the 1.0 pack. Re-run this workflow for ${TAG} with a newer datapack run."
+            exit 0
+          fi
+          if [ ! -f "$dir/data/nav/nav.ini" ] || [ ! -f "$dir/data/terrain/pack.ini" ] || \
+             [ ! -f "$dir/data/ATTRIBUTION.txt" ] || ! grep -rqs '^SID ' "$dir/data/nav/procedures"; then
+            echo "::warning::Data pack ${DATA_ARTIFACT} lacks nav, terrain, ATTRIBUTION.txt or SIDs. The notes link the 1.0 pack."
+            exit 0
+          fi
+          grep -E '^(created_utc|faa_cifp) ' "$dir/data/nav/nav.ini" || true
+          (cd "$dir" && zip -q -r -X "$out" data)
+          ls -l "$out"
+          echo "zip=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the game zip and the data pack
+        working-directory: flightsim
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          PACK_ZIP: ${{ steps.pack.outputs.zip }}
+        run: |
+          set -euo pipefail
           tag="${TAG}"
           asset="${RUNNER_TEMP}/pocket-vectors-${tag}-game.zip"
           cp dist/flightsim-portmaster.zip "$asset"
+          assets=("$asset")
+          if [ -n "${PACK_ZIP}" ]; then
+            assets+=("$PACK_ZIP")
+            pack_name="$(basename "$PACK_ZIP")"
+            pack_link="[${pack_name}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${pack_name}) (on this release, with SIDs and STARs)"
+            pack_update="For SIDs and STARs on the flight-plan screen, also download \`${pack_name}\` and copy its
+          \`data/nav/\` folder over \`flightsim/data/nav/\` (or the whole \`data/\` folder)."
+          else
+            pack_link="[pocket-vectors-1.0.0-data-pdx_oth.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.0.0/pocket-vectors-1.0.0-data-pdx_oth.zip) (the 1.0 pack: no SIDs or STARs)"
+            pack_update="The 1.0 data pack keeps working; it has no SIDs or STARs."
+          fi
           notes="${RUNNER_TEMP}/notes.md"
           cat > "$notes" <<EOF
           Pocket Vectors ${tag} for the Anbernic RG40XXH (stock OS, 64-bit, SDL2).
 
-          The asset is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
+          The game zip is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
 
           ## Update an existing install
 
@@ -77,11 +132,12 @@ jobs:
           \`flightsim/conf/\` and \`flightsim/data/\` stay. In the macOS Finder, "Replace" deletes
           \`flightsim/data/\`: merge instead, or copy \`data/\` back afterwards. If you created
           \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it.
+          ${pack_update}
 
           ## New install
 
           Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:
-          unzip [pocket-vectors-1.0.0-data-pdx_oth.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.0.0/pocket-vectors-1.0.0-data-pdx_oth.zip)
+          unzip ${pack_link}
           and copy the \`data/\` folder inside it to \`Roms/PORTS/flightsim/\`. Or combine both into one zip
           with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).
 
@@ -106,10 +162,10 @@ jobs:
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
             # The release was published from the web page (which also creates the tag).
-            gh release upload "$tag" "$asset" --clobber
+            gh release upload "$tag" "${assets[@]}" --clobber
             if [ -z "$(gh release view "$tag" --json body --jq .body)" ]; then
               gh release edit "$tag" --notes-file "$notes"
             fi
           else
-            gh release create "$tag" "$asset" --title "Pocket Vectors ${tag}" --notes-file "$notes"
+            gh release create "$tag" "${assets[@]}" --title "Pocket Vectors ${tag}" --notes-file "$notes"
           fi

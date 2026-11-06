@@ -56,6 +56,9 @@ struct Settings {
     float cloudBaseFt = 2500.0f;
     // S2: spoken GPWS callouts (off: the X2 tones).
     bool gpwsVoice = true;
+    // S2 part A: audio buffer in samples, read at start. 0 = automatic (1024 under PortMaster,
+    // else 512); otherwise a power of two in 256..4096 (audio::audioBufferSamples).
+    int audioBufferSamples = 0;
     // X3: glFinish after each render pass so the frame timing holds GPU time (read at start).
     bool perfGpuSync = false;
     std::string lastAircraft;

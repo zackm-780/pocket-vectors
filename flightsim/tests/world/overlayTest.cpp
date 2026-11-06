@@ -2,6 +2,7 @@
 // batch count and the CPU cost of one build.
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -69,6 +70,54 @@ Airport fieldAt(const char* ident, double lat, double lon) {
     ap.runways.push_back(rw);
     ap.runways.push_back(back);
     return ap;
+}
+
+Leg fixLeg(const char* ident, double lat, double lon,
+           AltConstraintKind kind = AltConstraintKind::None, float altFt = 0,
+           WaypointKind wk = WaypointKind::Fix) {
+    Leg leg;
+    leg.to.ident = ident;
+    leg.to.kind = wk;
+    leg.to.latDeg = lat;
+    leg.to.lonDeg = lon;
+    leg.alt.kind = kind;
+    leg.alt.altFt = altFt;
+    return leg;
+}
+
+std::vector<float> profileOf(const FlightPlan& p, float groundFt) {
+    std::vector<float> ground(p.legs.size(), groundFt), alt;
+    overlayRouteProfileFt(p, ground, alt);
+    return alt;
+}
+
+double legNm(const FlightPlan& p, int a, int b) {
+    const Waypoint& wa = p.legs[static_cast<size_t>(a)].to;
+    const Waypoint& wb = p.legs[static_cast<size_t>(b)].to;
+    return mToNm(greatCircleDistM(wa.latDeg, wa.lonDeg, wb.latDeg, wb.lonDeg));
+}
+
+std::vector<float> routeVerts(const FlightPlan& p, const OverlayEye& eye) {
+    OverlayToggles t;
+    t.route = true;
+    std::vector<float> route, vpath, ap, rw;
+    int n = 0;
+    buildWorldOverlay(t, &p, nullptr, 0, nullptr, 0, nullptr, eye, route, vpath, ap, rw, nullptr, 0,
+                      n);
+    return route;
+}
+
+// Highest route vertex (m MSL) within `radiusM` of a point, -1 when none is that close.
+double maxAltNearM(const std::vector<float>& verts, const OverlayEye& eye, double lat, double lon,
+                   double radiusM) {
+    double best = -1.0;
+    for (std::size_t i = 0; i + 5 < verts.size(); i += 6) {
+        const Ecef e{eye.ecef.x + verts[i], eye.ecef.y + verts[i + 1], eye.ecef.z + verts[i + 2]};
+        const GeoPos g = ecefToGeodetic(e);
+        if (greatCircleDistM(g.latDeg, g.lonDeg, lat, lon) <= radiusM)
+            best = std::max(best, g.altMslM);
+    }
+    return best;
 }
 
 }  // namespace
@@ -331,4 +380,162 @@ TEST_CASE("overlay: building an 8-leg plan and 12 airports stays under 0.5 ms") 
     MESSAGE("overlay build ", ms, " ms, draw batches <= 4");
     CHECK(ms < 0.5);
     CHECK(n > 0);
+}
+
+TEST_CASE("overlay: the route descends to the runway instead of dropping from cruise") {
+    // The owner's report: the plan's last legs sat at cruise and the line fell straight down onto
+    // the runway. Departure runway, a free fix 3 NM out, cruise, a free fix 6 NM before the
+    // destination runway, the runway; ground 30 ft everywhere.
+    FlightPlan p;
+    p.cruiseAltFt = 9000;
+    p.legs.push_back(
+        fixLeg("RW05", 45.0, -122.0, AltConstraintKind::None, 0, WaypointKind::Runway));
+    p.legs.push_back(fixLeg("CLIMB", 45.05, -122.0));
+    p.legs.push_back(fixLeg("ENR", 45.5, -122.0, AltConstraintKind::At, 9000));
+    p.legs.push_back(fixLeg("DESC", 45.9, -122.0));
+    p.legs.push_back(
+        fixLeg("RW10L", 46.0, -122.0, AltConstraintKind::None, 0, WaypointKind::Runway));
+    p.activeLeg = 4;
+    REQUIRE(overlayLandingLeg(p) == 4);
+    const std::vector<float> alt = profileOf(p, 30.0f);
+    REQUIRE(alt.size() == 5);
+    const double grad = std::tan(degToRad(3.0)) * 6076.12;  // ft per NM
+    CHECK(alt[0] == doctest::Approx(30.0f));                // on the departure runway
+    CHECK(alt[1] == doctest::Approx(30.0 + grad * legNm(p, 0, 1)).epsilon(0.01));  // 3 deg climb
+    CHECK(alt[2] == doctest::Approx(9000.0f));
+    CHECK(alt[3] == doctest::Approx(80.0 + grad * legNm(p, 3, 4)).epsilon(0.01));  // 3 deg descent
+    CHECK(alt[4] == doctest::Approx(80.0f));  // 50 ft over the threshold
+    // The old per-fix marker put both of the last fixes at cruise.
+    CHECK(overlayMarkerAltFt(p.legs[3].alt, p.cruiseAltFt, 30.0f) == doctest::Approx(9000.0f));
+    CHECK(overlayMarkerAltFt(p.legs[4].alt, p.cruiseAltFt, 30.0f) == doctest::Approx(9000.0f));
+    // No leg of the final descent is steeper than the 3 degree path.
+    const double lastDeg = radToDeg(std::atan((alt[3] - alt[4]) / (legNm(p, 3, 4) * 6076.12)));
+    CHECK(lastDeg == doctest::Approx(3.0).epsilon(0.02));
+}
+
+TEST_CASE("overlay: approach altitudes are flown as charted, missed legs climb from the runway") {
+    // ILS 10L at KPDX: IF at or above 3000, TRAYL 2300, FAF 2000, RW10L at 79; missed: a CA leg
+    // without a fix, then BTG at or above 4200.
+    FlightPlan p;
+    p.cruiseAltFt = 9000;
+    p.legs.push_back(fixLeg("UBG", 45.3532, -122.9780, AltConstraintKind::At, 9000));
+    p.legs.push_back(fixLeg("BUXOM", 45.6976, -122.8607, AltConstraintKind::AtOrAbove, 3000));
+    p.legs.push_back(fixLeg("TRAYL", 45.6677, -122.7833, AltConstraintKind::AtOrAbove, 2300));
+    p.legs.push_back(fixLeg("BLAZR", 45.6435, -122.7209, AltConstraintKind::AtOrAbove, 2000));
+    p.legs.push_back(
+        fixLeg("RW10L", 45.5948, -122.5956, AltConstraintKind::At, 79, WaypointKind::Runway));
+    Leg ca = fixLeg("", 0.0, 0.0, AltConstraintKind::AtOrAbove, 800);
+    ca.type = LegType::CA;
+    ca.missedApproach = true;
+    p.legs.push_back(ca);
+    Leg btg = fixLeg("BTG", 45.7478, -122.5915, AltConstraintKind::AtOrAbove, 4200);
+    btg.missedApproach = true;
+    p.legs.push_back(btg);
+    Leg free = fixLeg("FREE", 45.70, -122.40);  // an unconstrained missed leg
+    free.missedApproach = true;
+    p.legs.push_back(free);
+    p.approachStartLeg = 1;
+    p.activeLeg = 4;
+    REQUIRE(overlayLandingLeg(p) == 4);
+    const std::vector<float> alt = profileOf(p, 30.0f);
+    CHECK(alt[0] == doctest::Approx(9000.0f));
+    CHECK(alt[1] == doctest::Approx(3000.0f));
+    CHECK(alt[2] == doctest::Approx(2300.0f));
+    CHECK(alt[3] == doctest::Approx(2000.0f));
+    CHECK(alt[4] == doctest::Approx(79.0f));
+    CHECK(alt[6] == doctest::Approx(4200.0f));
+    // The free missed leg climbs at 3 degrees from the runway, under its 4200 ft neighbour's cone.
+    const double grad = std::tan(degToRad(3.0)) * 6076.12;
+    const float viaRunway = static_cast<float>(79.0 + grad * (legNm(p, 4, 6) + legNm(p, 6, 7)));
+    const float viaBtg = static_cast<float>(4200.0 + grad * legNm(p, 6, 7));
+    CHECK(alt[7] == doctest::Approx(std::min({9000.0f, viaRunway, viaBtg})).epsilon(0.01));
+    // A plan that ends at a fix has no landing leg: its last fix keeps the cruise.
+    FlightPlan enroute;
+    enroute.cruiseAltFt = 7000;
+    enroute.legs.push_back(fixLeg("A", 45.0, -122.0));
+    enroute.legs.push_back(fixLeg("B", 45.5, -122.0));
+    CHECK(overlayLandingLeg(enroute) == -1);
+    CHECK(profileOf(enroute, 100.0f)[1] == doctest::Approx(7000.0f));
+}
+
+TEST_CASE("overlay: constraints outside the approach clamp the profile") {
+    FlightPlan p;
+    p.cruiseAltFt = 9000;
+    p.legs.push_back(
+        fixLeg("DEP", 44.0, -122.0, AltConstraintKind::None, 0, WaypointKind::Airport));
+    p.legs.push_back(fixLeg("CAP", 44.8, -122.0, AltConstraintKind::AtOrBelow, 12000));
+    p.legs.push_back(fixLeg("FLOOR", 45.2, -122.0, AltConstraintKind::AtOrAbove, 11000));
+    p.legs.push_back(fixLeg("WIN", 45.6, -122.0, AltConstraintKind::Between, 5000));
+    p.legs[3].alt.alt2Ft = 7000;
+    p.legs.push_back(
+        fixLeg("DEST", 46.0, -122.0, AltConstraintKind::None, 0, WaypointKind::Airport));
+    const std::vector<float> alt = profileOf(p, 100.0f);
+    CHECK(alt[0] == doctest::Approx(100.0f));
+    // An at-or-below never lifts the line above the plan; an at-or-above floor above cruise does.
+    CHECK(alt[1] <= 12000.0f);
+    CHECK(alt[1] > 9000.0f);
+    CHECK(alt[2] == doctest::Approx(11000.0f));
+    // 24 NM before the airport the 3 degree descent is above 7000: the window caps it.
+    CHECK(alt[3] == doctest::Approx(7000.0f));
+    CHECK(alt[4] == doctest::Approx(150.0f));
+}
+
+TEST_CASE("overlay: the route clears below 250 ft on final, and the landing fix has no pole") {
+    // A fix, then the runway 3 NM north; the eye flies the landing leg toward it.
+    FlightPlan p;
+    p.cruiseAltFt = 3000;
+    p.legs.push_back(fixLeg("WPT", 45.0, -122.0));
+    p.legs.push_back(
+        fixLeg("RW36", 45.05, -122.0, AltConstraintKind::None, 0, WaypointKind::Runway));
+    p.activeLeg = 1;
+    auto onFinal = [&](const FlightPlan& plan, double heightFt) {
+        return routeVerts(plan, eyeAt(45.03, -122.003, ftToM(heightFt), 0.0f)).size();
+    };
+    CHECK(onFinal(p, 1000.0) > 0);
+    CHECK(onFinal(p, 260.0) > 0);
+    CHECK(onFinal(p, 240.0) == 0);
+    // A plan that ends at a fix is not a landing: the route stays.
+    FlightPlan toFix = p;
+    toFix.legs[1].to.kind = WaypointKind::Fix;
+    CHECK(onFinal(toFix, 240.0) > 0);
+
+    // From the side: the fix gets its pole, the runway does not (the old pole stood 80 m tall on
+    // the threshold; the line ends 50 ft over it).
+    FlightPlan three = p;
+    three.legs.push_back(fixLeg("BEYOND", 45.10, -122.0));
+    three.legs[1].to.kind = WaypointKind::Fix;
+    three.legs[2].to.kind = WaypointKind::Runway;  // BEYOND is the landing fix now
+    three.activeLeg = 2;
+    const OverlayEye side = eyeAt(45.05, -122.08, ftToM(3000.0), static_cast<float>(kPi * 0.5));
+    const std::vector<float> v = routeVerts(three, side);
+    REQUIRE_FALSE(v.empty());
+    const double fixTop = maxAltNearM(v, side, 45.05, -122.0, 60.0);
+    const double rwyTop = maxAltNearM(v, side, 45.10, -122.0, 60.0);
+    CHECK(fixTop > 100.0);  // the pole: ground + 25 m to at least 80 m above that
+    CHECK(rwyTop >= 0.0);   // the line still reaches the threshold
+    CHECK(rwyTop < 70.0);   // 50 ft + the line's own half height, no pole
+}
+
+TEST_CASE("overlay: missed approach legs show only once the missed approach is active") {
+    FlightPlan p;
+    p.cruiseAltFt = 5000;
+    p.legs.push_back(fixLeg("IAF", 45.00, -122.0, AltConstraintKind::At, 3000));
+    p.legs.push_back(fixLeg("FAF", 45.08, -122.0, AltConstraintKind::At, 1600));
+    p.legs.push_back(
+        fixLeg("RW36", 45.16, -122.0, AltConstraintKind::At, 50, WaypointKind::Runway));
+    Leg ca = fixLeg("CA", 45.24, -122.0, AltConstraintKind::AtOrAbove, 1500);
+    ca.missedApproach = true;
+    p.legs.push_back(ca);
+    Leg back = fixLeg("IF", 45.00, -122.05, AltConstraintKind::At, 3000);
+    back.missedApproach = true;
+    p.legs.push_back(back);
+    p.approachStartLeg = 0;
+    FlightPlan noMissed = p;
+    noMissed.legs.resize(3);
+    const OverlayEye eye = eyeAt(45.10, -122.0, ftToM(1300.0), 0.0f);
+    p.activeLeg = noMissed.activeLeg = 2;
+    CHECK(routeVerts(p, eye).size() == routeVerts(noMissed, eye).size());
+    p.activeLeg = 3;  // went around: the navigator is on the CA leg
+    const OverlayEye climbing = eyeAt(45.18, -122.0, ftToM(900.0), 0.0f);
+    CHECK(routeVerts(p, climbing).size() > routeVerts(noMissed, climbing).size());
 }

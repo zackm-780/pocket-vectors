@@ -70,6 +70,9 @@ While the map is open, trim, flaps and gear inputs are ignored.
 | L1 + L3 | TO/GA (airborne): go-around pitch on speed, A/T to TOGA, HDG on the present heading with NAV armed on the plan; the AP stays engaged below minimums |
 | L1 + Start | FLC: climb or descend to the altitude bug at the speed bug (A/T: climb thrust or idle); again → PIT |
 
+With the AP and the FD both off, a mode button (HDG, NAV / APR, ALT, VS, FLC) turns the FD on
+first, the way TO/GA does, so the mode is selected on the FD; L1 + A then hands it to the AP.
+
 ### R1 held: systems layer
 | Input | Action |
 |---|---|

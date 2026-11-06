@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 (not released yet: waiting for the device test)
+## 1.2.0
 
 - **1.1 device-test fixes.** The gear no longer moves when a menu closes with A. L2 + D-pad
   snaps the view and L2 + right stick looks around. R1 + Y cycles the nav source and L1 + Select
@@ -19,6 +19,24 @@
 - **Performance tools:** SHOW FPS shows the frame rate on screen, and the launch log gets timing
   tables. GRAPHICS QUALITY LOW / MED / HIGH sets the terrain detail (MED is the 1.1 look).
 - The About page shows the real version (the 1.1.0 build still said 0.1.0).
+
+Fixes from the 1.2 device test (2026-11-05):
+
+- **Route overlay:** the magenta line climbs out of the departure runway and descends to the
+  landing runway at 3°, through the published approach altitudes, instead of dropping straight
+  down from cruise onto the runway. It clears below 250 ft above the field on the approach, like
+  the path and the runway outlines. The runway waypoint has no pole, and the missed approach shows
+  once you fly it.
+- **Autopilot:** HDG, NAV, APR, ALT, VS and FLC turn the flight director on when the AP and the
+  FD are both off, like TO/GA. L1 + R2 used to work only with the AP on.
+- **Audio:** a 1024-sample buffer on the handheld against crackle (ALSA underruns);
+  `audio_buffer_samples` in `settings.ini` overrides it, and the log shows the size in use.
+- **SD cards written on a Mac:** `._*` files no longer show up (or warn) in the aircraft and
+  flight-plan lists.
+- **Frame rate on the RG40XXH:** MED (the default) holds 30 fps in the cockpit, LOW 60, HIGH 30.
+- **Data pack:** the release carries a Pacific Northwest pack with SIDs and STARs
+  (`pocket-vectors-v1.2.0-data-pdx_oth.zip`). To add them to an existing install, copy its
+  `data/nav/` over `flightsim/data/nav/`.
 
 ## 1.1.0
 
