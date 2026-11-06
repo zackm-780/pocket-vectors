@@ -136,11 +136,16 @@ starts off (`overlay_route`, `overlay_vpath`, `overlay_airports`, `overlay_runwa
 all. A mix that is not one of those presets shows as CUSTOM.
 
 - **Route.** A pole at each plan waypoint (the active one magenta) and a line along each leg. The
-  pole reaches the waypoint's altitude constraint, otherwise the plan's cruise altitude, otherwise
-  a short mast above the ground. The label reads `NAME  12.3 NM`.
-- **Vertical path.** Gates along the active leg at the planned altitude. On an approach leg the
-  gates and the line descend on a glidepath, and clear once the eye is less than 250 ft above the
-  end of the leg (the runway).
+  label reads `NAME  12.3 NM`. Heights follow one profile for the whole plan (1.2.0): the
+  departure runway on the ground, the landing runway 50 ft over the threshold (or its constraint),
+  AT constraints and the approach's published altitudes as charted, and every other waypoint on a
+  3° climb or descent between those, capped at cruise (AT OR ABOVE, AT OR BELOW and BETWEEN
+  outside the approach clamp it; free waypoints stay 400 ft above the ground). The landing runway
+  has no pole. The missed approach shows once a missed-approach leg is active. On the approach or
+  the landing leg the route clears once the eye is less than 250 ft above the runway.
+- **Vertical path.** Gates along the active leg on the same profile. On an approach leg the gates
+  and the line descend on a glidepath, and clear once the eye is less than 250 ft above the end of
+  the leg (the runway).
 - **Airports.** The nearest fields inside the radius (default 25 NM, at most 12), hidden inside
   about 1 NM. Marker at field elevation, label `KPDX  8.4 NM`.
 - **Runways.** A brighter outline of each runway, widened so it stays readable from altitude. The

@@ -30,7 +30,7 @@
 | Free RAM at idle in a port | probe | MemAvailable 857 MB of 973 MB (no swap). Probe peak RSS 101 MB. |
 | GPU: triangles/frame at 30 fps (fog shader) | probe benchmark | 40k tris = 2.5 ms GPU, 80k = 4.2 ms (fit: 1.23 ms + 0.035 ms per 1k tris). **Draw calls cost more than triangles**: the same 40k in 150 draw calls = 5.7 ms. Fill: 2086 Mpix/s opaque, 1205 blended, 311 blended + fog shader (about 17 full-screen layers per 16.7 ms). Vsync on works (16.76 ms frames). |
 | CPU: JSBSim µs/step (c172p, 737) | probe benchmark | c172p 84 µs, 737 94 µs per 120 Hz step (0.34 / 0.38 ms per 30 fps frame). 4× Cortex-A53 @ 1512 MHz, governor `performance`. memcpy 1177 MB/s. |
-| Audio device / sample rate | probe | ALSA `audiocodec` (plus HDMI). Probe got 44.1 kHz stereo, 1024 samples. The game opens 22.05 kHz mono with 512 samples and logged one ALSA underrun in a flight. |
+| Audio device / sample rate | probe | ALSA `audiocodec` (plus HDMI). Probe got 44.1 kHz stereo, 1024 samples. The game opens 22.05 kHz mono. With 512 samples it logged ALSA underruns (one in a 1.0 flight, two in the 2026-11-05 run); from 1.2.0 it asks for 1024 on the device (`audio_buffer_samples`) and logs the size it got. |
 
 ## 3. Field notes
 Add observations from device tests here (date, build, what was seen).
@@ -66,6 +66,28 @@ Add observations from device tests here (date, build, what was seen).
   SDL `guide`). The default table was updated afterwards. Frame rate was not measured
   (`show_fps = true` in `flightsim/conf/settings.ini`).
   The probe was SIGKILLed by gptokeyb (`-sudokill`, exit 137) when it was quit with Select+Start.
+- **2026-11-05, 1.2 build (PR #11), first frame timing run (section 6), Mali-G31:**
+  the owner flew the section 6 steps and sent `flightsim_launch_log.txt` (it can be re-attached).
+
+  | View | Preset | fps | Frame (ms) | CPU (ms) | HUD (ms) | Terrain tris / draws | Notes |
+  |---|---|---|---|---|---|---|---|
+  | Cockpit | MED | 30, locked | 33.5 | 11.6 | 8.0 | 44k / 70 | swap 22 ms: GPU-bound |
+  | Chase | MED | 30 | | 4.5 | 0.7 | | dips to 20 fps while orbiting (GPU); terrain mesh builds are rare, 0.4–0.7 ms each |
+  | Cockpit inside OVC | MED | 30 ↔ 60, avg 55 | | | | 47k | the same triangles flip between 30 and 60: the GPU sits at the 16.7 ms edge, or GPU DVFS (the GPU clock is not logged yet) |
+  | Cockpit | LOW | 60, locked | p95 17.0 | 9.4 | 6.6 | 37k | |
+  | Cockpit | HIGH | 30 | | | | | |
+
+  - **The HUD is the largest CPU item:** 8.0 ms of the 11.6 ms in the cockpit (PLAN section 3
+    budgets 2 ms), against 0.7 ms in the chase view. The A53 is far from the 33 ms limit, so it
+    does not cost frames at 30 fps, but it is the first thing between MED and 60 fps.
+  - **Looks:** LOW looks rough, MED decent. Owner decisions (2026-11-06): MED stays the default,
+    HIGH stays (other devices), 1.2 ships now, and X3c follows as 1.2.1: HUD CPU, the GPU clock
+    in the log, MED toward 60 fps.
+  - **Audio:** two ALSA underruns with the 512-sample buffer. 1.2.0 asks for 1024 on the device.
+  - **Autopilot:** L1 + R2 (ALT) worked only once the AP was on. From 1.2.0 a mode button turns
+    the FD on when the AP and the FD are both off, like TO/GA.
+  - The PR #11 "Needs device test" checklist was run separately; its results are in the 1.2.0
+    pull request.
 
 ## 4. How to run the probe
 The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in
@@ -115,6 +137,9 @@ means the CPU limits the frame rate, and a low `cpu` at 30 fps means the GPU or 
 `perf_gpu_sync = true` in `conf/settings.ini` (file only, read at start) calls `glFinish` after each
 pass, so each pass also holds its GPU time. On the Mali this splits the frame into several
 render passes, so the total grows: compare the passes with each other, not with an unsynced run.
+
+**Device results.** The first run (1.2, 2026-11-05) is the field note in section 3: MED holds
+30 fps in the cockpit (GPU-bound, HUD 8 ms of CPU), LOW 60, HIGH 30.
 
 **The device run X3 needs.** About 6 minutes:
 1. Settings: SHOW FPS ON, GRAPHICS QUALITY MED.

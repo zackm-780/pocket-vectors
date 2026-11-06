@@ -465,7 +465,7 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b); tuning (X3c) waits for a device run (needs device test: the DEVICE.md §6 run, SHOW FPS readout legible at the top left, GRAPHICS QUALITY LOW / HIGH change the terrain at once) · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
+**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b), and the first device run is in (2026-11-05, DEVICE.md §3: MED 30 fps in the cockpit, LOW 60, HIGH 30; MED stays the default). Tuning is the board's X3c, next, as 1.2.1: HUD CPU, the GPU clock in the log, MED toward 60 fps · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
 
@@ -497,6 +497,12 @@ Done so far (2026-11-05, on the 1.2 branch):
    terrain triangles in 51–54 draws, within PLAN §3's 40k triangles. HIGH reaches 52k. LOW cuts the
    terrain raster time by about 27 % in the Mt Hood view. Over flat ground at 1,500 ft it saves only
    about 5 % of the triangles (grazing view); most of its saving there is the detail noise.
+5. **Device run** (2026-11-05, 1.2 build, the DEVICE.md §6 steps; table in DEVICE.md §3 and PLAN
+   §3). MED: a locked 30 fps in the cockpit, GPU-bound (swap 22 ms), CPU 11.6 ms of which the HUD
+   is 8.0 ms, 44k terrain triangles in 70 draws. Chase: 30 fps, CPU 4.5 ms, dips to 20 fps while
+   orbiting. Inside OVC the same 47k triangles flip between 30 and 60 fps. LOW: a locked 60 fps
+   (p95 17.0 ms), CPU 9.4 ms. HIGH: 30 fps. Owner (2026-11-06): MED stays the default (LOW looks
+   rough), HIGH stays for other devices, and X3c follows as 1.2.1.
 
 Still to do, with the device timing:
 - Pick the preset values from the Mali numbers. LOD, uploads and detail noise are the knobs today.
@@ -621,7 +627,8 @@ Needs device test (legibility).
 1. **Route waypoints** (`overlay_route`): a marker at every plan waypoint (active one magenta),
    with a floating label `NAME  12.3 NM` that stays legible at any distance; route legs drawn as
    lines. Marker height: the waypoint's altitude constraint, else the plan's cruise altitude,
-   else a pole from the ground.
+   else a pole from the ground. (1.2.0, I3: replaced by one climb and descent profile for the
+   whole plan, `overlayRouteProfileFt`; the route clears below 250 ft on the approach.)
 2. **Vertical path** (`overlay_vpath`, default off): gates or boxes along the active leg at the
    planned altitude, following the glidepath on approach legs ("highway in the sky lite").
 3. **Nearby airports** (`overlay_airports`): the nearest airports within a radius (default
@@ -826,7 +833,7 @@ into the KOTH approach, every fix in order. Not done: airways, SID / STAR speed 
 in the leg data only.
 
 ## S2: GPWS voice callouts
-**Status:** in review (PLAN D22 proposes the voice source for the owner to confirm; needs device test: clip loudness against the engine on the speaker, PULL UP cutting into a height callout) · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
+**Status:** merged in 1.2 (#11); the board's S2 part A (a 1024-sample audio buffer on the device and the size in the log) is in 1.2.0 (I3). PLAN D22 proposes the voice source for the owner to confirm; needs device test: clip loudness against the engine on the speaker, PULL UP cutting into a height callout · **Model / effort:** Sonnet / medium · **Depends:** S1, X2
 
 **Owns:** `src/audio/` (voice playback), `assets/audio/` (clips).
 "MINIMUMS", radio-altitude callouts (500, 100, 50, 40, 30, 20, 10), "SINK RATE", "PULL UP",
@@ -878,3 +885,33 @@ Tests (`tests/sim/fuelTest.cpp`): the setting parses and prints back; AUTO arith
 XTST LNAV plan loads the planned pounds within 3 % and the flow in flight is near the cruise
 figure; LOW FUEL fires once per threshold; the HUD field, its colours and its fit in the slot.
 A 737 cannot start below its tank minimum (about 95 lb unusable), so its test loads 3,000 lb.
+
+# 1.2.0: release fixes (after the 1.2 device test, 2026-11-05)
+
+## I3: 1.2 device-test fixes and the release
+**Status:** in review (needs device test: listed in the 1.2.0 pull request) · **Effort:** high ·
+**Depends:** #11 · **Owns:** small fixes across merged modules (maintainer-assigned),
+`.github/workflows/release.yml`
+
+1. **Route overlay (W6).** A fix without an altitude sat at cruise, or at ground + 400 ft with no
+   cruise, so a plan ending at the runway drew its last leg at cruise and dropped straight down
+   onto the threshold, through the flight path marker. `overlayRouteProfileFt` now gives one
+   altitude per leg end: the departure runway on the ground, the landing leg at its constraint or
+   50 ft over the threshold, AT constraints and every approach constraint as charted, other fixes
+   on the lowest 3° line through those, capped at cruise; AT OR ABOVE / AT OR BELOW / BETWEEN
+   outside the approach clamp it. The route and the vertical path both use it. On the approach or
+   the landing leg the route clears below 250 ft above the field (`kOverlayNearFieldHideFt`). The
+   landing fix has no pole, and the missed approach shows once the navigator is on it.
+2. **Autopilot.** HDG, NAV, APR, ALT, VS and FLC turn the FD on when the AP and the FD are both
+   off, like TO/GA (the device test found L1 + R2 working only with the AP on).
+3. **Dot files.** The aircraft and plan lists skip `._*` (macOS AppleDouble) and other dot files.
+4. **Audio (the board's S2 part A).** `audio_buffer_samples`: 0 = automatic, 1024 under
+   PortMaster, 512 elsewhere. The device is opened with `SDL_AUDIO_ALLOW_SAMPLES_CHANGE` and the
+   log shows the buffer the driver uses.
+5. **Release.** The release attaches the pdx_oth pack from datapack run 42155295255 (built from
+   `main` `84554f0`, with SIDs and STARs) as `pocket-vectors-<tag>-data-pdx_oth.zip` and links it
+   in the notes, instead of the 1.0 pack.
+
+Tests: `overlayTest` (profile with and without an approach, soft constraints, near-field clear,
+no landing pole, missed legs), `AutopilotLogicTest` (each mode button from AP and FD off),
+`FlightSetupTest` (dot files), `audioTest` and `settingsTest` (buffer size).

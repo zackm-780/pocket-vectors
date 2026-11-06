@@ -17,21 +17,23 @@ The board was written before 1.2 took in all of Wave 6, so the cards that 1.2 fi
 | Release | State | What it brings |
 |---|---|---|
 | **1.1** | Tagged `v1.1.0`. The release build failed, so there is no GitHub Release yet; the release workflow can be re-run for the tag from the Actions tab | Buttons that match the printed labels, in-game Help, the mini nav inset, world overlays |
-| **1.2** | On `main`, waiting for the owner's device test before the `v1.2.0` tag | The table below |
-| **After 1.2** | Cards on the board | Device tuning to a 30 fps floor (X3c), audio without crackle (S2 part A), a `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3) |
+| **1.2** | Device-tested on 2026-11-05; the owner tags `v1.2.0` after the release pull request | The table below |
+| **1.2.1** | Next | Device tuning (X3c): the HUD's CPU time, the GPU clock in the log, MED toward 60 fps |
+| **After 1.2.1** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3) |
 
 ## Known issues
 
-- The frame rate on the device has not been measured. Turn on Settings → SHOW FPS (it shows at
-  the top left) and follow the run in
-  [flightsim/docs/DEVICE.md](flightsim/docs/DEVICE.md) §6; the timing tables land in
-  `flightsim_launch_log.txt`.
+- Frame rate on the RG40XXH (2026-11-05, DEVICE.md §3): GRAPHICS QUALITY MED, the default, holds
+  30 fps in the cockpit and LOW 60; the chase view dips to 20 fps while orbiting the camera. The
+  HUD takes 8 ms of CPU per frame in the cockpit. 1.2.1 (X3c) works on both.
 - X and Y on the RG40XXH match the printed labels in the PortMaster mapping. That still wants a
   confirmation in the game (A and B were checked on the device with the previous, swapped table).
 
-## Next: 1.2
+## 1.2
 
-On `main`, not tagged yet: it waits for the owner's device test.
+Device-tested on 2026-11-05. The 1.2.0 release pull request adds that session's fixes (route
+overlay descent, mode buttons turn the FD on, a 1024-sample audio buffer, `._*` files skipped) and
+a data pack with SIDs and STARs on the release; then the owner tags `v1.2.0`.
 
 | ID | What | Notes |
 |---|---|---|
@@ -40,9 +42,9 @@ On `main`, not tagged yet: it waits for the owner's device test.
 | V1 | External chase view | Simple models built in code |
 | W7 | Cloud layers | From the scenario, a setting or the METAR |
 | N8 | SIDs, STARs and approach transitions | SIDs and STARs need a data pack rebuilt with the new `cifp.py`; older packs still load. The card board calls this N9 |
-| S2 | GPWS voice callouts | Synthesized clips (Flite, PLAN D22); the tones stay as the fallback |
+| S2 | GPWS voice callouts, audio buffer | Synthesized clips (Flite, PLAN D22); the tones stay as the fallback. 1.2.0: a 1024-sample buffer on the handheld (the board's S2 part A) |
 | F6 | Fuel load and planning | FUEL row on the new-flight screen, endurance on the HUD, LOW FUEL |
-| X3 | Device performance pass | Frame timing in the log, the on-screen FPS and a LOW / MED / HIGH graphics preset are in. Tuning needs the timing from a device flight (DEVICE.md §6) |
+| X3 | Device performance pass | Frame timing in the log, the on-screen FPS and a LOW / MED / HIGH graphics preset are in, and measured on the device (MED 30 fps, LOW 60). Tuning is X3c, in 1.2.1 |
 
 ## Later
 
