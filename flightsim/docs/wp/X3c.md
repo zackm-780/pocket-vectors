@@ -1,4 +1,4 @@
-Status: ready (refined 2026-11-07 from the 2026-11-05 device numbers and the owner's 1.2.1 scope; ships as 1.2.1)
+Status: done (needs device test: the DEVICE.md §6 1.2.1 run and the chase-view checks below; ships as 1.2.1)
 # X3c: Device tuning: HUD CPU, GPU clock, MED toward 60, chase-view flight data
 
 Phase 2b · Effort: high · Depends: T2 (done) · Branch: `wp/X3c-device-tuning` · Release: **1.2.1**

@@ -119,13 +119,21 @@ X3's tuning and for the budgets in PLAN section 3.
   time over the last second, and `CPU` (the frame minus the swap).
 - **Once a second in the log**, with SHOW FPS ON:
   `29.9 fps | frame 33.4 ms max 41.0 cpu 14.1 | update 2.1 terrain 6.3 airports 0.4 clouds 0.0
-  model 0.0 overlay 0.1 hud 1.2 swap 19.3 | cockpit`, followed by the terrain line (nodes,
-  triangles, draws).
+  model 0.0 overlay 0.1 hud 1.2 swap 19.3 | cockpit | gpu 648/648 MHz`, followed by the terrain
+  line (nodes, triangles, draws). The `gpu` part (1.2.1) is the GPU's devfreq clock when the line is
+  written, current / maximum.
+- **The GPU clock** (1.2.1, X3c): at start and under every session table,
+  `gpu clock: <entry> <governor> cur 648 MHz (min 216 max 648; available 216 312 432 648)`, read from
+  `/sys/class/devfreq/<entry>/` (the entry named `gpu` or `mali`, else the only one). A clock that
+  moves while the fps flips points at the governor (DVFS); a clock pinned at its maximum while the
+  fps flips points at the GPU sitting at the 16.7 ms edge. No line appears where there is no
+  devfreq (desktops).
 - **A session table**, whether SHOW FPS is on or not. It is written when the pause menu opens (with at
   least 10 s of new frames), every 2 minutes, when GRAPHICS QUALITY changes and when the game exits.
   There is one row per view (cockpit, chase, map, menu, each also "clouds" when a cloud layer is drawn and
   "in cloud" inside one), with the frame count, fps, mean, 95th percentile and worst frame
-  in ms, the CPU time, each pass's mean in ms, and mean terrain triangles and draw calls. The table
+  in ms, the CPU time, each pass's mean in ms, and mean terrain triangles and draw calls (from
+1.2.1 the draws include the airports' surfaces and light strips, about 40 at KPDX). The table
   is labelled with the quality preset: `perf session (MED): ...`. The first 10 frames after the window
   opens or a flight starts are left out (shader compiles, first tile uploads).
 
@@ -140,6 +148,13 @@ render passes, so the total grows: compare the passes with each other, not with 
 
 **Device results.** The first run (1.2, 2026-11-05) is the field note in section 3: MED holds
 30 fps in the cockpit (GPU-bound, HUD 8 ms of CPU), LOW 60, HIGH 30.
+
+**The 1.2.1 run (X3c).** The same steps as below, on the 1.2.1 build, with two additions: in step
+3, orbit the camera with L2 + right stick for 10 s of the 30, and in step 5 compare MED's ground
+texture with HIGH's (HIGH keeps the 1.2.0 detail shader; MED draws the same kind of detail from a
+texture). What it answers: the `hud` pass in the cockpit (1.2.0: 8.0 ms at MED), the MED cockpit
+fps (1.2.0: 30), the chase orbit (1.2.0: dips to 20), and the `gpu` clock inside the OVC layer
+(1.2.0: 30 ↔ 60 fps).
 
 **The device run X3 needs.** About 6 minutes:
 1. Settings: SHOW FPS ON, GRAPHICS QUALITY MED.

@@ -465,7 +465,7 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b), and the first device run is in (2026-11-05, DEVICE.md §3: MED 30 fps in the cockpit, LOW 60, HIGH 30; MED stays the default). Tuning is the board's X3c, next, as 1.2.1: HUD CPU, the GPU clock in the log, MED toward 60 fps · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
+**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b), and the first device run is in (2026-11-05, DEVICE.md §3: MED 30 fps in the cockpit, LOW 60, HIGH 30; MED stays the default). Tuning is the board's X3c, in review as 1.2.1 (needs device test): the HUD built about 3× faster, the GPU clock in the log, MED's detail noise from a texture and the sky after the terrain, flight data in the chase view. X3 closes with the 1.2.1 device timing run · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
 
@@ -504,10 +504,26 @@ Done so far (2026-11-05, on the 1.2 branch):
    (p95 17.0 ms), CPU 9.4 ms. HIGH: 30 fps. Owner (2026-11-06): MED stays the default (LOW looks
    rough), HIGH stays for other devices, and X3c follows as 1.2.1.
 
-Still to do, with the device timing:
-- Pick the preset values from the Mali numbers. LOD, uploads and detail noise are the knobs today.
-  If the `cpu` column is the limit, the terrain submit and the HUD build are the next targets.
-- Decide whether MSAA (4 samples on the device) belongs in LOW (it needs a restart).
+6. **X3c, 1.2.1** (2026-11-07, the board's card; desktop-verified, needs the device run):
+   - HUD CPU: callgrind put the cost in `Renderer2D`'s per-vertex work (33.8k vertices a frame),
+     not in text formatting. Per-stroke building, shared outline/colour directions, stroke-level
+     clipping and `BufferSubData` into 4 rotating buffers: 3.0× fewer instructions, the same
+     vertices bit for bit.
+   - The GPU devfreq clock in the log (`app/GpuClock`).
+   - MED's detail noise from a 256 × 256 table texture (one fetch per octave instead of 8 hashes);
+     HIGH keeps the procedural 1.2.0 shader. The sky after the terrain, depth-tested. Airport draws
+     in the perf draw count (about 40 at KPDX).
+
+   | Preset | Terrain px/cell | Uploads per frame | Detail noise |
+   |---|---|---|---|
+   | LOW | 14 | 2 | off |
+   | MED | 10 | 4 | texture (1.2.1) |
+   | HIGH | 8 | 6 | procedural (the 1.2.0 shader) |
+
+Still to do, with the 1.2.1 device timing:
+- Read the HUD pass, the MED cockpit fps and the GPU clock lines; put the numbers in PLAN §3.
+- If MED is still short of 60: merge airport draws across runways, `pixelsPerCell` 11–12 on MED,
+  or a cheaper sky. Decide whether MSAA (4 samples on the device) belongs in LOW (it needs a restart).
 - Set the default preset.
 - Update PLAN §3 with the measured numbers.
 

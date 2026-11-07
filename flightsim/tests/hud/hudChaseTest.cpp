@@ -124,14 +124,17 @@ TEST_CASE("hud chase: the readout stays clear of the strip, warnings, messages, 
         const ChaseReadout c = widestReadout(vw);
         const auto mine = readoutRects(c);
         const auto others = otherElements(vw);
-        for (const auto& [name, rect] : mine) {
+        for (const auto& item : mine) {
+            const std::string& name = item.first;
+            const HudRect& rect = item.second;
             CAPTURE(name);
             CHECK(rect.w > 0);  // every item is shown in this case
             CHECK(rect.x >= 0);
             CHECK(rect.x + rect.w <= vw);
-            for (const auto& [otherName, otherRect] : others) {
+            for (const auto& other : others) {
+                const std::string& otherName = other.first;
                 CAPTURE(otherName);
-                CHECK_FALSE(overlaps(rect, otherRect));
+                CHECK_FALSE(overlaps(rect, other.second));
             }
         }
         for (size_t i = 0; i < mine.size(); ++i)

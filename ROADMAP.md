@@ -17,15 +17,16 @@ The board was written before 1.2 took in all of Wave 6, so the cards that 1.2 fi
 | Release | State | What it brings |
 |---|---|---|
 | **1.1** | Tagged `v1.1.0`. The release build failed, so there is no GitHub Release yet; the release workflow can be re-run for the tag from the Actions tab | Buttons that match the printed labels, in-game Help, the mini nav inset, world overlays |
-| **1.2** | Device-tested on 2026-11-05; the owner tags `v1.2.0` after the release pull request | The table below |
-| **1.2.1** | Next | Device tuning (X3c): the HUD's CPU time, the GPU clock in the log, MED toward 60 fps |
+| **1.2** | Tagged `v1.2.0` (PR #12) | The table below |
+| **1.2.1** | In review; needs the device timing run, then the owner tags `v1.2.1` | Device tuning (X3c): the HUD about three times faster on the CPU, the GPU clock in the log, MED's terrain detail from a texture and the sky after the terrain (toward 60 fps), and speed, altitude, VS, heading and the FMA in the chase view |
 | **After 1.2.1** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3) |
 
 ## Known issues
 
 - Frame rate on the RG40XXH (2026-11-05, DEVICE.md §3): GRAPHICS QUALITY MED, the default, holds
   30 fps in the cockpit and LOW 60; the chase view dips to 20 fps while orbiting the camera. The
-  HUD takes 8 ms of CPU per frame in the cockpit. 1.2.1 (X3c) works on both.
+  HUD takes 8 ms of CPU per frame in the cockpit. 1.2.1 (X3c) works on both; its device timing run
+  says how far MED got.
 - X and Y on the RG40XXH match the printed labels in the PortMaster mapping. That still wants a
   confirmation in the game (A and B were checked on the device with the previous, swapped table).
 
