@@ -295,9 +295,9 @@ struct ChaseTextLine {
 };
 struct ChaseReadout {
     HudRect speedBox{}, altBox{}, headingBox{};
-    char speed[8] = {0};                           // IAS (kt), "65"
-    char altThousands[8] = {0}, altRest[8] = {0};  // indicated altitude, "3" and "980"
-    char heading[8] = {0};                         // magnetic, "285"
+    char speed[16] = {0};                            // IAS (kt), "65"
+    char altThousands[16] = {0}, altRest[16] = {0};  // indicated altitude, "3" and "980"
+    char heading[16] = {0};                          // magnetic, "285"
     bool headingShown = true;
     ChaseTextLine gs, mach, vs, baro;
 };
