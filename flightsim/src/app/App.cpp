@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "app/FrameStats.h"     // X3
+#include "app/GpuClock.h"       // X3c
 #include "app/RenderQuality.h"  // X3
 #include "app/Settings.h"       // P3
 #include "app/Simulation.h"
@@ -327,6 +328,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                    // Select + Start (gptokeyb) can kill the game before its exit
     const bool perfSync = settings.perfGpuSync;
     if (perfSync) LOG_INFO("perf: perf_gpu_sync on (glFinish after each pass)");
+    GpuClock gpuClock;  // X3c: Mali devfreq clock with the timing; absent on most desktops
+    if (gpuClock.open()) LOG_INFO("%s", gpuClock.describe().c_str());
     auto passEnd = [&](PerfPass p) {
         if (perfSync) window.gl().Finish();
         const std::uint64_t t = SDL_GetPerformanceCounter();
@@ -341,6 +344,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         std::snprintf(label, sizeof label, "%s%s", graphicsQualityLabel(appliedQuality),
                       perfSync ? ", gpu sync" : "");
         LOG_INFO("%s", frameStats.sessionSummary(label).c_str());
+        if (gpuClock.available()) LOG_INFO("%s", gpuClock.describe().c_str());  // X3c
     };
     auto applySettings = [&]() {
         switch (settings.hudColor) {
@@ -776,7 +780,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 std::snprintf(title, sizeof title, "Pocket Vectors | %.0f fps | %.0f kt | %.0f ft",
                               frameStats.window().fps(), s.iasKt, s.altMslFt);
                 window.setTitle(title);
-                LOG_INFO("%s", frameStats.windowLine().c_str());  // X3
+                LOG_INFO("%s%s", frameStats.windowLine().c_str(),
+                         gpuClock.windowTag().c_str());  // X3, X3c: the GPU clock
                 if (terrainRenderer)
                     LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             }
