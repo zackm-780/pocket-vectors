@@ -19,7 +19,7 @@ The board was written before 1.2 took in all of Wave 6, so the cards that 1.2 fi
 | **1.1** | Tagged `v1.1.0`. The release build failed, so there is no GitHub Release yet; the release workflow can be re-run for the tag from the Actions tab | Buttons that match the printed labels, in-game Help, the mini nav inset, world overlays |
 | **1.2** | Tagged `v1.2.0` (PR #12) | The table below |
 | **1.2.1** | In review; needs the device timing run, then the owner tags `v1.2.1` | Device tuning (X3c): the HUD about three times faster on the CPU, the GPU clock in the log, MED's terrain detail from a texture and the sky after the terrain (toward 60 fps), and speed, altitude, VS, heading and the FMA in the chase view |
-| **After 1.2.1** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3) |
+| **After 1.2.1** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3), V-speed and flap bugs on the speed tape (H9, after F5), a flight log of past flights (U2) |
 
 ## Known issues
 

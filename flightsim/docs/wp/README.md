@@ -47,7 +47,7 @@ session can be thrown away and a fresh one picks up from the board.
 | 1 | T1 (owner), R2, P1b, X3a | P1b and X3a together; T1 any time | T1 done (tests the v1.1.0 release) | **v1.1.0** published from R2; a fix release if T1 finds a bug |
 | 2 | X3b, N7, S2, X5, F5, W1b, U1 | At most 3 builders; never two cards that share a hot file (below) | Every phase-2 card merged | none |
 | 2b | T2 (owner, done 2026-11-05), then X3c (refined 2026-11-07: parts A–E, one pull request) | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor, moves MED toward 60 and shows the flight data in the chase view | owner tags **v1.2.0**, then **v1.2.1** for X3c |
-| 3 | N8, N9, H8, W7, R3, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first | T3 done | owner tags **v1.3.0** |
+| 3 | N8, N9, H8, W7, R3, H9, U2, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first. H9 waits for F5 and X3c | T3 done | owner tags **v1.3.0** |
 
 ## Cards
 
@@ -71,12 +71,16 @@ session can be thrown away and a fresh one picks up from the board.
 | [H8](H8.md) | Map page terrain shading and holds (outline) | 3 | X3c | medium | planner refines, then builder | `src/ui/MapPage*` |
 | [W7](W7.md) | Cloud layers (outline) | 3 | X3c, X5 | high | planner refines, then builder | `src/world/Sky*`, `App.cpp` |
 | [R3](R3.md) | More region packs on releases | 3 | OD2 | medium | builder | `release.yml`, `README.md` |
+| [H9](H9.md) | V-speed and flap bugs on the speed tape | 3 | X3c, F5 | high | builder | `Hud.cpp`, `HudLogic.*`, `core/AircraftProfile.h`, `core/AircraftState.h`, `assets/aircraft/*.ini` |
+| [U2](U2.md) | Flight log | 3 | none | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T3](T3.md) | Device session 3: phase-3 build | 3 | phase 3 merged | | owner | `docs/DEVICE.md` |
 
 **Hot files.** Two cards in flight at the same time must not share an entry in the Hot files
 column. Settings rows (`Settings.*`, `assets/settings_default.ini`, `FlightScreens.cpp`) count as
 one hot file. Phase 2 can start with X3b, N7 and F5 together, then W1b, then S2, X5 and U1 as
-the hot files free up.
+the hot files free up. Added 2026-11-07: H9 shares `core/AircraftProfile.h` with F5 (it waits for
+it anyway) and `Hud.cpp` / `HudLogic.*` with X3c; U2 shares `App.cpp` and `SetupScreens.cpp` with
+U1, so those two never run together.
 
 **Status values** (first line of each card): `ready`, `owner`, `blocked (<on what>)`,
 `outline (planner refines)`, `done (<PR>)`. A card is taken when an `origin/wp/<ID>-*` branch
