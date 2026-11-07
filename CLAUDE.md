@@ -45,6 +45,11 @@ work without a card, and reading all of it costs about 45k tokens on every turn.
   and wait for CI, including the device workflow. The owner reviews and approves before merge.
   Do not merge the pull request yourself.
 
+## Working with the owner
+
+- When giving the owner terminal commands, put each command in its own code block, one line per
+  block; other code blocks can stay multi-line.
+
 ## Build and test (available once WP-00 has landed)
 
 ```bash

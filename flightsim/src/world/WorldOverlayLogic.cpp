@@ -322,6 +322,110 @@ float overlayMarkerAltFt(const AltConstraint& alt, float cruiseFt, float groundF
     return groundFt + 400.0f;
 }
 
+int overlayLandingLeg(const FlightPlan& plan) {
+    const int n = static_cast<int>(plan.legs.size());
+    if (n < 2) return -1;
+    if (plan.approachStartLeg >= 0 && plan.approachStartLeg < n) {
+        for (int i = n - 1; i >= plan.approachStartLeg; --i)
+            if (!plan.legs[static_cast<size_t>(i)].missedApproach) return i;
+        return -1;
+    }
+    const WaypointKind k = plan.legs.back().to.kind;
+    return k == WaypointKind::Airport || k == WaypointKind::Runway ? n - 1 : -1;
+}
+
+void overlayRouteProfileFt(const FlightPlan& plan, const std::vector<float>& groundFt,
+                           std::vector<float>& outAltFt) {
+    const int n = static_cast<int>(plan.legs.size());
+    outAltFt.assign(static_cast<size_t>(n), 0.0f);
+    if (n == 0) return;
+    auto ground = [&](int i) {
+        return i < static_cast<int>(groundFt.size()) ? groundFt[static_cast<size_t>(i)] : 0.0f;
+    };
+    auto leg = [&](int i) -> const Leg& { return plan.legs[static_cast<size_t>(i)]; };
+    // Along-track distance (ft) of each fix. A leg without a fix (a CA leg's 0,0) keeps the
+    // previous distance and never anchors the others.
+    std::vector<double> alongFt(static_cast<size_t>(n), 0.0);
+    std::vector<char> hasFix(static_cast<size_t>(n), 0);
+    int prev = -1;
+    for (int i = 0; i < n; ++i) {
+        const Waypoint& w = leg(i).to;
+        hasFix[static_cast<size_t>(i)] = !(w.latDeg == 0.0 && w.lonDeg == 0.0);
+        if (!hasFix[static_cast<size_t>(i)]) {
+            alongFt[static_cast<size_t>(i)] = prev >= 0 ? alongFt[static_cast<size_t>(prev)] : 0.0;
+            continue;
+        }
+        if (prev >= 0) {
+            const Waypoint& p = leg(prev).to;
+            alongFt[static_cast<size_t>(i)] =
+                alongFt[static_cast<size_t>(prev)] +
+                mToFt(greatCircleDistM(p.latDeg, p.lonDeg, w.latDeg, w.lonDeg));
+        }
+        prev = i;
+    }
+
+    enum : char { kFree, kFixed, kWindow };
+    std::vector<char> kind(static_cast<size_t>(n), kFree);
+    std::vector<float> lo(static_cast<size_t>(n), -1e9f), hi(static_cast<size_t>(n), 1e9f);
+    const int landing = overlayLandingLeg(plan);
+    const int appStart = plan.approachStartLeg;
+    float cruise = plan.cruiseAltFt;
+    for (int i = 0; i < n; ++i) {
+        const Leg& l = leg(i);
+        const AltConstraint& c = l.alt;
+        const bool constrained = c.kind != AltConstraintKind::None && c.altFt > 1.0f;
+        const bool approach = appStart >= 0 && i >= appStart;
+        const auto k = static_cast<size_t>(i);
+        if (i == landing) {
+            kind[k] = kFixed;
+            outAltFt[k] = constrained ? c.altFt : ground(i) + kOverlayLandingAboveFt;
+        } else if (i == 0 &&
+                   (l.to.kind == WaypointKind::Runway || l.to.kind == WaypointKind::Airport)) {
+            kind[k] = kFixed;  // departure end: the climb starts on the ground
+            outAltFt[k] = ground(i);
+        } else if (constrained && (c.kind == AltConstraintKind::At || approach)) {
+            kind[k] = kFixed;  // published approach altitudes are flown as charted
+            outAltFt[k] = c.altFt;
+        } else if (constrained) {
+            kind[k] = kWindow;
+            if (c.kind == AltConstraintKind::AtOrAbove) {
+                lo[k] = c.altFt;
+            } else if (c.kind == AltConstraintKind::AtOrBelow) {
+                hi[k] = c.altFt;
+            } else {  // Between
+                lo[k] = std::min(c.altFt, c.alt2Ft > 1.0f ? c.alt2Ft : c.altFt);
+                hi[k] = std::max(c.altFt, c.alt2Ft);
+            }
+        }
+        // A floor above the planned cruise raises the ceiling (a ceiling never does).
+        if (constrained && !l.missedApproach && c.kind != AltConstraintKind::AtOrBelow)
+            cruise = std::max(cruise, c.kind == AltConstraintKind::Between
+                                          ? std::min(c.altFt, std::max(c.alt2Ft, 1.0f))
+                                          : c.altFt);
+    }
+
+    const double grad = std::tan(degToRad(static_cast<double>(kOverlayPathDeg)));
+    auto envelope = [&](int i, bool withWindows) {
+        float v = overlayMarkerAltFt(AltConstraint{}, cruise, ground(i));
+        for (int j = 0; j < n; ++j) {
+            const auto jk = static_cast<size_t>(j);
+            if (j == i || !hasFix[jk]) continue;
+            if (kind[jk] != kFixed && !(withWindows && kind[jk] == kWindow)) continue;
+            const double d = std::fabs(alongFt[static_cast<size_t>(i)] - alongFt[jk]);
+            v = std::min(v, static_cast<float>(outAltFt[jk] + grad * d));
+        }
+        return v;
+    };
+    for (int i = 0; i < n; ++i) {
+        const auto k = static_cast<size_t>(i);
+        if (kind[k] == kWindow) outAltFt[k] = std::clamp(envelope(i, false), lo[k], hi[k]);
+    }
+    for (int i = 0; i < n; ++i) {
+        const auto k = static_cast<size_t>(i);
+        if (kind[k] == kFree) outAltFt[k] = std::max(envelope(i, true), ground(i) + 400.0f);
+    }
+}
+
 float metersForPixels(float distM, float px, float viewH, float vFovRad) {
     if (!(distM > 1.0f) || viewH < 1.0f || !(vFovRad > 0.01f)) return 0.0f;
     const float span = 2.0f * distM * std::tan(vFovRad * 0.5f);
@@ -425,22 +529,49 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
     labelCount = 0;
     std::vector<PendingLabel> pending;
 
-    if (toggles.route && plan) {
-        const float cruise = plan->cruiseAltFt;
+    // One profile for the route and the path: ground under each fix, then the climb / descent.
+    std::vector<float> legGroundFt, legAltFt;
+    const int landing = plan ? overlayLandingLeg(*plan) : -1;
+    if (plan && (toggles.route || toggles.vpath)) {
+        legGroundFt.reserve(plan->legs.size());
+        for (const Leg& leg : plan->legs)
+            legGroundFt.push_back(groundFtAt(terrain, leg.to.latDeg, leg.to.lonDeg));
+        overlayRouteProfileFt(*plan, legGroundFt, legAltFt);
+    }
+
+    bool routeNearField = false;
+    if (toggles.route && plan && landing >= 0) {
+        // On the approach or the landing leg, close to the field: the line would run into the
+        // runway (kOverlayNearFieldHideFt), so the whole route clears like the path and outlines.
+        const int active = plan->activeLeg;
+        const bool onFinal = active >= 0 && active <= landing &&
+                             (active == landing ||
+                              (plan->approachStartLeg >= 0 && active >= plan->approachStartLeg));
+        routeNearField = onFinal && overlayHiddenNearField(
+                                        eye.altMslM, legGroundFt[static_cast<size_t>(landing)]);
+    }
+
+    if (toggles.route && plan && !routeNearField) {
         const int n = static_cast<int>(plan->legs.size());
         const int active = (plan->activeLeg >= 0 && plan->activeLeg < n) ? plan->activeLeg : -1;
         auto marker = [&](int i, float& topFt, double& baseM, double& topM, float& distM) {
             const Leg& leg = plan->legs[static_cast<size_t>(i)];
-            const float ground = groundFtAt(terrain, leg.to.latDeg, leg.to.lonDeg);
-            topFt = overlayMarkerAltFt(leg.alt, cruise, ground);
+            const float ground = legGroundFt[static_cast<size_t>(i)];
+            topFt = legAltFt[static_cast<size_t>(i)];
             baseM = ftToM(ground) + 25.0;
             topM = std::max(ftToM(topFt), baseM + 80.0);
             distM = static_cast<float>(
                 greatCircleDistM(eye.latDeg, eye.lonDeg, leg.to.latDeg, leg.to.lonDeg));
         };
+        // The missed approach shows once the navigator sequences into it (as in a Garmin
+        // pathway). Before that its climb out of the runway and the leg back to the IF stand over
+        // the runway on final.
+        const bool missedActive =
+            active >= 0 && plan->legs[static_cast<size_t>(active)].missedApproach;
         for (int i = 0; i < n; ++i) {
             const Leg& leg = plan->legs[static_cast<size_t>(i)];
             if (leg.to.ident.empty() && leg.to.latDeg == 0.0 && leg.to.lonDeg == 0.0) continue;
+            if (leg.missedApproach && !missedActive) continue;
             float topFt = 0, distM = 0;
             double baseM = 0, topM = 0;
             marker(i, topFt, baseM, topM, distM);
@@ -450,13 +581,17 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
             const float r = mag ? 1.0f : (leg.missedApproach ? 0.55f : 0.92f);
             const float g = mag ? 0.25f : (leg.missedApproach ? 0.55f : 0.92f);
             const float b = mag ? 1.0f : (leg.missedApproach ? 0.55f : 0.95f);
-            if (distM > 400.0f)
+            // The landing fix gets no pole: it would stand on the threshold. The line ends there
+            // and the label names it.
+            const bool landingFix = i == landing;
+            if (distM > 400.0f && !landingFix)
                 addPole(route, eye, leg.to.latDeg, leg.to.lonDeg, baseM, topM,
                         poleHalfM(distM, eye.vFovRad), r, g, b);
             if (distM > 700.0f && !leg.to.ident.empty()) {
                 char text[40];
                 formatNm(text, 40, leg.to.ident, mToNm(distM));
-                queueLabel(pending, eye, leg.to.latDeg, leg.to.lonDeg, topM, text, r, g, b);
+                queueLabel(pending, eye, leg.to.latDeg, leg.to.lonDeg,
+                           landingFix ? ftToM(topFt) : topM, text, r, g, b);
             }
             if (i == 0) continue;
             const Leg& prev = plan->legs[static_cast<size_t>(i - 1)];
@@ -488,22 +623,11 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
                 // Short final: the path would box in the runway (kOverlayNearFieldHideFt).
                 const bool nearField = approach && overlayHiddenNearField(eye.altMslM, g1);
                 if (dist >= 50.0 && dist < kMaxLegM && !nearField) {
-                    float endFt = g1 + 50.0f;
-                    if (leg.alt.kind != AltConstraintKind::None && leg.alt.altFt > 1.0f)
-                        endFt = leg.alt.altFt;
-                    else if (!approach)
-                        endFt = overlayMarkerAltFt(leg.alt, plan->cruiseAltFt, g1);
-                    float startFt = endFt;
-                    if (approach) {
-                        if (prev.alt.kind != AltConstraintKind::None && prev.alt.altFt > 1.0f)
-                            startFt = prev.alt.altFt;
-                        else
-                            startFt = endFt + static_cast<float>(mToFt(dist)) *
-                                                  static_cast<float>(std::tan(degToRad(3.0)));
-                        if (startFt < endFt) startFt = endFt;
-                    } else {
-                        startFt = endFt;
-                    }
+                    // The route's profile: constraints, 3 degree climbs and descents, cruise.
+                    // The approach path never climbs toward the runway.
+                    const float endFt = legAltFt[static_cast<size_t>(active)];
+                    float startFt = legAltFt[static_cast<size_t>(active - 1)];
+                    if (approach && startFt < endFt) startFt = endFt;
                     const double bear = initialBearingTrueRad(prev.to.latDeg, prev.to.lonDeg,
                                                               leg.to.latDeg, leg.to.lonDeg);
                     constexpr int kSamples = 5;

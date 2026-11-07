@@ -39,7 +39,8 @@ struct AircraftEntry {
     int engineCount = 1;
     float cruiseAltFt = 0, cruiseKt = 0;
 };
-// Every assets/aircraft/*.ini that parses, sorted by display name. Unreadable files are skipped.
+// Every assets/aircraft/*.ini that parses, sorted by display name. Unreadable files and dot files
+// (macOS "._*" AppleDouble files, .DS_Store) are skipped.
 std::vector<AircraftEntry> discoverAircraft(const std::string& aircraftDir);
 const char* categoryLabel(AircraftCategory c);
 
@@ -48,6 +49,7 @@ struct PlanFileEntry {
     std::string path;
 };
 // *.fms files in the given directories (earlier directories win on equal names), sorted by name.
+// Dot files ("._KPDX-KOTH.fms") are skipped.
 std::vector<PlanFileEntry> discoverPlanFiles(const std::vector<std::string>& dirs);
 
 // ---- airports and runways ------------------------------------------------------------------------

@@ -5,12 +5,14 @@ This folder is the plan for everything after Pocket Vectors 1.0. Each work packa
 its builder needs: why, what to read, which paths it owns, the steps, the acceptance list and the
 checks for the handheld. Waves 0–5 stay in [../WORK_PACKAGES.md](../WORK_PACKAGES.md) as history.
 
-**State on 2026-11-05.** The owner put Wave 6 of [../WORK_PACKAGES.md](../WORK_PACKAGES.md)
-(I2, N7, V1, W7, N8, S2, F6, plus X3) into 1.2, which is on `main` waiting for its device test. That
-finished N7, N9 (Wave 6 calls it N8), W7, X3b, part B of S2 and most of X3a here; their `Status:`
-lines say so. The external chase view (V1) is in 1.2 too. The next device session tests that build
-(the 1.2 checklist and DEVICE.md §6), which covers what T1 and T2 ask for. The phases below are the
-original plan; take the open cards in that order.
+**State on 2026-11-06.** The owner put Wave 6 of [../WORK_PACKAGES.md](../WORK_PACKAGES.md)
+(I2, N7, V1, W7, N8, S2, F6, plus X3) into 1.2. That finished N7, N9 (Wave 6 calls it N8), W7, X3b,
+part B of S2 and most of X3a here; their `Status:` lines say so. The external chase view (V1) is
+in 1.2 too. The 2026-11-05 device session (the DEVICE.md §6 timing run) gave T2's frame numbers:
+MED holds 30 fps in the cockpit, LOW 60 (DEVICE.md §3). The PR #11 checklist runs alongside the
+1.2.0 release PR (#12), which adds the session's fixes and S2 part A (WORK_PACKAGES I3). The owner ships 1.2 now (**v1.2.0**)
+and takes **X3c next as 1.2.1** (HUD CPU, the GPU clock in the log, MED toward 60). The phases
+below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).
@@ -42,7 +44,7 @@ session can be thrown away and a fresh one picks up from the board.
 |---|---|---|---|---|
 | 1 | T1 (owner), R2, P1b, X3a | P1b and X3a together; T1 any time | T1 done (tests the v1.1.0 release) | **v1.1.0** published from R2; a fix release if T1 finds a bug |
 | 2 | X3b, N7, S2, X5, F5, W1b, U1 | At most 3 builders; never two cards that share a hot file (below) | Every phase-2 card merged | none |
-| 2b | T2 (owner), then X3c | | X3c meets the 30 fps floor | owner tags **v1.2.0** |
+| 2b | T2 (owner, done 2026-11-05), then X3c | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor and moves MED toward 60 | owner tags **v1.2.0**, then **v1.2.1** for X3c |
 | 3 | N8, N9, H8, W7, R3, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first | T3 done | owner tags **v1.3.0** |
 
 ## Cards
@@ -83,7 +85,7 @@ exists. The builder sets `done` in its own pull request, so the merge marks it d
 | # | Decision | Blocks | Default if you say nothing |
 |---|---|---|---|
 | OD1 | Where the voice callout clips come from: your own recordings, a CC0 clip set, or offline text-to-speech whose output licence allows redistribution | S2 part B | Tones stay; S2 ships the clip player with a tone fallback |
-| OD2 | Attach more prebuilt region packs (bayarea, mthood, tam_diablo) to releases | R3 | Releases link the 1.0 `pdx_oth` pack only |
+| OD2 | Attach more prebuilt region packs (bayarea, mthood, tam_diablo) to releases | R3 | From 1.2.0 a release attaches a `pdx_oth` pack with SIDs and STARs (from a datapack run); no other regions |
 | OD3 | Add Quick Flight and landing scores (a suggestion, not in PLAN.md) | U1 | U1 waits |
 | OD4 | Fetch METARs over Wi-Fi at launch | X5 | Off by default, a setting turns it on |
 

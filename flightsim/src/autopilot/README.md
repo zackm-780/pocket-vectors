@@ -37,7 +37,9 @@ AP nor FD was, and moves the altitude bug 1,000 ft up (rounded to 100 ft) unless
 
 FD (`fdOn`) runs the same outer loops with the AP off: `fdRollCmdDeg` is the commanded bank and
 `fdPitchCmdDeg` the commanded pitch attitude (deg, + = right wing down / nose up); `fdValid` is set
-when a lateral and a vertical mode are active. Modes are shared between FD and AP.
+when a lateral and a vertical mode are active. Modes are shared between FD and AP. A mode button
+(HDG, NAV, APR, ALT, VS, FLC) pressed with the AP and the FD both off turns the FD on first (in
+`handleActions`), like TO/GA; the `select*` calls themselves still need the AP or the FD.
 
 ## Disconnects (each sets `disconnectWarning`, cleared by the next AP toggle press or after 5 s)
 Stick > 0.5 for 0.5 s, AP toggle press, stall warning, |bank| > 45 deg, |pitch| > 25 deg, and

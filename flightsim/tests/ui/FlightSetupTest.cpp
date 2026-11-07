@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 
 #include "SimFixture.h"
 #include "ui/FakeNavDb.h"
@@ -116,6 +117,33 @@ TEST_CASE("ui: aircraft and plan discovery read files at runtime") {
     CHECK(plans[0].path.find("plans1") != std::string::npos);  // the earlier directory wins
     CHECK(plans[1].name == "B.fms");
     CHECK(plans[2].name == "C.FMS");
+}
+
+TEST_CASE("ui: discovery skips macOS ._ files and other dot files") {
+    // A Mac copying the port onto the FAT SD card leaves "._c172p.ini" (AppleDouble) next to
+    // c172p.ini. Here it even parses, so only the name keeps it out of the list.
+    const Paths paths = Paths::resolve({});
+    std::string profile;
+    {
+        std::ifstream in(paths.asset("assets/aircraft/c172p.ini"), std::ios::binary);
+        profile.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+    REQUIRE_FALSE(profile.empty());
+    const std::string dir = tempDir("dotfiles");
+    writeText(dir + "/c172p.ini", profile);
+    writeText(dir + "/._c172p.ini", profile);
+    writeText(dir + "/.hidden.ini", profile);
+    writeText(dir + "/.DS_Store", "x");
+    const auto aircraft = discoverAircraft(dir);
+    REQUIRE(aircraft.size() == 1);
+    CHECK(aircraft[0].id == "c172p");
+
+    writeText(dir + "/KPDX-KOTH.fms", "x");
+    writeText(dir + "/._KPDX-KOTH.fms", "x");
+    writeText(dir + "/._OTHER.fms", "x");
+    const auto plans = discoverPlanFiles({dir});
+    REQUIRE(plans.size() == 1);
+    CHECK(plans[0].name == "KPDX-KOTH.fms");
 }
 
 TEST_CASE("ui: aircraft discovery lists the shipped profiles") {

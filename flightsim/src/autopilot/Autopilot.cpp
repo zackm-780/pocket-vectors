@@ -337,6 +337,13 @@ void Autopilot::handleActions(const ActionState& a, const AircraftState& ac, con
     }
     if (pressed(Action::AtToggle)) setAt(!st_.atEngaged, ac);
     if (pressed(Action::FdToggle)) setFd(!st_.fdOn, ac);
+    // A mode button with the AP and the FD both off turns the FD on first (ROL / PIT), like
+    // TO/GA, so the button selects its mode instead of doing nothing. 1.2 device note: L1 + R2
+    // (ALT) only worked once the AP was on.
+    const bool modeButton = pressed(Action::HdgMode) || pressed(Action::NavMode) ||
+                            pressed(Action::AprMode) || pressed(Action::AltMode) ||
+                            pressed(Action::VsMode) || pressed(Action::FlcMode);
+    if (modeButton && !modesLive() && ac.valid && !ac.crashed) setFd(true, ac);
     if (pressed(Action::HdgMode)) selectHdg(ac);
     if (pressed(Action::NavMode)) selectNav(nav);
     if (pressed(Action::AprMode)) selectApr(nav);
