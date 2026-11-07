@@ -53,8 +53,9 @@ struct HudOptions {
     float magVarDeg = 0;    // + = east; heading and wind are shown magnetic (true - magVar)
     // OR of warningBit() values raised by other modules: PullUp, Terrain, SinkRate (X2), ApOff (H3).
     std::uint32_t extraWarnings = 0;
-    // V1: external chase view. Only the status rows, warnings and messages are drawn (the
-    // conformal symbology belongs to the cockpit eye point).
+    // V1: external chase view. The conformal symbology (ladder, horizon, FPV, bank scale) belongs
+    // to the cockpit eye point and stays hidden; X3c adds a compact readout of the numbers
+    // (buildChaseReadout) to the status rows, warnings and messages.
     bool externalView = false;
 };
 
@@ -86,10 +87,23 @@ constexpr HudRect kHeadingTape{170, 26, 300, 30};   // H2 draws, H3 adds marks (
 constexpr HudRect kNavBox{440, 368, 196, 60};       // H3: nav box (right anchored)
 constexpr HudRect kLadderClip{120, 100, 400, 300};  // pitch ladder clip (centered); HUD.md says
     // y 70, trimmed so lines stay inside the bank arc
-constexpr float kLocScaleY = 392;  // H3: LOC scale, horizontal, centered
-constexpr float kGsScaleX = 500;   // H3: GS scale, vertical (centered x)
-constexpr float kCenterY = 240;    // boresight and tape value boxes
+constexpr float kLocScaleY = 392;       // H3: LOC scale, horizontal, centered
+constexpr float kGsScaleX = 500;        // H3: GS scale, vertical (centered x)
+constexpr float kCenterY = 240;         // boresight and tape value boxes
+constexpr float kTapeMarginPx = 16.0f;  // tape outer edge distance from the screen edge
+constexpr float kTapeWidthPx = 80.0f;
+constexpr float kStatusPanelTopPx = 430.0f;   // status rows panel, y 430..480
+constexpr float kWarningBaselinePx = 300.0f;  // first warning (L); a second one (M) 20 px higher
+constexpr float kMessageBaselinePx = 348.0f;  // newest message (M); older ones step down
+constexpr float kMessageStepPx = 13.0f;
+constexpr HudRect kFpsReadout{16, 27, 140, 26};  // SHOW FPS (left anchored), baselines y+9, y+25
 }  // namespace hudzones
+
+// Current-value boxes, in absolute virtual px for a canvas `virtualWidth` wide. The cockpit tapes
+// and the chase readout (X3c) draw the same boxes.
+HudRect speedValueBox(float virtualWidth);    // left tape, 66 x 26 around y 240
+HudRect altValueBox(float virtualWidth);      // right tape, 70 x 28 around y 240
+HudRect headingValueBox(float virtualWidth);  // heading tape, 40 x 18 at the top, centered
 
 // ---------------------------------------------------------------------------------------------
 // Tapes
@@ -265,5 +279,32 @@ constexpr double kMessageLifeS = 2.0;
 constexpr double kMessageFadeS = 0.5;
 constexpr int kMaxShownMessages = 3;
 float messageAlpha(double ageS);  // 1 until life - fade, then fading to 0, 0 after life
+
+// ---------------------------------------------------------------------------------------------
+// External chase view readout (X3c, HUD.md section 7a)
+// ---------------------------------------------------------------------------------------------
+// The cockpit's numbers without the cockpit symbology, so the aircraft stays the focus: the speed
+// and altitude tapes' value boxes (no tapes, bands, bugs or pointers), the heading box (no tape),
+// and the GS / Mach, VS and altimeter-setting lines. Everything sits where the cockpit HUD has it,
+// so nothing moves when the view changes. Declutter as in the cockpit: GS and Mach follow
+// speedAltReadouts, the heading box follows headingTape; speed, altitude, VS and the altimeter
+// setting always show. The FMA row comes from the H3 overlay (with the AP or FD on).
+struct ChaseTextLine {
+    float x = 0, baselineY = 0;  // left edge and baseline, TextSize::M
+    char text[16] = {0};         // empty = not shown
+};
+struct ChaseReadout {
+    HudRect speedBox{}, altBox{}, headingBox{};
+    char speed[8] = {0};                           // IAS (kt), "65"
+    char altThousands[8] = {0}, altRest[8] = {0};  // indicated altitude, "3" and "980"
+    char heading[8] = {0};                         // magnetic, "285"
+    bool headingShown = true;
+    ChaseTextLine gs, mach, vs, baro;
+};
+ChaseReadout buildChaseReadout(const AircraftState& s, const HudOptions& opt,
+                               const HudVisibility& vis, float virtualWidth);
+// The line's text box (cap height, plus 2 px for the outline and the stroke width), for layout
+// checks; w = 0 when the line is not shown.
+HudRect chaseLineRect(const ChaseTextLine& line);
 
 }  // namespace fsim

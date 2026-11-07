@@ -717,10 +717,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 else
                     std::snprintf(line, sizeof line, "-- FPS");
                 const Color c = colors::kWhite.withAlpha(0.85f);
-                hud2d.text(hud2d.leftX() + 16, 36, line, TextSize::S, c);
+                const HudRect& z = hudzones::kFpsReadout;  // X3c: a zone the chase layout avoids
+                hud2d.text(hud2d.leftX() + z.x, z.y + 9, line, TextSize::S, c);
                 if (shownPerf.frames > 0) {
                     std::snprintf(line, sizeof line, "CPU %.1f MS", shownPerf.meanCpuMs());
-                    hud2d.text(hud2d.leftX() + 16, 52, line, TextSize::S, c);
+                    hud2d.text(hud2d.leftX() + z.x, z.y + 25, line, TextSize::S, c);
                 }
             }
             hud2d.end();

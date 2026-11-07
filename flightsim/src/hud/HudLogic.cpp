@@ -152,6 +152,23 @@ int headingTapeLabel(int deg) {
     return n == 0 ? 36 : n;
 }
 
+HudRect speedValueBox(float /*virtualWidth*/) {
+    const float x0 = 0.0f + hudzones::kTapeMarginPx;  // Renderer2D::leftX() is 0
+    const float bw = 66, bh = 26;
+    return {x0 + 2, hudzones::kCenterY - bh * 0.5f, bw, bh};
+}
+
+HudRect altValueBox(float virtualWidth) {
+    const float x1 = virtualWidth - hudzones::kTapeMarginPx;
+    const float bw = 70, bh = 28;
+    return {x1 - bw - 2, hudzones::kCenterY - bh * 0.5f, bw, bh};
+}
+
+HudRect headingValueBox(float virtualWidth) {
+    const float cx = virtualWidth * 0.5f;
+    return {cx - 20, hudzones::kHeadingTape.y - 2, 40, 18};
+}
+
 void formatHeadingBox(char* out, int n, float headingMagDegIn) {
     const int d = static_cast<int>(std::lround(wrap360(headingMagDegIn))) % 360;
     std::snprintf(out, static_cast<size_t>(n), "%03d", d);
@@ -655,6 +672,49 @@ float messageAlpha(double ageS) {
     if (ageS > kMessageLifeS - kMessageFadeS)
         return static_cast<float>((kMessageLifeS - ageS) / kMessageFadeS);
     return 1.0f;
+}
+
+// ---------------------------------------------------------------------------------------------
+// External chase view readout (X3c)
+// ---------------------------------------------------------------------------------------------
+
+ChaseReadout buildChaseReadout(const AircraftState& s, const HudOptions& opt,
+                               const HudVisibility& vis, float virtualWidth) {
+    ChaseReadout c;
+    c.speedBox = speedValueBox(virtualWidth);
+    c.altBox = altValueBox(virtualWidth);
+    c.headingBox = headingValueBox(virtualWidth);
+    std::snprintf(c.speed, sizeof c.speed, "%d", roundToStep(std::max(0.0f, s.iasKt), 1));
+    const float altFt = static_cast<float>(s.altMslFt + s.altBaroOffsetFt);  // X1: indicated
+    formatAltBoxThousands(c.altThousands, sizeof c.altThousands, altFt);
+    formatAltBoxRest(c.altRest, sizeof c.altRest, altFt);
+    c.headingShown = vis.headingTape;
+    formatHeadingBox(c.heading, sizeof c.heading, headingMagDeg(s.headingTrueRad, opt.magVarDeg));
+
+    // The cockpit's spots: under the speed tape, and under the altitude tape (RA is the cockpit's
+    // second line there; the chase view keeps the altimeter setting on the third).
+    const float leftX = 0.0f + hudzones::kTapeMarginPx;
+    const float altTapeX = virtualWidth - hudzones::kTapeMarginPx - hudzones::kTapeWidthPx;
+    c.gs.x = c.mach.x = leftX;
+    c.gs.baselineY = 388;
+    c.mach.baselineY = 404;
+    if (vis.speedAltReadouts) {
+        std::snprintf(c.gs.text, sizeof c.gs.text, "GS %d", roundToStep(s.gsKt, 1));
+        if (s.mach > 0.40f) formatMach(c.mach.text, sizeof c.mach.text, s.mach);
+    }
+    c.vs.x = c.baro.x = altTapeX;
+    c.vs.baselineY = 388;
+    c.baro.baselineY = 420;
+    formatVs(c.vs.text, sizeof c.vs.text, s.vsFpm);
+    formatAltimeterSetting(c.baro.text, sizeof c.baro.text, s.altimeterSettingHpa, opt.baroInHg);
+    return c;
+}
+
+HudRect chaseLineRect(const ChaseTextLine& line) {
+    if (!line.text[0]) return {line.x, line.baselineY, 0, 0};
+    const float cap = StrokeFont::capHeightPx(TextSize::M);
+    return {line.x - 2, line.baselineY - cap - 2, StrokeFont::measure(line.text, TextSize::M) + 4,
+            cap + 4};
 }
 
 }  // namespace fsim

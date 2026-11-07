@@ -71,7 +71,7 @@ altitudes, flaps, gear, trim, throttle and engines, brakes, nav, autopilot) must
 | Status row 2 | 0, 456, 640, 18 | Speedbrake, reversers, brakes and parking brake, fuel, wind, flight time |
 | Warnings | centered, y 300 | Highest priority first: `CRASH: <reason>`, `PULL UP`, `STALL`, `TERRAIN`, `SINK RATE`, `OVERSPEED`, `GEAR` (amber), `AP OFF` (amber flash), `PARK BRK` (amber while throttle > 50% and parking brake set), `PAUSED` |
 | Messages | centered, y 330 | Transient feedback (§1) |
-| FPS readout | 16, 27, 140, 26 | Only with SHOW FPS (X3): `30 FPS 33.3 MS` and `CPU 14.1 MS` over the last second, white. Also over the map page and the chase view. |
+| FPS readout | 16, 27, 140, 26 | Only with SHOW FPS (X3): `30 FPS 33.3 MS` and `CPU 14.1 MS` over the last second, white. Also over the map page and the chase view (`hudzones::kFpsReadout`). |
 | Mini nav | 118, 214, 140, 140 | Track-up route inset (H7), off unless `hud_mini_nav` is on. Aircraft symbol, magenta active leg, other legs white, next-waypoint distance, ETE, cross-track and a range ring. Hidden in MIN declutter and while the map page is open. |
 
 ## 4. Status rows: required fields
@@ -125,9 +125,28 @@ Full screen, toggled with Select (or M). Opaque background. Pauses nothing.
 
 ## 7a. External chase view (V1)
 L2 + L3 switches to a camera behind and above the aircraft (`external_view` in `settings.ini`,
-default off). The HUD then draws only the status rows, warnings and messages: the ladder, tapes,
-FMA, flight path marker and mini nav are tied to the cockpit eye point and stay hidden. World
-overlays and their labels still draw. The map page and full-screen menus use the cockpit camera.
+default off). The ladder, horizon, flight path marker, bank scale, tapes, nav box, LOC / GS scales,
+large RA and mini nav are tied to the cockpit eye point and stay hidden. World overlays and their
+labels still draw. The map page and full-screen menus use the cockpit camera.
+
+**Flight data (X3c, 1.2.1).** So the numbers stay readable while the aircraft stays the focus, the
+chase view draws a compact readout at the cockpit HUD's own positions (nothing moves when the view
+changes):
+
+| Item | Where | Rules |
+|---|---|---|
+| IAS | the speed tape's value box (18, 227, 66 × 26) | kt, no tape, bands, bugs, trend or pointer |
+| Altitude | the altitude tape's value box (right edge at `rightX() − 18`, 70 × 28, around y 240) | indicated (with the altimeter setting), thousands large, 20 ft steps |
+| Heading | the heading tape's box (centred, y 24, 40 × 18) | magnetic, no tape; hidden in MIN (like the heading tape) |
+| `GS 112` and `M.78` | (16, 388) and (16, 404) | GS always, Mach above M.40; hidden in MIN |
+| `VS +500` | (`rightX() − 96`, 388) | fpm, rounded to 50 |
+| Altimeter setting | (`rightX() − 96`, 420) | `STD`, `29.92` (inHg) or `1013` (hPa), the pressure-units setting |
+| FMA row | 0, 0, 640, 22 | only while the AP or the FD is on; hidden in MIN |
+
+The status rows, warnings, messages and the SHOW FPS readout keep their places; the readout
+stays clear of all of them at 640 × 480 and 16:9 (`tests/hud/hudChaseTest.cpp`). The readout adds
+about 4k vertices to the HUD batch and the FMA row about 3.5k; with 1.2.1's faster 2D renderer the
+chase HUD still costs less CPU than 1.2.0's did without them.
 
 ## 8. World overlays (W6)
 Drawn in the world, after the airports and before the HUD. Labels share the HUD batch. Every layer
