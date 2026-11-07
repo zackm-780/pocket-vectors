@@ -265,8 +265,8 @@ void DebugRenderer::render(const Camera& camera, int viewportW, int viewportH) {
     const float* clear = atmosphere_ ? atmosphere_->fog().colorRgb : kSkyColor;
     gl_.ClearColor(clear[0], clear[1], clear[2], 1.0f);
     gl_.Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    if (atmosphere_ && sky_) sky_->draw(camera, *atmosphere_);  // W4
     if (terrain_) terrain_->render(camera, atmosphere_);        // W2
+    if (atmosphere_ && sky_) sky_->draw(camera, *atmosphere_);  // W4, X3c: after the terrain
     if (!haveWorld_ || !program_.valid()) return;
 
     // Keep the ground window centered on the camera, snapped to whole cells.

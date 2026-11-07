@@ -100,7 +100,9 @@ void Sky::draw(const gfx::Camera& camera, const Atmosphere& atmosphere) {
         camera.ecefDirToEye({light.sunDirEcef[0], light.sunDirEcef[1], light.sunDirEcef[2]});
 
     const float tanHalf = std::tan(camera.vFovRad() * 0.5f);
-    gl_.Disable(GL_DEPTH_TEST);
+    gl_.Enable(GL_DEPTH_TEST);  // X3c: only where no terrain was drawn
+    gl_.DepthFunc(GL_LEQUAL);
+    gl_.DepthMask(0);
     gl_.Disable(GL_CULL_FACE);
     program_.use();
     gl_.Uniform4f(uTanHalf_, tanHalf * camera.aspect(), tanHalf, 0, 0);
@@ -122,7 +124,8 @@ void Sky::draw(const gfx::Camera& camera, const Atmosphere& atmosphere) {
     gl_.VertexAttribPointer(0, 2, GL_FLOAT, 0, 2 * sizeof(float), nullptr);
     gl_.DrawArrays(GL_TRIANGLES, 0, 3);
     gl_.DisableVertexAttribArray(0);
-    gl_.Enable(GL_DEPTH_TEST);
+    gl_.DepthMask(1);
+    gl_.DepthFunc(GL_LESS);
 }
 
 }  // namespace fsim::world

@@ -161,7 +161,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         terrainRenderer->setConfig(tc);
         LOG_INFO("graphics quality %s: terrain %.1f px/cell, %d uploads/frame, detail %s",
                  graphicsQualityLabel(settings.graphicsQuality), tc.lod.pixelsPerCell,
-                 tc.uploadsPerFrame, tc.detailNoise ? "on" : "off");
+                 tc.uploadsPerFrame, world::detailNoiseName(tc.detailNoise));
     };
     if (terrainSvc) {
         terrainRenderer =
@@ -759,8 +759,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             const world::TerrainRenderStats* ts =
                 terrainRenderer ? &terrainRenderer->stats() : nullptr;
             perf.terrainTriangles = ts ? ts->triangles : 0;
-            perf.drawCalls = (ts ? ts->drawCalls : 0) + clouds.lastDrawCalls() +
-                             (chase ? externalView.lastDrawCalls() : 0) +
+            perf.drawCalls = (ts ? ts->drawCalls : 0) + airports.stats().drawCalls +  // X3c
+                             clouds.lastDrawCalls() + (chase ? externalView.lastDrawCalls() : 0) +
                              worldOverlay.lastDrawCalls() + hudDraws;
             if (perfSkipFrames > 0)
                 --perfSkipFrames;

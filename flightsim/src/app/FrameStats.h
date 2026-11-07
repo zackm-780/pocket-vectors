@@ -35,7 +35,7 @@ struct PerfFrame {
     PerfScene scene = PerfScene::Cockpit;
     PerfSky sky = PerfSky::Clear;
     int terrainTriangles = 0;
-    int drawCalls = 0;  // terrain, airports, clouds and the model (the HUD adds one or two)
+    int drawCalls = 0;  // terrain, airports (X3c), clouds, the model, overlays and the HUD
     void setPass(PerfPass p, double ms) { passMs[static_cast<int>(p)] = ms; }
 };
 
