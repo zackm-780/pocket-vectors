@@ -44,7 +44,7 @@ session can be thrown away and a fresh one picks up from the board.
 |---|---|---|---|---|
 | 1 | T1 (owner), R2, P1b, X3a | P1b and X3a together; T1 any time | T1 done (tests the v1.1.0 release) | **v1.1.0** published from R2; a fix release if T1 finds a bug |
 | 2 | X3b, N7, S2, X5, F5, W1b, U1 | At most 3 builders; never two cards that share a hot file (below) | Every phase-2 card merged | none |
-| 2b | T2 (owner, done 2026-11-05), then X3c | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor and moves MED toward 60 | owner tags **v1.2.0**, then **v1.2.1** for X3c |
+| 2b | T2 (owner, done 2026-11-05), then X3c (refined 2026-11-07: parts A–E, one pull request) | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor, moves MED toward 60 and shows the flight data in the chase view | owner tags **v1.2.0**, then **v1.2.1** for X3c |
 | 3 | N8, N9, H8, W7, R3, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first | T3 done | owner tags **v1.3.0** |
 
 ## Cards
@@ -63,7 +63,7 @@ session can be thrown away and a fresh one picks up from the board.
 | [W1b](W1b.md) | Runways flush with the terrain at KPDX | 2 | none | high | builder | `src/world/terrain/` |
 | [U1](U1.md) | Quick flight and landing score | 2 | OD3 | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T2](T2.md) | Device session 2: phase-2 build and frame numbers | 2b | phase 2 merged | | owner, then builder writes up | `docs/DEVICE.md` |
-| [X3c](X3c.md) | Device tuning to a 30 fps floor | 2b | T2 | high | planner refines, then builder | per refined card |
+| [X3c](X3c.md) | Device tuning (HUD CPU, GPU clock, MED toward 60) and flight data in the chase view | 2b | T2 | high | builder | `Renderer2D.*`, `Hud.cpp`, `HudLogic.*`, `TerrainRenderer.*`, `App.cpp`, `FrameStats.*`, `CMakeLists.txt` |
 | [N8](N8.md) | Airways in `.fms` plans | 3 | none | medium | builder | `src/nav/Fms*`, `src/nav/FlightPlan*` |
 | [N9](N9.md) | SIDs and STARs (outline) | 3 | N8 | high | planner refines, then builder | `tools/nav/`, `src/nav/Procedures*` |
 | [H8](H8.md) | Map page terrain shading and holds (outline) | 3 | X3c | medium | planner refines, then builder | `src/ui/MapPage*` |
