@@ -132,11 +132,9 @@ if [ "$OSM_TAXIWAYS" -eq 1 ]; then
   step "nav: OSM taxiways (Overpass, about one query a second)"
   "$PY" "$TOOLS/nav/osm_taxiways.py" --nav-dir "$OUT/nav" 2>&1 | tail -n 15
   if [ "$(wc -l < "$OUT/nav/taxiways.csv")" -gt 1 ]; then
+    # The same line as osm_taxiways.py ATTRIBUTION_LINE (the About page prints ATTRIBUTION.txt).
     OSM_ATTR="
-Taxiways and aprons (nav/taxiways.csv, nav/aprons.csv): (c) OpenStreetMap contributors.
-  Extracted through the Overpass API. Licence: Open Database License (ODbL) 1.0; these two
-  files are shared under the ODbL, see nav/TAXIWAYS-ODbL.txt and
-  https://www.openstreetmap.org/copyright
+Taxiways and aprons (nav/taxiways.csv, nav/aprons.csv): © OpenStreetMap contributors, ODbL 1.0, see nav/TAXIWAYS-ODbL.txt.
 "
   fi
 fi
