@@ -1,4 +1,4 @@
-Status: ready
+Status: done (needs device test)
 # W8b: Smooth ground under taxiways and aprons
 
 Phase 4 · Effort: high · Depends: W8a (`Airport::taxiways`, `Airport::aprons`), W1b (#15) · Branch: `wp/W8b-taxiway-ground`

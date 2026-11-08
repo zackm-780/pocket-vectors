@@ -260,6 +260,10 @@ void TerrainSelector::updateFlattenState() {
     if (fs.revision() == flattenRev_) return;
     flattenRev_ = fs.revision();
     std::vector<LatLonBox> now;
+    // W8b: an airport with OSM taxiways registers hundreds of areas. Areas arrive grouped by
+    // airport, so each box merges into the running one while they overlap or lie within about
+    // 500 m; the nodes below are then tested against a few boxes per airport, not every area.
+    constexpr double kMergeDeg = 500.0 / kMPerDegLat;
     for (const FlattenArea& a : fs.areas()) {
         LatLonBox b{1e9, 1e9, -1e9, -1e9};
         for (int i = 0; i < 4; ++i) {
@@ -271,6 +275,18 @@ void TerrainSelector::updateFlattenState() {
         const double dLat = (a.blendM + 30.0) / kMPerDegLat;
         const double dLon = dLat / std::max(0.05, std::cos(0.5 * (b.south + b.north) * kRadPerDeg));
         b.south -= dLat, b.north += dLat, b.west -= dLon, b.east += dLon;
+        if (!now.empty()) {
+            LatLonBox& m = now.back();
+            const double mLon = kMergeDeg / std::max(0.05, std::cos(m.south * kRadPerDeg));
+            if (b.south <= m.north + kMergeDeg && b.north >= m.south - kMergeDeg &&
+                b.west <= m.east + mLon && b.east >= m.west - mLon) {
+                m.south = std::min(m.south, b.south);
+                m.north = std::max(m.north, b.north);
+                m.west = std::min(m.west, b.west);
+                m.east = std::max(m.east, b.east);
+                continue;
+            }
+        }
         now.push_back(b);
     }
     std::vector<LatLonBox> both = now;  // pads removed since the last revision must be undone too
