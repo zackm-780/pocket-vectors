@@ -11,7 +11,7 @@ controls follow the A/T levers and the AP-managed elevator trim). `ApConfig` hol
 |---|---|---|
 | Lateral | ROL | holds bank (<= 6 deg: wings level); engage default |
 | | HDG | bug (magnetic, `NavState::magVarDeg`) via turn-rate law, bank limit 20 (light) / 25 (jet) |
-| | NAV | arms when selected; captures when closing and inside `R(1-cos(rel)) + 0.1 NM` (or within 0.1 NM); intercept = `atan(xtk / (gs * navTau))`, <= 45 deg, track based so wind needs no extra gain |
+| | NAV | arms when selected; over HDG captures when closing and inside `R(1-cos(rel)) + 0.1 NM` (or within 0.1 NM), over ROL at once (1.2.3: ROL (NAV) held the wings level off course, so a pilot following the FD left the track); never on the ground; intercept = `atan(xtk / (gs * navTau))`, <= 45 deg, track based so wind needs no extra gain |
 | | LOC | APR arms LOC + GS; LOC captures with the NAV rule plus `|cdi| <= 1` and `source == Loc`; linear XTK law (distance independent), <= 30 deg |
 | Vertical | PIT | holds the pitch at engage |
 | | VS | `vsBugFpm`, PI on vertical speed -> pitch (gains scale with 1/TAS) |
