@@ -8,6 +8,7 @@
 #include "core/SyntheticNavDb.h"
 #include "core/Units.h"
 #include "world/AirportGeometry.h"
+#include "world/terrain/FlattenSet.h"
 
 using namespace fsim;
 using namespace fsim::world;
@@ -575,4 +576,113 @@ TEST_CASE("world: apron and buildings sit beside a hard runway") {
         r.ils.reset();
     }
     CHECK(buildAirportExtras(grass).empty());
+}
+
+// ---- W1b (1.2.3): graded runways, crossings, pavement on the composed surface -------------------
+
+namespace {
+
+// XTST plus a 03/21 crossing 09/27 at its middle, 0.6 m lower (like KPDX 03/21 across 10R/28L).
+Airport crossingAirport(const SyntheticNavDb& db) {
+    Airport a = db.airport();
+    const Runway& r09 = *findRunway(a, "09");
+    const Runway& r27 = *findRunway(a, "27");
+    double cLat = 0.5 * (r09.thrLatDeg + r27.thrLatDeg),
+           cLon = 0.5 * (r09.thrLonDeg + r27.thrLonDeg);
+    double sLat, sLon, eLat, eLon;
+    destinationPoint(cLat, cLon, degToRad(210.0), 900.0, sLat, sLon);
+    destinationPoint(cLat, cLon, degToRad(30.0), 900.0, eLat, eLon);
+    Runway r03;
+    r03.airportIdent = a.ident;
+    r03.ident = "03";
+    r03.oppositeIdent = "21";
+    r03.thrLatDeg = r03.startLatDeg = sLat;
+    r03.thrLonDeg = r03.startLonDeg = sLon;
+    r03.endLatDeg = eLat;
+    r03.endLonDeg = eLon;
+    r03.thrElevFt = 1997.0f;
+    r03.endElevFt = 1999.0f;
+    r03.headingTrueDeg = 30.0f;
+    r03.lengthFt = static_cast<float>(mToFt(1800.0));
+    r03.widthFt = 150.0f;
+    Runway r21 = r03;
+    r21.ident = "21";
+    r21.oppositeIdent = "03";
+    r21.thrLatDeg = r21.startLatDeg = eLat;
+    r21.thrLonDeg = r21.startLonDeg = eLon;
+    r21.endLatDeg = sLat;
+    r21.endLonDeg = sLon;
+    r21.thrElevFt = 1999.0f;
+    r21.endElevFt = 1997.0f;
+    r21.headingTrueDeg = 210.0f;
+    a.runways.push_back(r03);
+    a.runways.push_back(r21);
+    return a;
+}
+
+}  // namespace
+
+TEST_CASE("world: runway flatten areas are graded between the ends, with a 150 m blend") {
+    SyntheticNavDb db;
+    const Airport a = crossingAirport(db);
+    const std::vector<FlattenArea> areas = airportFlattenAreas(a);
+    REQUIRE(areas.size() == 2);
+    for (const FlattenArea& f : areas) {
+        CHECK(f.graded);
+        CHECK(f.blendM == 150.0f);
+        CHECK(f.priority == 0);
+    }
+    const FlattenArea& f03 = areas[1];
+    CHECK(f03.gradeElevM[0] == doctest::Approx(static_cast<float>(ftToM(1997.0))));
+    CHECK(f03.gradeElevM[1] == doctest::Approx(static_cast<float>(ftToM(1999.0))));
+    CHECK(f03.elevM == doctest::Approx(static_cast<float>(ftToM(1998.0))));
+    // Both directions of a pair share one grade.
+    const RunwayInfo i03 = makeRunwayInfo(a, *findRunway(a, "03"));
+    const RunwayInfo i21 = makeRunwayInfo(a, *findRunway(a, "21"));
+    const LatLon mid = RunwayFrame(i03).latLon(450.0, 0.0);
+    CHECK(runwayGradeElevM(i03, mid.latDeg, mid.lonDeg) ==
+          doctest::Approx(runwayGradeElevM(i21, mid.latDeg, mid.lonDeg)));
+    CHECK(runwayGradeElevM(i03, mid.latDeg, mid.lonDeg) ==
+          doctest::Approx(ftToM(1997.5)).epsilon(1e-4));
+}
+
+TEST_CASE("world: the pavement at a crossing follows the composed surface the wheels feel") {
+    SyntheticNavDb db;
+    const Airport a = crossingAirport(db);
+    terrain::FlattenSet set;  // what TerrainService composes (the wheels) for these areas
+    for (const FlattenArea& f : airportFlattenAreas(a)) set.add(f);
+    const RunwayInfo info = makeRunwayInfo(a, *findRunway(a, "03"));
+    const SurfaceElevFn surface = [&](double lat, double lon) {
+        return static_cast<double>(set.elevationM(
+            lat, lon, [&] { return static_cast<float>(runwayGradeElevM(info, lat, lon)); }));
+    };
+    const RunwayMeshes m = buildRunwayMeshes(info, &surface);
+    REQUIRE_FALSE(m.pavement.empty());
+    double worst = 0, highest = -1e9;
+    int verts = 0;
+    for (const SurfaceMesh& mesh : m.pavement) {
+        for (const SurfaceVertex& v : mesh.verts) {
+            const Ecef p{mesh.anchor.x + v.pos[0], mesh.anchor.y + v.pos[1],
+                         mesh.anchor.z + v.pos[2]};
+            const GeoPos g = ecefToGeodetic(p);
+            const double want = set.elevationM(g.latDeg, g.lonDeg, [] { return 0.0f; }) + 0.10;
+            worst = std::max(worst, std::fabs(g.altMslM - want));
+            highest = std::max(highest, g.altMslM);
+            ++verts;
+        }
+    }
+    CHECK(verts > 200);   // a grid that can follow the transition, not 4 corners
+    CHECK(worst < 0.02);  // float offsets: a centimetre
+    // Where it crosses 09/27 the pavement is at 09/27's height (2,000 ft), above its own grade.
+    CHECK(highest == doctest::Approx(ftToM(2000.0) + 0.10).epsilon(1e-5));
+    // Markings follow it too.
+    for (const SurfaceMesh& mesh : m.markings) {
+        for (const SurfaceVertex& v : mesh.verts) {
+            const Ecef p{mesh.anchor.x + v.pos[0], mesh.anchor.y + v.pos[1],
+                         mesh.anchor.z + v.pos[2]};
+            const GeoPos g = ecefToGeodetic(p);
+            CHECK(std::fabs(g.altMslM - 0.20 -
+                            set.elevationM(g.latDeg, g.lonDeg, [] { return 0.0f; })) < 0.02);
+        }
+    }
 }

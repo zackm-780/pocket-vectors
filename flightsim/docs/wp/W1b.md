@@ -1,4 +1,4 @@
-Status: ready
+Status: done (needs device test)
 # W1b: Runways flush with the terrain at KPDX
 
 Phase 2 · Effort: high · Depends: none · Branch: `wp/W1b-runway-terrain-step`
