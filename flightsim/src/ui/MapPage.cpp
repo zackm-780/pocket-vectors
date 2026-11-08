@@ -7,6 +7,7 @@
 #include "core/Geo.h"
 #include "core/Units.h"
 #include "nav/FlightPlan.h"
+#include "nav/FlyBy.h"
 
 namespace fsim {
 
@@ -139,7 +140,8 @@ void MapPage::drawRings(Renderer2D& r, const MapProjection& p, const AircraftSta
     r.line(p.cx + h0.x, p.cy + h0.y, p.cx + h1.x, p.cy + h1.y, kVor);
 }
 
-void MapPage::drawRoute(Renderer2D& r, const MapProjection& p, const FlightPlan& plan) {
+void MapPage::drawRoute(Renderer2D& r, const MapProjection& p, const FlightPlan& plan,
+                        float turnRadiusNm) {
     const int n = static_cast<int>(plan.legs.size());
     float lastLx = -1000, lastLy = -1000;
     for (int i = 0; i < n; ++i) {
@@ -181,10 +183,29 @@ void MapPage::drawRoute(Renderer2D& r, const MapProjection& p, const FlightPlan&
                 } else {
                     r.polyline(pts_.data(), static_cast<int>(pts_.size()), col);
                 }
-            } else if (st.dashed) {
-                r.dashedLine(x0, y0, x1, y1, 8, 6, col);
             } else {
-                r.line(x0, y0, x1, y1, col);
+                // N10: fly-by turns as arcs; the leg's line runs between them.
+                const LegSpan span = legSpan(plan, i, turnRadiusNm);
+                if (span.turnIn.valid) {
+                    LatLon arc[16];
+                    const int na = arcPoints(span.turnIn, arc, 16);
+                    Pt2 q[16];
+                    for (int k = 0; k < na; ++k)
+                        p.toScreen(arc[k].latDeg, arc[k].lonDeg, q[k].x, q[k].y);
+                    if (st.dashed) {
+                        for (int k = 0; k + 1 < na; k += 2)
+                            r.line(q[k].x, q[k].y, q[k + 1].x, q[k + 1].y, col);
+                    } else {
+                        r.polyline(q, na, col);
+                    }
+                }
+                p.toScreen(span.start.latDeg, span.start.lonDeg, x0, y0);
+                float xe, ye;
+                p.toScreen(span.end.latDeg, span.end.lonDeg, xe, ye);
+                if (st.dashed)
+                    r.dashedLine(x0, y0, xe, ye, 8, 6, col);
+                else
+                    r.line(x0, y0, xe, ye, col);
             }
         }
         // Waypoint symbol + label.
@@ -403,7 +424,7 @@ void MapPage::draw(Renderer2D& r, const AircraftState& ac, const NavState& nav,
     r.setOutline(false);
     r.fillRect(0, 0, vw_, 480, kBg, FillMode::Back);
     drawRings(r, p, ac);
-    if (plan) drawRoute(r, p, *plan);
+    if (plan) drawRoute(r, p, *plan, nav.turnRadiusNm);
     drawNavaids(r, p);
     drawAirports(r, p);
     drawAircraft(r, p, ac);

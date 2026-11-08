@@ -29,6 +29,7 @@
 #include "core/NavState.h"
 #include "core/NavTypes.h"
 #include "nav/ApproachBuilder.h"
+#include "nav/FlyBy.h"
 
 namespace fsim {
 
@@ -158,6 +159,12 @@ private:
     bool prevFix(int legIndex, LatLon& out) const;
     Guide computeGuide(const AircraftState& ac, int legIndex) const;
     bool shouldSequence(const AircraftState& ac, const Guide& g, int legIndex) const;
+    // N10: the start of legs[legIndex] (the previous fix, or the entry point for DF and first
+    // legs), the fly-by turn at the end of it (invalid when not flown by with an arc), and the
+    // radius for the present ground speed.
+    LatLon legStart(int legIndex) const;
+    FlyByTurn sequenceTurn(const AircraftState& ac, int fixLeg) const;
+    double turnRadiusNm(double gsKt) const;
     double courseOutRad(int legIndex) const;
     void captureEntry(const AircraftState& ac);
     float targetScaleNm(const Guide& g, NavPhase phase) const;
@@ -182,6 +189,8 @@ private:
     bool entryPending_ = true;
     int trackedLeg_ = -1;
     bool locLatched_ = false;
+    FlyByTurn turn_;  // N10: the turn into turnLeg_, flown until it ends
+    int turnLeg_ = -1;
 
     float scaleNm_ = 0, scaleFromNm_ = 0, scaleToNm_ = 0, rampS_ = 0;
     bool scaleInit_ = false;

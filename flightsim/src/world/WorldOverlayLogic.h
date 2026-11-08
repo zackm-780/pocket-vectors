@@ -100,6 +100,7 @@ struct OverlayAirportRef {
 };
 
 // Appends triangles into the four batches (caller keeps the capacity). Writes labels[0, count).
+// N10: turnRadiusNm > 0 draws the fly-by turns as arcs (NavState::turnRadiusNm).
 // The route follows overlayRouteProfileFt, shows the missed approach only once a missed approach
 // leg is active, and clears near the field on the approach (kOverlayNearFieldHideFt).
 // Returns how many of the four batches received triangles (0..4).
@@ -109,6 +110,6 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
                       const TerrainQuery* terrain, const OverlayEye& eye, std::vector<float>& route,
                       std::vector<float>& vpath, std::vector<float>& airportVerts,
                       std::vector<float>& runwayVerts, OverlayLabel* labels, int labelCap,
-                      int& labelCount);
+                      int& labelCount, float turnRadiusNm = 0.0f);
 
 }  // namespace fsim::world

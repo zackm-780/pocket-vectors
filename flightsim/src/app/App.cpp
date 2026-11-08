@@ -674,7 +674,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 layers.runways = settings.overlayRunways;
                 worldOverlay.render(
                     camera, sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
-                    &sim.navDb(), &sim.terrain(), layers, settings.overlayAirportRadiusNm);
+                    &sim.navDb(), &sim.terrain(), layers, settings.overlayAirportRadiusNm,
+                    sim.navState().turnRadiusNm);  // N10: fly-by arcs
             } else {
                 worldOverlay.clearFrame();
             }

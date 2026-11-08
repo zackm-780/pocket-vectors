@@ -4,6 +4,7 @@
 #include <cstdio>
 
 #include "core/Units.h"
+#include "nav/FlyBy.h"
 #include "ui/MapPageLogic.h"
 
 namespace fsim {
@@ -84,10 +85,28 @@ void MiniNav::draw(Renderer2D& r, const AircraftState& ac, const NavState& nav,
                 } else {
                     r.polyline(pts, kSteps + 1, col);
                 }
-            } else if (st.dashed) {
-                r.dashedLine(x0, y0, x1, y1, 5, 4, col);
             } else {
-                r.line(x0, y0, x1, y1, col);
+                // N10: fly-by turns as arcs; the leg's line runs between them.
+                const LegSpan span = legSpan(*plan, i, nav.turnRadiusNm);
+                if (span.turnIn.valid) {
+                    LatLon arc[16];
+                    const int na = arcPoints(span.turnIn, arc, 16);
+                    Pt2 q[16];
+                    for (int k = 0; k < na; ++k)
+                        proj.toScreen(arc[k].latDeg, arc[k].lonDeg, q[k].x, q[k].y);
+                    if (st.dashed) {
+                        for (int k = 0; k + 1 < na; k += 2)
+                            r.line(q[k].x, q[k].y, q[k + 1].x, q[k + 1].y, col);
+                    } else {
+                        r.polyline(q, na, col);
+                    }
+                }
+                proj.toScreen(span.start.latDeg, span.start.lonDeg, x0, y0);
+                proj.toScreen(span.end.latDeg, span.end.lonDeg, x1, y1);
+                if (st.dashed)
+                    r.dashedLine(x0, y0, x1, y1, 5, 4, col);
+                else
+                    r.line(x0, y0, x1, y1, col);
             }
         }
     }

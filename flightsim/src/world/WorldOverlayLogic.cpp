@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "core/Units.h"
+#include "nav/FlyBy.h"
 
 namespace fsim::world {
 namespace {
@@ -521,7 +522,7 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
                       const TerrainQuery* terrain, const OverlayEye& eye, std::vector<float>& route,
                       std::vector<float>& vpath, std::vector<float>& airportVerts,
                       std::vector<float>& runwayVerts, OverlayLabel* labels, int labelCap,
-                      int& labelCount) {
+                      int& labelCount, float turnRadiusNm) {
     const std::size_t route0 = route.size();
     const std::size_t vpath0 = vpath.size();
     const std::size_t ap0 = airportVerts.size();
@@ -602,9 +603,37 @@ int buildWorldOverlay(const OverlayToggles& toggles, const FlightPlan* plan,
             const float lr = legMag ? 1.0f : 0.9f;
             const float lg = legMag ? 0.25f : 0.9f;
             const float lb = legMag ? 1.0f : 0.95f;
-            addSegment(route, eye, prev.to.latDeg, prev.to.lonDeg, ftToM(pTop), leg.to.latDeg,
-                       leg.to.lonDeg, ftToM(topFt), routeHalfM(pDist, eye.vFovRad),
-                       routeHalfM(distM, eye.vFovRad), lr, lg, lb);
+            // N10: the fly-by turn into this leg as an arc at the turn fix's height, then the
+            // leg's straight part, its heights interpolated along the leg.
+            const LegSpan span = legSpan(*plan, i, turnRadiusNm);
+            auto eyeDist = [&](const LatLon& q) {
+                return static_cast<float>(
+                    greatCircleDistM(eye.latDeg, eye.lonDeg, q.latDeg, q.lonDeg));
+            };
+            if (span.turnIn.valid) {
+                LatLon arc[16];
+                const int na = arcPoints(span.turnIn, arc, 16);
+                for (int k = 0; k + 1 < na; ++k)
+                    addSegment(route, eye, arc[k].latDeg, arc[k].lonDeg, ftToM(pTop),
+                               arc[k + 1].latDeg, arc[k + 1].lonDeg, ftToM(pTop),
+                               routeHalfM(eyeDist(arc[k]), eye.vFovRad),
+                               routeHalfM(eyeDist(arc[k + 1]), eye.vFovRad), lr, lg, lb);
+            }
+            const double legM =
+                greatCircleDistM(prev.to.latDeg, prev.to.lonDeg, leg.to.latDeg, leg.to.lonDeg);
+            auto altAt = [&](const LatLon& q) {
+                const double t = legM > 1.0
+                                     ? std::clamp(greatCircleDistM(prev.to.latDeg, prev.to.lonDeg,
+                                                                   q.latDeg, q.lonDeg) /
+                                                      legM,
+                                                  0.0, 1.0)
+                                     : 0.0;
+                return ftToM(pTop + (topFt - pTop) * t);
+            };
+            addSegment(route, eye, span.start.latDeg, span.start.lonDeg, altAt(span.start),
+                       span.end.latDeg, span.end.lonDeg, altAt(span.end),
+                       routeHalfM(eyeDist(span.start), eye.vFovRad),
+                       routeHalfM(eyeDist(span.end), eye.vFovRad), lr, lg, lb);
         }
     }
 
