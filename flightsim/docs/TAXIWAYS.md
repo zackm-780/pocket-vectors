@@ -105,9 +105,12 @@ them) into an additive `Airport::taxiways` / `Airport::aprons` (`core/NavTypes.h
   segment plus a margin) with **priority −1**, below the runways (0). The W1b composition then
   makes every runway win where they overlap and blends the taxiway into it without a step or a
   slope over about 1:130; taxiway to taxiway joins the same way.
-- Heights: a segment end that lies in a runway area takes the runway surface there; other ends take
-  the DEM smoothed over 100 m, clamped to the airport's runway elevations ± 5 m. Aprons are flat at
-  the mean of their edge heights (graded aprons are later).
+- Heights (revised by the W8b plan, 2026-11-08): a segment end that lies in a runway area takes
+  the runway surface there; other ends take a field interpolated from the runway grades (weighted
+  by inverse squared distance), which always stays within the airport's runway elevations. Not the
+  DEM: the flatten areas are built from the `Airport` alone, by the terrain service and the airport
+  renderer, and the DEM at that moment depends on which tiles are loaded (W1b: loading tiles never
+  moves the pavement). Aprons are flat at the mean of their edge heights (graded aprons are later).
 - **Cost**: KPDX would add several hundred areas (one per segment between shared nodes) to its 3
 runway areas. `FlattenSet::elevationM` loops
   over every area with a bounding-box test, called per wheel per step and per terrain vertex. It
@@ -123,8 +126,8 @@ runway areas. `FlattenSet::elevationM` loops
 
 ## 5. Cards
 
-The first version is too big for one pull request. Proposed split (outline in
-[wp/W8.md](wp/W8.md)):
+The first version is too big for one pull request. It is split into three ready cards,
+[wp/W8a.md](wp/W8a.md), [wp/W8b.md](wp/W8b.md) and [wp/W8c.md](wp/W8c.md) (overview: [wp/W8.md](wp/W8.md)); they ship in 1.3.0:
 
 | Card | What | Depends |
 |---|---|---|
