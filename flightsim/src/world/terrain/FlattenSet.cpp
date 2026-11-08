@@ -1,6 +1,7 @@
 #include "world/terrain/FlattenSet.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 #include "core/Units.h"
@@ -46,12 +47,48 @@ void FlattenSet::add(const FlattenArea& area) {
         std::swap(a.x[1], a.x[3]);
         std::swap(a.y[1], a.y[3]);
     }
-    a.minX = *std::min_element(a.x, a.x + 4) - area.blendM;
-    a.maxX = *std::max_element(a.x, a.x + 4) + area.blendM;
-    a.minY = *std::min_element(a.y, a.y + 4) - area.blendM;
-    a.maxY = *std::max_element(a.y, a.y + 4) + area.blendM;
+    // Reach: the natural blend, or the longest pavement blend (FlattenSet.h).
+    const double reachM = std::max(static_cast<double>(area.blendM), double{kMaxPaveBlendM});
+    a.minX = *std::min_element(a.x, a.x + 4) - reachM;
+    a.maxX = *std::max_element(a.x, a.x + 4) + reachM;
+    a.minY = *std::min_element(a.y, a.y + 4) - reachM;
+    a.maxY = *std::max_element(a.y, a.y + 4) + reachM;
+    a.sizeM2 = 0.5 * std::fabs(signedArea2);
+    if (area.graded) {
+        a.gx = normalizeLonDeg(area.gradeLonDeg[0] - a.lon0Deg) * a.mPerDegLon;
+        a.gy = (area.gradeLatDeg[0] - a.lat0Deg) * kMPerDegLat;
+        const double ex = normalizeLonDeg(area.gradeLonDeg[1] - a.lon0Deg) * a.mPerDegLon - a.gx;
+        const double ey = (area.gradeLatDeg[1] - a.lat0Deg) * kMPerDegLat - a.gy;
+        a.gLenM = std::hypot(ex, ey);
+        if (a.gLenM > 1e-3) {
+            a.ux = ex / a.gLenM;
+            a.uy = ey / a.gLenM;
+        }
+    }
     areas_.push_back(a);
+    // Composition order: lowest first, so the highest priority (then the longest grade, then the
+    // largest quad) is applied last and wins where cores overlap. Stable for exact ties.
+    order_.resize(areas_.size());
+    for (size_t i = 0; i < order_.size(); ++i) order_[i] = i;
+    std::stable_sort(order_.begin(), order_.end(), [this](size_t l, size_t r) {
+        const Area& p = areas_[l];
+        const Area& q = areas_[r];
+        if (p.src.priority != q.src.priority) return p.src.priority < q.src.priority;
+        if (std::fabs(p.gLenM - q.gLenM) > 1.0) return p.gLenM < q.gLenM;
+        return p.sizeM2 < q.sizeM2 - 1.0;
+    });
     ++revision_;
+}
+
+float FlattenSet::areaSurfaceM(size_t i, double latDeg, double lonDeg) const {
+    const Area& a = areas_[i];
+    if (!a.src.graded || a.gLenM <= 1e-3) return a.src.elevM;
+    const double px = normalizeLonDeg(lonDeg - a.lon0Deg) * a.mPerDegLon;
+    const double py = (latDeg - a.lat0Deg) * kMPerDegLat;
+    const double t =
+        std::min(1.0, std::max(0.0, ((px - a.gx) * a.ux + (py - a.gy) * a.uy) / a.gLenM));
+    return static_cast<float>(a.src.gradeElevM[0] +
+                              (a.src.gradeElevM[1] - a.src.gradeElevM[0]) * t);
 }
 
 std::vector<FlattenArea> FlattenSet::areas() const {

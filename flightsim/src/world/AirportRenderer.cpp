@@ -6,6 +6,7 @@
 
 #include "core/Log.h"
 #include "core/Units.h"
+#include "world/terrain/FlattenSet.h"
 
 namespace fsim::world {
 using namespace fsim::gfx;  // GL constants
@@ -197,12 +198,23 @@ void AirportRenderer::buildAirport(const Airport& airport) {
     ref.altMslM = ftToM(airport.elevFt);
     gpu->center = geodeticToEcef(ref);
 
+    // W1b: the pavement follows the airport's composed surface (graded runways that meet without
+    // a step where they cross), the same surface the terrain service gives the wheels. Inside a
+    // runway's area it does not depend on the natural terrain; outside (approach lights) the
+    // runway's own grade stands in for it, so loading tiles never moves the meshes.
+    terrain::FlattenSet surfaceSet;
+    for (const FlattenArea& a : airportFlattenAreas(airport)) surfaceSet.add(a);
     for (const Runway& rwy : airport.runways) {
         RunwayGpu r;
         r.info = makeRunwayInfo(airport, rwy);
         r.frame = RunwayFrame(r.info);
         r.center = runwayCenterEcef(r.info);
-        RunwayMeshes meshes = buildRunwayMeshes(r.info);
+        const RunwayInfo& info = r.info;
+        const SurfaceElevFn surface = [&surfaceSet, &info](double lat, double lon) {
+            return static_cast<double>(surfaceSet.elevationM(
+                lat, lon, [&] { return static_cast<float>(runwayGradeElevM(info, lat, lon)); }));
+        };
+        RunwayMeshes meshes = buildRunwayMeshes(r.info, &surface);
         for (const SurfaceMesh& m : meshes.pavement) r.pavement.push_back(upload(m));
         for (const SurfaceMesh& m : meshes.markings) r.markings.push_back(upload(m));
         if (!meshes.lights.verts.empty()) {

@@ -34,6 +34,21 @@ float insideDistanceM(const FlattenArea& a, double latDeg, double lonDeg) {
     return static_cast<float>(minDist);
 }
 
+// The area's own surface: elevM, or (W1b) its straight grade at the point's projection.
+float areaSurfaceM(const FlattenArea& a, double latDeg, double lonDeg) {
+    if (!a.graded) return a.elevM;
+    const double mPerDegLat = kEarthRadiusM * kRadPerDeg;
+    const double mPerDegLon = mPerDegLat * std::cos(degToRad(a.gradeLatDeg[0]));
+    const double ex = (a.gradeLonDeg[1] - a.gradeLonDeg[0]) * mPerDegLon;
+    const double ey = (a.gradeLatDeg[1] - a.gradeLatDeg[0]) * mPerDegLat;
+    const double len2 = ex * ex + ey * ey;
+    if (len2 < 1e-6) return a.elevM;
+    const double px = (lonDeg - a.gradeLonDeg[0]) * mPerDegLon;
+    const double py = (latDeg - a.gradeLatDeg[0]) * mPerDegLat;
+    const double t = std::min(1.0, std::max(0.0, (px * ex + py * ey) / len2));
+    return static_cast<float>(a.gradeElevM[0] + (a.gradeElevM[1] - a.gradeElevM[0]) * t);
+}
+
 }  // namespace
 
 void FlatTerrain::addFlattenArea(const FlattenArea& area) {
@@ -44,11 +59,12 @@ float FlatTerrain::elevationM(double latDeg, double lonDeg) const {
     float elev = elevM_;
     for (const FlattenArea& a : areas_) {
         const float d = insideDistanceM(a, latDeg, lonDeg);
-        if (d >= 0) return a.elevM;
+        if (d >= 0) return areaSurfaceM(a, latDeg, lonDeg);
         if (a.blendM > 0 && -d < a.blendM) {
             const float t = -d / a.blendM;              // 0 at the edge, 1 at the end of the blend
             const float s = t * t * (3.0f - 2.0f * t);  // smoothstep
-            elev = a.elevM + (elev - a.elevM) * s;
+            const float z = areaSurfaceM(a, latDeg, lonDeg);
+            elev = z + (elev - z) * s;
         }
     }
     return elev;
