@@ -39,7 +39,7 @@ Add observations from device tests here (date, build, what was seen).
   immediately. The guess at the time was that the stock OS has no PortMaster; the 2026-10-20 logs
   show it does (see below), so the real cause was the wrong port folder. The scripts now run without
   PortMaster (and under a plain `sh`) and always write `<port>_launch_log.txt` next to the script. They were also renamed
-  to `FlightSim.sh` / `FlightSimProbe.sh` (no spaces, in case the launcher does not quote paths),
+  to `PocketVectors.sh` / `FlightSimProbe.sh` (no spaces, in case the launcher does not quote paths),
   and the log now records whether userspace is 64-bit (some stock OS releases are 32-bit,
   which the aarch64 build cannot run on). The 2026-10-20 run below is the retest.
 - **2026-10-20, libJSBSim.so symlinks vs FAT/exFAT:** device zips originally stored the CMake/JSBSim
@@ -88,6 +88,28 @@ Add observations from device tests here (date, build, what was seen).
     the FD on when the AP and the FD are both off, like TO/GA.
   - The PR #11 "Needs device test" checklist was run separately; its results are in the 1.2.0
     pull request.
+- **2026-11-07, 1.2.1 build (PR #13, ecabf69), second frame timing run (section 6), MED only:**
+  the owner flew the 1.2.1 checklist (cockpit at KPDX in a 737, chase orbit, under and inside an
+  OVC layer) and sent `flightsim_launch_log.txt`. Session table at exit, 19,725 frames:
+
+  | View | Preset | fps | p95 (ms) | CPU (ms) | HUD (ms) | Terrain tris / draws | Notes |
+  |---|---|---|---|---|---|---|---|
+  | Cockpit | MED | **58.9** (1.2.0: 30) | 17.0 | 6.4 (11.6) | **3.2** (8.0) | 35.5k / 90 | the draws now include airports |
+  | Cockpit inside OVC | MED | **59.8** (1.2.0: 30 ↔ 60) | 17.0 | 6.6 | 3.5 | 36.5k / 82 | |
+  | Cockpit under an OVC layer | MED | 40.6, mostly 30 | 33.6 | 6.6 | 3.3 | 35.3k / 85 | GPU-bound: swap 18–27 ms |
+  | Chase | MED | 55.3 | 33.5 | 3.6 | 0.6 (0.7) | 35.1k / 88 | 60 flying straight, 30 while orbiting; the HUD includes the new readout |
+
+  - **The GPU clock never moved:** every `gpu clock:` line and every SHOW FPS line reads 420 MHz,
+    the lowest of the governor's steps (`simple_ondemand`, available 420 456 504 552 600 648 MHz;
+    `min_freq` / `max_freq` read 0 on this kernel). So the 1.2.0 flip inside OVC was the GPU at the
+    16.7 ms edge, not DVFS, and up to 54 % more GPU clock sits unused (owner decision OD5 on the
+    board: pin the governor from the launch script, at a battery and heat cost).
+  - **CPU:** 6.4 ms in the cockpit leaves 10 ms of the 16.7 ms frame. The HUD (3.2 ms) is still
+    1.6 × PLAN section 3's 2 ms, and the largest CPU item.
+  - LOW and HIGH were not re-measured (no tables for them in this log); the owner judged MED's
+    look and the chase-view readout fine on the device.
+  - The log shows `conf/controls.ini` overrides, the 1.0 A/B workaround file. From 1.1 the default
+    table matches the printed labels, so that file can go (INSTALL.md section 2).
 
 ## 4. How to run the probe
 The probe is the PortMaster port "Flight Sim Probe" (source in `tools/probe/`, full description in
@@ -111,7 +133,7 @@ appears would confirm D1.
 
 ## 6. Frame timing (X3)
 The game times every frame, split into its passes, and writes the results to the log
-(`flightsim_launch_log.txt` next to `FlightSim.sh`, and `flightsim/conf/log.txt`). This is the input for
+(`flightsim_launch_log.txt` next to `PocketVectors.sh`, and `flightsim/conf/log.txt`). This is the input for
 X3's tuning and for the budgets in PLAN section 3.
 
 **What is recorded.**
@@ -147,7 +169,9 @@ pass, so each pass also holds its GPU time. On the Mali this splits the frame in
 render passes, so the total grows: compare the passes with each other, not with an unsynced run.
 
 **Device results.** The first run (1.2, 2026-11-05) is the field note in section 3: MED holds
-30 fps in the cockpit (GPU-bound, HUD 8 ms of CPU), LOW 60, HIGH 30.
+30 fps in the cockpit (GPU-bound, HUD 8 ms of CPU), LOW 60, HIGH 30. The second (1.2.1,
+2026-11-07, MED only), also in section 3: MED 59 fps in the cockpit and 60 inside OVC, HUD 3.2 ms,
+30 under an OVC layer and while orbiting the chase camera, GPU clock fixed at 420 MHz.
 
 **The 1.2.1 run (X3c).** The same steps as below, on the 1.2.1 build, with two additions: in step
 3, orbit the camera with L2 + right stick for 10 s of the 30, and in step 5 compare MED's ground

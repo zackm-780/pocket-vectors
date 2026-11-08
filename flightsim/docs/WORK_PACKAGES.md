@@ -465,7 +465,7 @@ GPWS-lite modes (excessive sink, terrain closure using a look-ahead terrain quer
 radio altitude callouts (text plus tones), and "MINIMUMS".
 
 ## X3: Device performance pass
-**Status:** in progress: instrumentation and the preset are done (the card board's X3a, mostly, and X3b), and the first device run is in (2026-11-05, DEVICE.md §3: MED 30 fps in the cockpit, LOW 60, HIGH 30; MED stays the default). Tuning is the board's X3c, in review as 1.2.1 (needs device test): the HUD built about 3× faster, the GPU clock in the log, MED's detail noise from a texture and the sky after the terrain, flight data in the chase view. X3 closes with the 1.2.1 device timing run · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
+**Status:** done (1.2.1, #13; device run 2026-11-07, DEVICE.md §3): MED, the default, holds 59 fps in the cockpit and 60 inside OVC (1.2.0: 30), the HUD takes 3.2 ms of CPU (8.0), and the GPU clock is in the log (420 MHz throughout). Instrumentation and the preset came from the board's X3a and X3b, the tuning from X3c. Open follow-ups are listed at the end of this entry · **Model / effort:** Sonnet / high · **Depends:** P1, W2, device measurements · **Owns:** perf-only changes coordinated by the maintainer; `src/app/FrameStats*`, `src/app/RenderQuality*`, `tests/app/frameStats*`, `tests/app/renderQuality*`
 Profile on device, tune LOD and budgets, add a quality preset (low/med/high), and update PLAN §3 with
 the measured numbers.
 
@@ -520,12 +520,19 @@ Done so far (2026-11-05, on the 1.2 branch):
    | MED | 10 | 4 | texture (1.2.1) |
    | HIGH | 8 | 6 | procedural (the 1.2.0 shader) |
 
-Still to do, with the 1.2.1 device timing:
-- Read the HUD pass, the MED cockpit fps and the GPU clock lines; put the numbers in PLAN §3.
-- If MED is still short of 60: merge airport draws across runways, `pixelsPerCell` 11–12 on MED,
-  or a cheaper sky. Decide whether MSAA (4 samples on the device) belongs in LOW (it needs a restart).
-- Set the default preset.
-- Update PLAN §3 with the measured numbers.
+7. **Device run 2026-11-07** (1.2.1, MED only; DEVICE.md §3, PLAN §3): cockpit 58.9 fps, p95
+   17.0 ms, CPU 6.4 ms, HUD 3.2 ms, 35.5k triangles in 90 draws; inside OVC 59.8; under an OVC layer
+   30–40 (GPU); chase 55, with 30 while orbiting (GPU). The GPU clock read 420 MHz all session, the
+   lowest of 420–648 MHz. MED stays the default.
+
+Follow-ups (not scheduled; X3 is closed):
+- Under an OVC layer and while orbiting the chase camera, MED drops to 30 (GPU). Candidates: the
+  cloud layer's fill (draw it at lower resolution or skip the far part), airport draws merged
+  across runways, `pixelsPerCell` 11–12 on MED.
+- The GPU governor stays at 420 MHz (owner decision OD5 on the board: pin it from the launch script).
+- The HUD is 3.2 ms against PLAN §3's 2 ms: fewer outline vertices (the outline pass is half the batch)
+  would be the next step.
+- LOW and HIGH were not re-measured on 1.2.1. Decide whether MSAA (4 samples) belongs in LOW.
 
 Integration edits outside owned paths:
 - `App.cpp`: the timers, readout and preset.
