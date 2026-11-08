@@ -20,7 +20,7 @@
 | ILS, fixes, airways (US) | **FAA NASR** 28-day subscription, CSV format | US Government, public domain | N1 |
 | Instrument procedures (US) | **FAA CIFP**, ARINC 424 | US Government, public domain | N4 |
 | Magnetic variation | **WMM2025** (NOAA NCEI) | Public domain | N1 |
-| Taxiways, aprons (planned, W8) | **OpenStreetMap** `aeroway=taxiway / taxilane / apron / holding_position` via the Overpass API ([TAXIWAYS.md](TAXIWAYS.md)) | **ODbL 1.0**: attribution "© OpenStreetMap contributors"; the extracted files are shared under ODbL (PLAN D23) | W8a |
+| Taxiways, aprons | **OpenStreetMap** `aeroway=taxiway / taxilane / apron` via the Overpass API, extracted by `tools/nav/osm_taxiways.py` ([TAXIWAYS.md](TAXIWAYS.md)) | **ODbL 1.0**: attribution "© OpenStreetMap contributors"; the extracted files are shared under ODbL (PLAN D23) | W8a |
 
 URLs, bucket layouts and tile naming must be **verified by the implementing WP** before relying on
 them. Record the verified details in the tool's `README.md`. If a source is unreachable from the
@@ -39,6 +39,7 @@ data/
     nav.ini                      # §5.1
     airports.csv  runways.csv  navaids.csv
     ils.csv  fixes.csv  airways.csv          # US/FAA, optional
+    taxiways.csv  aprons.csv  TAXIWAYS-ODbL.txt   # §5.8-5.10, OpenStreetMap (ODbL), optional
     magvar.bin                   # §6
     procedures/{ICAO}.proc       # §7 (N4)
   plans/                         # user flight plans, *.fms (NAVIGATION §2.1)
@@ -187,6 +188,36 @@ wmm = WMM2025, epoch used <decimal year>
 - When one designator has disjoint segments (for example V1 in the contiguous US and Hawaii), `seq`
   restarts at 1001, 2001, … for each further segment. Consumers must not connect points across a
   thousand boundary.
+
+### 5.8 `taxiways.csv` (OpenStreetMap, optional, ODbL)
+`airport_ident,osm_way_id,kind,ref,width_m,surface,points`
+- One row per **segment**: an OSM `aeroway=taxiway` or `taxilane` way, split at every node it
+  shares with another taxiway way of the airport (or visits twice). Interior points are bends and
+  the ends are junctions or dead ends. `osm_way_id` repeats across the segments of one way, and
+  rows keep the way's order.
+- `kind` ∈ `taxiway,taxilane`. `ref` is the OSM name (`C`, `A1`), empty when the way has none.
+- `width_m`: the OSM `width` tag when it lies within 3–80 m, otherwise 23 / 15 / 10.5 m for taxiways
+  at `large` / `medium` / other airports and 7.5 m for taxilanes. Readers apply the same default
+  when the field is empty.
+- `surface` is normalized like runways (`asphalt,concrete,grass,dirt,gravel,water,other`); without
+  a tag it is the surface of the airport's longest runway. `asphalt` and `concrete` count as hard.
+- `points`: `lat lon` pairs in degrees with 6 decimals, space separated, in way order, at least 2.
+- Each way belongs to one airport: the one whose box (runways + 1.5 km) holds its mean point.
+  Dropped: `area=yes` taxiways and ways with `disused`, `abandoned`, `construction` or
+  `proposed` set to anything other than `no`. OSM runway ways are not used, and OSM is matched to
+  the runways by geometry, never by designator.
+
+### 5.9 `aprons.csv` (OpenStreetMap, optional, ODbL)
+`airport_ident,osm_way_id,surface,points`
+- One row per `aeroway=apron` closed way. `points` holds the outer ring in the same format, open
+  (the first point is not repeated), with at least 3 points. Multipolygon aprons are not read yet.
+
+### 5.10 `TAXIWAYS-ODbL.txt`
+- The licence note for §5.8–5.9: data © OpenStreetMap contributors, the extraction date, Open
+  Database License 1.0. The two CSVs are a derivative database and are shared under the ODbL; the
+  rest of the pack keeps its own terms (a collective database, [TAXIWAYS.md](TAXIWAYS.md) §2).
+  `nav.ini` `[sources]` gets `osm_taxiways = <extraction date>`.
+- Packs without these files (before 1.3) load unchanged: airports then draw a generic apron.
 
 ## 6. `magvar.bin`
 - Header: 8 bytes ASCII `MAGVAR01`, then little-endian `float32 epochYear`, `int16 latMinDeg(-90)`,

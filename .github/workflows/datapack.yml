@@ -1,9 +1,9 @@
 name: datapack
 
-# Builds the flightsim data pack (terrain + nav + FAA approaches, optional world coarse layer) from
-# public sources and uploads it as one artifact holding a data/ folder. Run it from the Actions tab
-# ("Run workflow"), download the artifact, unzip it once and copy data/ into Roms/PORTS/flightsim/
-# on the SD card. The data is never committed.
+# Builds the flightsim data pack (terrain + nav + FAA approaches + OpenStreetMap taxiways, optional
+# world coarse layer) from public sources and uploads it as one artifact holding a data/ folder.
+# Run it from the Actions tab ("Run workflow"), download the artifact, unzip it once and copy data/
+# into Roms/PORTS/flightsim/ on the SD card. The data is never committed.
 # See flightsim/tools/datapack/README.md.
 
 on:
@@ -21,6 +21,10 @@ on:
         description: "Optional west,south,east,north box instead of the preset (example -123.4,43.1,-123.0,43.4)"
         type: string
         default: ""
+      osm_taxiways:
+        description: "Extract OpenStreetMap taxiways and aprons (Overpass API, one query per airport; ODbL)"
+        type: boolean
+        default: true
 
 jobs:
   datapack:
@@ -30,6 +34,7 @@ jobs:
       PRESET: ${{ inputs.preset }}
       INCLUDE_WORLD: ${{ inputs.include_world }}
       BBOX: ${{ inputs.bbox }}
+      OSM_TAXIWAYS: ${{ inputs.osm_taxiways }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,6 +87,7 @@ jobs:
           args=(--out "$RUNNER_TEMP/upload/data" --jobs "$(nproc)")
           if [ -n "$BBOX" ]; then args+=(--bbox "$BBOX"); else args+=(--preset "$PRESET"); fi
           if [ "$INCLUDE_WORLD" = "true" ]; then args+=(--world); fi
+          if [ "$OSM_TAXIWAYS" = "false" ]; then args+=(--no-osm-taxiways); fi
           # world cache on the big temp disk when the workspace disk is small
           sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
           args+=(--world-cache /mnt/world-cache)
@@ -103,7 +109,8 @@ jobs:
         run: |
           {
             echo "## Data pack"
-            echo "Preset \`$PRESET\`, bbox \`${BBOX:-none}\`, world layer: \`$INCLUDE_WORLD\`."
+            echo "Preset \`$PRESET\`, bbox \`${BBOX:-none}\`, world layer: \`$INCLUDE_WORLD\`, OSM taxiways: \`$OSM_TAXIWAYS\`."
+            grep -E '^osm: ' "$RUNNER_TEMP/build.log" | tail -n 3 | sed 's/^/    /' || true
             echo "Download the artifact, unzip it once and copy its \`data\` folder into \`Roms/PORTS/flightsim/\` on the SD card."
             echo '```'
             tail -n 25 "$RUNNER_TEMP/build.log" 2>/dev/null || true

@@ -27,6 +27,7 @@ file sizes and timing. Output is deterministic (only `nav.ini` `created_utc` cha
 | `wmm.py` | WMM2025 in pure Python, `magvar.bin` writer/reader, NOAA test-value self-test |
 | `navgeo.py`, `schema.py` | geodesy helpers; column lists (single source of truth) |
 | `cifp.py`, `cifp_proc.py` | FAA CIFP (ARINC 424-18) -> `procedures/{ICAO}.proc` (WP N4, see "CIFP" below); `.proc` model, writer, reference reader |
+| `osm_taxiways.py` | OpenStreetMap taxiways and aprons -> `taxiways.csv`, `aprons.csv`, `TAXIWAYS-ODbL.txt` (WP W8a, see "OSM taxiways" below) |
 | `validate_navdb.py` | schema/consistency validation + spot checks |
 | `wmm/` | vendored NOAA files: `WMM2025.COF`, `WMM2025_TEST_VALUES.txt`, README (public domain) |
 | `tests/` | `unittest` suite with tiny fixtures in `tests/fixtures/` |
@@ -150,3 +151,38 @@ Exactly DATA section 6: `MAGVAR01`, `<f` epoch, six `<h` (-90, 90, -180, 180, 1,
 validator checks headers, enumerations, ranges, reciprocal runways, heading == start->end bearing,
 threshold == displaced distance, `hard` vs surface, magvar.bin layout, and (with `--spot-checks`)
 KSFO, KPDX and KOTH runways/headings/ILS records looked up in the data.
+
+## OSM taxiways (WP W8a)
+
+```bash
+cd flightsim/tools/nav
+python3 osm_taxiways.py --nav-dir ../../data/nav                        # every airport with a hard runway
+python3 osm_taxiways.py --nav-dir ../../data/nav --airports KPDX,KOTH   # a subset
+python3 osm_taxiways.py --nav-dir ../../data/nav --osm-file kpdx.osm    # saved OSM XML, no network
+python3 osm_taxiways.py --nav-dir ../../data/nav --offline              # cached answers only
+python3 -m unittest -v tests.test_osm_taxiways                          # offline tests (fixtures)
+```
+
+Reads `airports.csv` and `runways.csv` in `--nav-dir`, and writes `taxiways.csv`, `aprons.csv` and
+`TAXIWAYS-ODbL.txt` there (DATA.md 5.8-5.10). It also adds `osm_taxiways = <date>` to `nav.ini`, and
+with `--attribution FILE` it appends the ODbL line to an existing `ATTRIBUTION.txt`.
+
+- **Source:** the Overpass API, `https://overpass-api.de/api/interpreter` (`--overpass-url`). It
+  sends one POST per airport with a hard runway, covering the runways' box plus 1.5 km
+  (`--margin-m`), and asks for `way["aeroway"~"^(taxiway|taxilane|apron)$"]`. Fair use: at least 1 s
+  between queries (`--sleep`). HTTP 429, 5xx and timeouts retry after 5, 10, 20 and 40 s. An
+  airport that still fails is skipped, and the tool exits 1 only when no airport answered.
+- **Cache:** `cache/osm/<ICAO>-<YYYYMMDD>.osm` (git-ignored). The same day reuses it, and
+  `--offline` takes the newest file.
+- **Rules:** taxiways and taxilanes are dropped when `area=yes` or when a lifecycle tag
+  (`disused`, `abandoned`, `construction`, `proposed`) is set to anything other than `no`. Ways
+  are split at the nodes they share. Width is the `width` tag (3-80 m), otherwise 23 / 15 / 10.5
+  m at large, medium and small airports, and 7.5 m for taxilanes. Aprons are closed ways.
+  Multipolygon relations are skipped and counted.
+- **OSM API:** the planning extracts and the KOTH test fixture came from single
+  `api.openstreetmap.org/api/0.6/map?bbox=...` calls. Its usage policy allows no bulk reads, so
+  use it for one airport at most. The full region goes through Overpass in the `datapack`
+  workflow.
+- **Licence:** the two CSVs are a derivative database of OpenStreetMap and are shared under ODbL
+  1.0 (PLAN D23, TAXIWAYS.md section 2). The game shows "Taxiways (c) OpenStreetMap contributors
+  (ODbL)" on the About page.

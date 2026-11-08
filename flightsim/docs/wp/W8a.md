@@ -1,4 +1,4 @@
-Status: ready
+Status: done (needs device test)
 # W8a: Taxiways from OpenStreetMap: extraction, pack format, loader
 
 Phase 4 · Effort: high · Depends: OD6 (answered: OpenStreetMap, PLAN D23) · Branch: `wp/W8a-osm-taxiways`
