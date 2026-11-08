@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 
 #include "core/Log.h"
 #include "core/Paths.h"
@@ -26,6 +27,7 @@ const char* screenName(ScreenId id) {
     case ScreenId::Settings: return "settings";
     case ScreenId::Pause: return "pause";
     case ScreenId::FlightPlan: return "flightplan";
+    case ScreenId::FlightLog: return "flightlog";
     case ScreenId::Confirm: return "confirm";
     case ScreenId::Help: return "help";
     case ScreenId::Procedure: return "procedure";
@@ -330,6 +332,9 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
     } else if (name == "settings") {
         stack_.push_back(makeMainScreen(*this));
         stack_.push_back(makeSettingsScreen());
+    } else if (name == "flightlog") {  // U2: flightlog:N opens flight N's details (1 = newest)
+        stack_.push_back(makeMainScreen(*this));
+        stack_.push_back(makeFlightLogScreen(*this, arg.empty() ? -1 : std::atoi(arg.c_str()) - 1));
     } else if (name == "pause" || name == "flightplan") {
         if (!hasFlight_) {
             error = "'" + name + "' needs a running flight";
@@ -350,8 +355,8 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
     } else {
         error = "unknown menu screen '" + name +
                 "' (main, setup, aircraft, airport[:TEXT], runway[:ICAO], start, plan[:FILE], "
-                "approach[:FILE], settings, pause, flightplan, confirm, help[:PAGE]; plan:none = "
-                "no plan)";
+                "approach[:FILE], settings, flightlog[:N], pause, flightplan, confirm, "
+                "help[:PAGE]; plan:none = no plan)";
         return false;
     }
     return true;

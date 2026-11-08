@@ -28,6 +28,8 @@ std::unique_ptr<Screen> makeApproachScreen(ApproachMode mode, const MenuSystem& 
 // N8: SIDs (sid = true) or STARs for the plan's departure / arrival runway, then the transition.
 std::unique_ptr<Screen> makeProcedureScreen(bool sid, ApproachMode mode, const MenuSystem& menu);
 std::unique_ptr<Screen> makeSettingsScreen();
+// U2: detailIndex >= 0 opens that flight's details (0 = newest; --menu flightlog:N).
+std::unique_ptr<Screen> makeFlightLogScreen(const MenuSystem& menu, int detailIndex = -1);
 std::unique_ptr<Screen> makePauseScreen();
 std::unique_ptr<Screen> makeFlightPlanScreen(const MenuSystem& menu);
 // `onYes` empty = information box with a single OK button.

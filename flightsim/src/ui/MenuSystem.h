@@ -47,7 +47,8 @@ enum class ScreenId {
     FlightPlan,
     Confirm,
     Help,
-    Procedure  // N8: SID / STAR / transition lists
+    Procedure,  // N8: SID / STAR / transition lists
+    FlightLog   // U2: past flights (main menu)
 };
 const char* screenName(ScreenId id);
 
@@ -75,6 +76,7 @@ struct MenuEnv {
     std::string aircraftDir;            // assets/aircraft
     std::vector<std::string> planDirs;  // data/plans, assets/plans (earlier wins)
     std::string lastFlightPath;         // conf/last_flight.ini; empty or missing = no "resume"
+    std::string flightLogPath;          // U2: conf/flightlog.csv; empty = no log
     std::string menuPlanPath;           // where a menu-built plan is written (conf/menu_plan.fms)
     std::string navDir;                 // <data>/nav, for real approach procedures
     std::string controlsDefaultsPath;   // assets/controls_default.ini (Help, H6)

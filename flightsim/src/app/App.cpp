@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 
+#include "app/FlightLog.h"      // U2
 #include "app/FrameStats.h"     // X3
 #include "app/GpuClock.h"       // X3c
 #include "app/RenderQuality.h"  // X3
@@ -105,9 +106,12 @@ int runHeadless(Simulation& sim, const CliOptions& opt, terrain::TerrainService*
 // simulation and the terrain prefetch. Returns false with `error` when the simulation refuses.
 using BeginFlightFn = std::function<bool(const Scenario&, std::string&)>;
 
+// U2: called once per frame after the simulation step (the flight log recorder).
+using FrameHookFn = std::function<void()>;
+
 int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 terrain::TerrainService* terrainSvc, Settings& settings,
-                const BeginFlightFn& beginFlight, bool startInMenu) {
+                const BeginFlightFn& beginFlight, bool startInMenu, const FrameHookFn& onFrame) {
     Window window;
     WindowConfig wc;
     wc.width = opt.windowWidth;
@@ -267,6 +271,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     menuEnv.aircraftDir = paths.asset("assets/aircraft");
     menuEnv.planDirs = {paths.data("plans"), paths.asset("assets/plans")};
     menuEnv.lastFlightPath = paths.conf("last_flight.ini");
+    menuEnv.flightLogPath = paths.conf("flightlog.csv");  // U2
     menuEnv.menuPlanPath = paths.conf("menu_plan.fms");
     menuEnv.navDir = paths.data("nav");
     menuEnv.controlsDefaultsPath = paths.asset("assets/controls_default.ini");
@@ -567,6 +572,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                             !as.wowAny && as.valid);
             if (mins > 0) messages.postf("LOW FUEL %d MIN", mins);
         }
+        if (onFrame) onFrame();  // U2: flight log
         gpwsToneBuf.clear();
         {  // X2: GPWS-lite; text callouts go to the message queue, tones to S1
             gpws.update(sim.aircraft(), sim.profile(), &sim.navState(), sim.terrain(),
@@ -892,7 +898,54 @@ int App::run() {
     // H5: no --scenario / --resume on an interactive run (the device launch) shows the main menu.
     const bool startInMenu = interactiveRun && options_.scenarioPath.empty() && !options_.resume;
     bool flightBegun = false;  // a menu-started flight exists (else the default one stays unsaved)
+
+    // U2: the flight log (interactive runs only, like last_flight.ini). A flight ends when the
+    // next one starts, at QUIT or at a crash; a flight the game did not close (Select + Start)
+    // is recovered from the open-flight file at the next start.
+    FlightRecorder recorder;
+    const std::string logPath = paths.conf("flightlog.csv");
+    const std::string openLogPath = paths.conf("flightlog_open.csv");
+    double recorderSimS = 0;
+    if (interactiveRun && recoverOpenFlight(openLogPath, logPath))
+        LOG_INFO("flight log: recorded a flight the game did not close (GAME CLOSED)");
+    auto beginLoggedFlight = [&]() {
+        if (!interactiveRun) return;
+        recorder.begin(sim.scenario(), sim.profile().id, formatUtcNow(), sim.aircraft());
+        recorderSimS = sim.aircraft().simTimeS;
+    };
+    auto endLoggedFlight = [&](FlightEnd why) {
+        if (!recorder.active()) return;
+        FlightLogEntry e = recorder.end(why);
+        fillArrival(e, recorder.touchdownLatDeg(), recorder.touchdownLonDeg(), navDb);
+        if (appendFlightLog(logPath, e))
+            LOG_INFO("flight log: %s", flightLogRow(e).c_str());
+        else
+            LOG_WARN("flight log: cannot write %s", logPath.c_str());
+        std::remove(openLogPath.c_str());
+    };
+    const FrameHookFn onFrame = [&]() {
+        if (!recorder.active()) return;
+        const AircraftState& s = sim.aircraft();
+        const double dt = s.simTimeS - recorderSimS;  // sim time: nothing while paused
+        recorderSimS = s.simTimeS;
+        recorder.update(s, std::max(0.0, dt), dt <= 0.0);
+        if (s.crashed) {
+            endLoggedFlight(FlightEnd::Crash);
+            return;
+        }
+        if (recorder.checkpointDue()) {  // every 60 s of flight and at each touchdown
+            FlightLogEntry e = recorder.entry();
+            e.outcome = "IN FLIGHT";
+            if (e.landings > 0)
+                fillArrival(e, recorder.touchdownLatDeg(), recorder.touchdownLonDeg(), navDb);
+            if (!writeOpenFlight(openLogPath, e))
+                LOG_WARN("flight log: cannot write %s", openLogPath.c_str());
+            recorder.checkpointDone();
+        }
+    };
+
     const BeginFlightFn beginFlight = [&](const Scenario& sc, std::string& err) {
+        endLoggedFlight(FlightEnd::NewFlight);  // U2: before the simulation forgets it
         if (const Airport* ap = navDb.findAirport(sc.airportIdent)) {
             terrain.setElevationM(static_cast<float>(ftToM(ap->elevFt)));
             world::registerAirportFlatten(*ap, terrainQuery);
@@ -900,6 +953,7 @@ int App::run() {
         applyWeatherOptions();  // X1
         if (!sim.init(sc, "", err)) return false;
         flightBegun = true;
+        beginLoggedFlight();  // U2
         if (terrainSvc) {
             terrainSvc->prefetch(sim.startCondition().latDeg, sim.startCondition().lonDeg,
                                  15000.0f);
@@ -907,9 +961,11 @@ int App::run() {
         }
         return true;
     };
+    if (!startInMenu) beginLoggedFlight();  // U2: --scenario / --resume start flying at once
     const int rc = options_.headless ? runHeadless(sim, options_, terrainSvc.get())
                                      : runWindowed(sim, options_, paths, terrainSvc.get(), settings,
-                                                   beginFlight, startInMenu);
+                                                   beginFlight, startInMenu, onFrame);
+    endLoggedFlight(FlightEnd::Quit);                                  // U2
     if (rc == 0 && interactiveRun && (!startInMenu || flightBegun)) {  // P3: remember the flight
         Scenario last = sim.scenario();
         last.aircraftId = sim.profile().id;
