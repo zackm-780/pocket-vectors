@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.2.3
+
+Fixes from the owner's 2026-11-08 flights, runways that meet the terrain and each other smoothly,
+and a flight log.
+
+- **Flight director follows the GPS track.** A mode button pressed with the AP and the FD off
+  turns the FD on in ROL with NAV armed, and NAV only captured on a closing intercept. Off course
+  and heading away, the FD held the wings level for good, so following it took you away from the
+  track (from the KPDX-KOTH cruise start: 26 NM off after 15 minutes). NAV armed over ROL now
+  captures at once and flies its own intercept (up to 45 degrees). Over HDG it still waits for
+  your intercept heading. NAV no longer captures on the ground, so the FD does not ask for bank
+  on the takeoff roll. A pilot following the FD now tracks the plan as closely as the AP does.
+- **Smooth runway intersections** (W1b). Each runway was flat at the mean of its two end
+  elevations, and where two crossed, one simply ended in a step: 0.6 m where 10R/28L meets 03/21
+  at KPDX, enough to wreck a fast roll down 28L. Runways now follow the grade between their ends,
+  crossing runways blend into each other with no step (under about 1:130), the runway areas blend
+  into the terrain over 150 m instead of 60 m, and the pavement, markings and lights sit exactly
+  on the ground the wheels feel. Every airport with crossing runways gets the same treatment.
+- **Flight log** (U2): FLIGHT LOG on the main menu lists every flight (when, the aircraft, from
+  and to, how long and how it ended: LANDED, CRASHED, IN FLIGHT ...), with the details (distance,
+  maximum altitude, landings, the last touchdown in fpm, fuel used) on A. The log is
+  `flightsim/conf/flightlog.csv`, so an update keeps it. A flight that ends with Select + Start is
+  logged as GAME CLOSED at the next start.
+- **Flight plan screens:** the NO FLIGHT PLAN line, the divider and the route summary no longer
+  sit behind the APPROACH and CLEAR PLAN rows, and in flight the DIRECT TO hint and the fuel line
+  no longer overlap other text.
+- README screenshots from the current build.
+
 ## 1.2.2
 
 - **Pocket Vectors in the Ports menu:** the launch script is now `PocketVectors.sh`, with box art
