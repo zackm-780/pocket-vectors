@@ -51,6 +51,7 @@ session can be thrown away and a fresh one picks up from the board.
 | 2b | T2 (owner, done 2026-11-05), then X3c (refined 2026-11-07: parts A–E, one pull request) | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor, moves MED toward 60 and shows the flight data in the chase view | owner tags **v1.2.0**, then **v1.2.1** for X3c |
 | 2c | N10 (owner, 2026-11-08: arcs between GPS legs) | alone: it shares `Autopilot.cpp` and the navigator with 1.2.3 | N10 merged | the owner decides: **v1.2.4**, or with v1.3.0 |
 | 3 | N8, N9, H8, W7, R3, H9, U2, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first. H9 waits for F5 and X3c | T3 done | owner tags **v1.3.0** |
+| 4 | W8a, W8b, W8c (owner, 2026-11-08: taxiways; [../TAXIWAYS.md](../TAXIWAYS.md)) | one at a time: each needs the one before | W8c merged and device-checked | the owner decides |
 
 ## Cards
 
@@ -78,6 +79,7 @@ session can be thrown away and a fresh one picks up from the board.
 | [H9](H9.md) | V-speed and flap bugs on the speed tape | 3 | X3c, F5 | high | builder | `Hud.cpp`, `HudLogic.*`, `core/AircraftProfile.h`, `core/AircraftState.h`, `assets/aircraft/*.ini` |
 | [U2](U2.md) | Flight log | 3 | none | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T3](T3.md) | Device session 3: phase-3 build | 3 | phase 3 merged | | owner | `docs/DEVICE.md` |
+| [W8](W8.md) | Taxiways from OpenStreetMap (outline: W8a data, W8b ground, W8c drawing) | 4 | W1b merged, OD6 | high | planner refines, then builder | `tools/nav/`, `src/nav/NavDb*`, `core/NavTypes.h`, `src/world/terrain/`, `src/world/AirportGeometry.*`, `src/world/AirportRenderer.*` |
 
 **Hot files.** Two cards in flight at the same time must not share an entry in the Hot files
 column. Settings rows (`Settings.*`, `assets/settings_default.ini`, `FlightScreens.cpp`) count as
@@ -100,6 +102,7 @@ exists. The builder sets `done` in its own pull request, so the merge marks it d
 | OD3 | Add Quick Flight and landing scores (a suggestion, not in PLAN.md) | U1 | U1 waits |
 | OD4 | Fetch METARs over Wi-Fi at launch | X5 | Off by default, a setting turns it on |
 | OD5 | Pin the GPU clock: the 1.2.1 device run read 420 MHz all session (the lowest of 420–648 MHz, `simple_ondemand` governor). The launch script runs as root and could set the devfreq governor to `performance` (or raise `min_freq`) while the game runs, at a battery and heat cost; it would likely lift the 30 fps cases under an overcast layer and in the chase orbit | a launch-script card, not yet written | Leave the governor alone |
+| OD6 | Where taxiway geometry comes from: OpenStreetMap (ODbL: attribution, the taxiway layer of the pack shared under ODbL), the X-Plane Scenery Gateway (GPL), or procedural stubs only | W8 | **Answered 2026-11-08: OpenStreetMap** (PLAN.md D23, [../TAXIWAYS.md](../TAXIWAYS.md)) |
 
 ## Not planned
 
