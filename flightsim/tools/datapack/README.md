@@ -14,15 +14,17 @@ flightsim/tools/datapack/build_datapack.sh --out /tmp/pack --bbox -124.4,43.3,-1
 ```
 
 Options: `--out DIR`, `--jobs N`, `--world` (opt-in world layer), `--coarse-bbox BOX|none` (regional levels 5-6, default -128,40,-114,50), `--skip-world`, `--preset NAME`, `--bbox W,S,E,N`, `--min-level`,
-`--max-level`, `--cifp-airports`, `--venv DIR`, `--terrain-cache DIR`, `--world-cache DIR`,
+`--max-level`, `--cifp-airports`, `--osm-taxiways` / `--no-osm-taxiways` (OpenStreetMap taxiways and
+aprons into `nav/taxiways.csv` and `nav/aprons.csv`, ODbL; on by default, W8a), `--venv DIR`, `--terrain-cache DIR`, `--world-cache DIR`,
 `--keep-world-cache`. It creates `tools/.datapack-venv` (git-ignored), caches downloads in `tools/terrain/cache` and `tools/nav/cache`, and is resumable (existing
 tiles are skipped). At the end it prints pack size, file counts and the largest directory.
 
 ## GitHub Actions: workflow `datapack`
 
 Actions tab, "datapack", "Run workflow". Inputs: `preset` (default `pdx_oth`; also `bayarea`,
-`mthood`, `tam_diablo`), `include_world` (default off), and optional `bbox`
-(`west,south,east,north`). A non-empty bbox is used instead of the preset. It uploads the artifact
+`mthood`, `tam_diablo`), `include_world` (default off), `osm_taxiways` (default on: one Overpass
+query per airport, about 4 minutes for `pdx_oth`; the build fails if no airport answers), and
+optional `bbox` (`west,south,east,north`). A non-empty bbox is used instead of the preset. It uploads the artifact
 `flightsim-data-<region>-<date>`, kept 30 days. The artifact holds one `data/` folder (`terrain/`,
 `nav/`, `ATTRIBUTION.txt`, `README.txt`), not a zip inside the download: unzip the download once
 and copy `data/` into `flightsim/` on the SD card, or pass it to `tools/sdcard/make_sdcard_zip.py`.

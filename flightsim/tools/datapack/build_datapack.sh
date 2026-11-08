@@ -21,6 +21,7 @@ COARSE_MAX_LEVEL=6
 KEEP_WORLD_CACHE=0
 VENV="$TOOLS/.datapack-venv"
 CIFP_AIRPORTS=""
+OSM_TAXIWAYS=1
 TERRAIN_CACHE="$TOOLS/terrain/cache"
 WORLD_CACHE=""
 
@@ -38,6 +39,8 @@ Usage: build_datapack.sh [options]
   --min-level N        region min level (default 7)
   --max-level N        region max level (default 10)
   --cifp-airports L    only convert procedures for these ICAOs (quick test), e.g. KOTH,KPDX
+  --osm-taxiways       extract OpenStreetMap taxiways and aprons (nav/taxiways.csv, ODbL; the default)
+  --no-osm-taxiways    skip them (the pack then draws generic aprons, as before 1.3)
   --venv DIR           python venv to create/use (default tools/.datapack-venv)
   --terrain-cache DIR  terrain download cache (default tools/terrain/cache)
   --world-cache DIR    GLO-90 cache for the world layer (default <terrain-cache>-world, deleted afterwards)
@@ -57,6 +60,8 @@ while [ $# -gt 0 ]; do
     --min-level) MIN_LEVEL="$2"; shift 2 ;;
     --max-level) MAX_LEVEL="$2"; shift 2 ;;
     --cifp-airports) CIFP_AIRPORTS="$2"; shift 2 ;;
+    --osm-taxiways) OSM_TAXIWAYS=1; shift ;;
+    --no-osm-taxiways) OSM_TAXIWAYS=0; shift ;;
     --venv) VENV="$2"; shift 2 ;;
     --terrain-cache) TERRAIN_CACHE="$2"; shift 2 ;;
     --world-cache) WORLD_CACHE="$2"; shift 2 ;;
@@ -121,6 +126,21 @@ if [ -n "$CIFP_AIRPORTS" ]; then NAV_ARGS+=(--cifp-airports "$CIFP_AIRPORTS"); f
 step "nav: validate"
 "$PY" "$TOOLS/nav/validate_navdb.py" "$OUT/nav" --spot-checks --wmm-selftest 2>&1 | tail -n 8
 
+# --- taxiways (W8a): OpenStreetMap through the Overpass API, one query per airport -----------------
+OSM_ATTR=""
+if [ "$OSM_TAXIWAYS" -eq 1 ]; then
+  step "nav: OSM taxiways (Overpass, about one query a second)"
+  "$PY" "$TOOLS/nav/osm_taxiways.py" --nav-dir "$OUT/nav" 2>&1 | tail -n 15
+  if [ "$(wc -l < "$OUT/nav/taxiways.csv")" -gt 1 ]; then
+    OSM_ATTR="
+Taxiways and aprons (nav/taxiways.csv, nav/aprons.csv): (c) OpenStreetMap contributors.
+  Extracted through the Overpass API. Licence: Open Database License (ODbL) 1.0; these two
+  files are shared under the ODbL, see nav/TAXIWAYS-ODbL.txt and
+  https://www.openstreetmap.org/copyright
+"
+  fi
+fi
+
 # --- attribution + readme -----------------------------------------------------------------------
 NASR_CYCLE="$(grep -h -i -E '^(faa_nasr|nasr)' "$OUT/nav/nav.ini" 2>/dev/null | head -n 1 || true)"
 CIFP_CYCLE="$(grep -h -i -E '^faa_cifp' "$OUT/nav/nav.ini" 2>/dev/null | head -n 1 || true)"
@@ -158,6 +178,7 @@ Magnetic variation (nav/magvar.bin): World Magnetic Model WMM2025, NOAA NCEI and
   Geological Survey. Public domain (US Government work).
   https://www.ncei.noaa.gov/products/world-magnetic-model
 ATTR
+if [ -n "$OSM_ATTR" ]; then printf '%s' "$OSM_ATTR" >> "$OUT/ATTRIBUTION.txt"; fi
 
 cat > "$OUT/README.txt" <<'RDM'
 flightsim data pack
@@ -183,6 +204,11 @@ echo "files total: $(find "$OUT" -type f | wc -l)"
 echo "  terrain/h tiles: $(find "$OUT/terrain/h" -type f 2>/dev/null | wc -l)"
 echo "  terrain/c tiles: $(find "$OUT/terrain/c" -type f 2>/dev/null | wc -l)"
 echo "  nav/procedures:  $(find "$OUT/nav/procedures" -type f 2>/dev/null | wc -l)"
+for f in taxiways.csv aprons.csv; do
+  if [ -f "$OUT/nav/$f" ]; then
+    echo "  nav/$f: $(( $(wc -l < "$OUT/nav/$f") - 1 )) rows, $(du -k "$OUT/nav/$f" | cut -f1) KB"
+  fi
+done
 echo "directories: $(find "$OUT" -type d | wc -l)"
 echo "max entries in one directory (FAT32 limit 65,534 per folder; warn above 16,000):"
 MAXLINE="$(find "$OUT" -type d -print0 | while IFS= read -r -d '' d; do
