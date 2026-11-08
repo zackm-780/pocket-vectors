@@ -20,6 +20,7 @@
 | ILS, fixes, airways (US) | **FAA NASR** 28-day subscription, CSV format | US Government, public domain | N1 |
 | Instrument procedures (US) | **FAA CIFP**, ARINC 424 | US Government, public domain | N4 |
 | Magnetic variation | **WMM2025** (NOAA NCEI) | Public domain | N1 |
+| Taxiways, aprons (planned, W8) | **OpenStreetMap** `aeroway=taxiway / taxilane / apron / holding_position` via the Overpass API ([TAXIWAYS.md](TAXIWAYS.md)) | **ODbL 1.0**: attribution "© OpenStreetMap contributors"; the extracted files are shared under ODbL (PLAN D23) | W8a |
 
 URLs, bucket layouts and tile naming must be **verified by the implementing WP** before relying on
 them. Record the verified details in the tool's `README.md`. If a source is unreachable from the
