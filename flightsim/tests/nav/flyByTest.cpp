@@ -127,8 +127,8 @@ TEST_CASE("nav: arc guidance: XTK sign, DTK along the tangent, done past T2") {
         CHECK(go.xtkNm == doctest::Approx(turnDeg > 0 ? -0.1 : 0.1).epsilon(0.02));
         // Along the arc the DTK turns with the swept angle.
         const ArcGuide gm = arcGuide(t, mid);
-        CHECK(std::fabs(wrap180(gm.dtkTrueDeg -
-                                (t.inCourseTrueDeg + t.turnDeg * gm.progress01))) < 0.2);
+        CHECK(std::fabs(wrap180(gm.dtkTrueDeg - (t.inCourseTrueDeg + t.turnDeg * gm.progress01))) <
+              0.2);
         CHECK(gm.progress01 > 0.3);
         CHECK(gm.progress01 < 0.7);
         CHECK_FALSE(arcGuide(t, mid).done);
