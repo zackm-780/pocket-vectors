@@ -13,6 +13,9 @@ jobs:
       - name: SD-card zip script
         working-directory: flightsim
         run: python3 tools/sdcard/test_make_sdcard_zip.py
+      - name: OSM taxiway extraction (offline fixtures)
+        working-directory: flightsim/tools/nav
+        run: python3 -m unittest -v tests.test_osm_taxiways
 
   desktop:
     runs-on: ubuntu-24.04

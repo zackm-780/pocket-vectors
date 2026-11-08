@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Overpass API (synthetic test fixture)">
+<!-- Synthetic edge cases for test_osm_taxiways.py, in Overpass order (ways, then nodes).
+     Airport XEDG; see the test for the expected rows. -->
+  <way id="101">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <nd ref="4"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="ref" v="A"/>
+  </way>
+  <way id="102">
+    <nd ref="3"/>
+    <nd ref="5"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="ref" v="B"/>
+  </way>
+  <way id="103">
+    <nd ref="6"/>
+    <nd ref="2"/>
+    <nd ref="7"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="ref" v="C"/>
+  </way>
+  <way id="104">
+    <nd ref="8"/>
+    <nd ref="9"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="disused" v="yes"/>
+  </way>
+  <way id="105">
+    <nd ref="10"/>
+    <nd ref="11"/>
+    <nd ref="12"/>
+    <nd ref="10"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="area" v="yes"/>
+  </way>
+  <way id="106">
+    <nd ref="13"/>
+    <nd ref="14"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="width" v="75 ft"/>
+  </way>
+  <way id="107">
+    <nd ref="15"/>
+    <nd ref="16"/>
+    <nd ref="17"/>
+    <tag k="aeroway" v="apron"/>
+  </way>
+  <way id="108">
+    <nd ref="18"/>
+    <nd ref="19"/>
+    <nd ref="20"/>
+    <nd ref="21"/>
+    <nd ref="18"/>
+    <tag k="aeroway" v="apron"/>
+    <tag k="surface" v="concrete"/>
+  </way>
+  <way id="109">
+    <nd ref="22"/>
+    <nd ref="23"/>
+    <tag k="aeroway" v="taxilane"/>
+    <tag k="surface" v="concrete"/>
+  </way>
+  <way id="110">
+    <nd ref="24"/>
+    <nd ref="25"/>
+    <nd ref="26"/>
+    <nd ref="24"/>
+    <nd ref="27"/>
+    <tag k="aeroway" v="taxiway"/>
+    <tag k="construction" v="no"/>
+  </way>
+  <way id="111">
+    <nd ref="28"/>
+    <nd ref="29"/>
+    <tag k="aeroway" v="taxiway"/>
+  </way>
+  <relation id="201">
+    <member type="way" ref="108" role="outer"/>
+    <tag k="aeroway" v="apron"/>
+    <tag k="type" v="multipolygon"/>
+  </relation>
+  <node id="1" lat="10.0030000" lon="19.9960000"/>
+  <node id="2" lat="10.0030000" lon="19.9980000"/>
+  <node id="3" lat="10.0030000" lon="20.0000000"/>
+  <node id="4" lat="10.0030000" lon="20.0020000"/>
+  <node id="5" lat="10.0010000" lon="20.0000000"/>
+  <node id="6" lat="10.0040000" lon="19.9980000"/>
+  <node id="7" lat="10.0020000" lon="19.9980000"/>
+  <node id="8" lat="10.0050000" lon="19.9960000"/>
+  <node id="9" lat="10.0050000" lon="19.9970000"/>
+  <node id="10" lat="10.0060000" lon="19.9960000"/>
+  <node id="11" lat="10.0060000" lon="19.9970000"/>
+  <node id="12" lat="10.0065000" lon="19.9965000"/>
+  <node id="13" lat="10.0020000" lon="20.0030000"/>
+  <node id="14" lat="10.0020000" lon="20.0040000"/>
+  <node id="15" lat="10.0070000" lon="20.0000000"/>
+  <node id="16" lat="10.0070000" lon="20.0010000"/>
+  <node id="17" lat="10.0075000" lon="20.0005000"/>
+  <node id="18" lat="10.0040000" lon="20.0020000"/>
+  <node id="19" lat="10.0040000" lon="20.0030000"/>
+  <node id="20" lat="10.0050000" lon="20.0030000"/>
+  <node id="21" lat="10.0050000" lon="20.0020000"/>
+  <node id="22" lat="10.0045000" lon="20.0025000"/>
+  <node id="23" lat="10.0045000" lon="20.0028000"/>
+  <node id="24" lat="10.0010000" lon="19.9960000"/>
+  <node id="25" lat="10.0012000" lon="19.9965000"/>
+  <node id="26" lat="10.0008000" lon="19.9965000"/>
+  <node id="27" lat="10.0005000" lon="19.9960000"/>
+  <node id="28" lat="11.0000000" lon="21.0000000"/>
+  <node id="29" lat="11.0000000" lon="21.0010000"/>
+</osm>
