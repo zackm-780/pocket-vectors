@@ -1,4 +1,4 @@
-// 1.2.3 (owner, 2026-11-08): "Flight director points the wrong way. If I follow it, I get off the
+// 1.3 (owner, 2026-11-08): "Flight director points the wrong way. If I follow it, I get off the
 // GPS track." A scripted pilot who flies the FPV onto the FD cue (AP off, FD on, NAV) must track a
 // GPS plan with turns as closely as the autopilot does, from the entry the device used: NAV pressed
 // with the AP and the FD off (the FD comes on in ROL with NAV armed) while off course and moving
@@ -142,11 +142,11 @@ TEST_CASE("sim: FD-following pilot joins and tracks the GPS plan like the AP (c1
                     fd.maxXtkNm, fd.rmsXtkNm, fd.legChanges);
         CHECK_FALSE(fd.crashed);
         CHECK(ap.intercepted);
-        CHECK(fd.intercepted);  // before 1.2.3: ROL (NAV) held the wings level, never joined
+        CHECK(fd.intercepted);  // before 1.3: ROL (NAV) held the wings level, never joined
         const bool c172 = std::string(c.aircraft) == "c172p";
         if (c172) {  // the 737 reaches the end of the 6.9 NM first leg before it can join
             CHECK(ap.joinedPressLeg);
-            CHECK(fd.joinedPressLeg);  // before 1.2.3: only once the leg sequenced past its fix
+            CHECK(fd.joinedPressLeg);  // before 1.3: only once the leg sequenced past its fix
             CHECK(fd.interceptS < 120.0);
         }
         CHECK(fd.legChanges >= 5);  // flew the plan's turns
@@ -161,7 +161,7 @@ TEST_CASE("sim: FD-following pilot joins and tracks the GPS plan like the AP (c1
 }
 
 // Manual: the device entry on the real KPDX-KOTH plan. The cruise start is about 0.8 NM right of
-// the first leg (KPDX -> UBG, 231 true) heading 299, away from it. Before 1.2.3 an FD-following
+// the first leg (KPDX -> UBG, 231 true) heading 299, away from it. Before 1.3 an FD-following
 // pilot was 26 NM off course 15 minutes later.
 TEST_CASE("sim: fd real data: KPDX-KOTH, NAV pressed off course, FD-following pilot joins") {
     const char* env = std::getenv("FSIM_REAL_DATA_DIR");

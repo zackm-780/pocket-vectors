@@ -1,10 +1,18 @@
 # Changelog
 
-## 1.2.3
+## 1.3.0
 
-Fixes from the owner's 2026-11-08 flights, runways that meet the terrain and each other smoothly,
-and a flight log.
+Fly-by turns flown as arcs, fixes from the owner's 2026-11-08 flights, runways that meet the
+terrain and each other smoothly, and a flight log. (Planned as 1.2.3 and 1.2.4; shipped together
+as 1.3, owner 2026-11-08.)
 
+- **GPS turns are arcs** (N10). At each fly-by waypoint the route turns along an arc tangent to
+  both legs, flown at a constant bank: 15 degrees in the light aircraft, 20 in the jets (the
+  autopilot's bank limit less 5, so it keeps room for wind). The AP and the flight director fly
+  it with the bank fed forward and roll out on the next leg without overshoot, instead of
+  cutting a sharp corner and intercepting the next leg. The map page, the mini nav and the route
+  overlay draw the arcs, and the nav box shows the course you are turning onto. Turns over 135
+  degrees, fly-over waypoints and course or hold legs are flown as before.
 - **Flight director follows the GPS track.** A mode button pressed with the AP and the FD off
   turns the FD on in ROL with NAV armed, and NAV only captured on a closing intercept. Off course
   and heading away, the FD held the wings level for good, so following it took you away from the

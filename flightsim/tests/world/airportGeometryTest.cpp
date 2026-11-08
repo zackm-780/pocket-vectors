@@ -578,7 +578,7 @@ TEST_CASE("world: apron and buildings sit beside a hard runway") {
     CHECK(buildAirportExtras(grass).empty());
 }
 
-// ---- W1b (1.2.3): graded runways, crossings, pavement on the composed surface -------------------
+// ---- W1b (1.3): graded runways, crossings, pavement on the composed surface -------------------
 
 namespace {
 

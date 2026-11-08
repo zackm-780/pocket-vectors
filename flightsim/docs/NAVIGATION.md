@@ -225,7 +225,7 @@ in each profile's `[autopilot]` section, with sane category defaults (piston / t
   which scales the angular beam by distance (no S-turns near the threshold). HDG and the track errors become a
   turn rate (`err / tau`) and then the coordinated bank for that rate, clamped to 20 / 25 deg.
 - **Capture:** NAV / LOC capture when closing and `|xtk| <= R (1 - cos(rel)) + 0.1 NM` (R from the bank
-  limit); LOC also needs `|cdi| <= 1`. NAV armed over ROL captures at once (1.2.3): ROL has no
+  limit); LOC also needs `|cdi| <= 1`. NAV armed over ROL captures at once (1.3): ROL has no
   intercept heading, so the NAV law flies its own intercept; over HDG it waits for the closing
   intercept. NAV never captures with weight on wheels. GS needs LOC active and `|gsDeflection| <= 0.5` (from below or within one
   dot). ALT* starts at `max(100 ft, |VS| / 6)` toward the bug and ALT holds within 25 ft.

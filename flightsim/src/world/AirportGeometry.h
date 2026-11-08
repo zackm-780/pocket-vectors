@@ -63,7 +63,7 @@ struct RunwayInfo {
     double displacedM = 0;      // start -> threshold
     double widthM = 0;
     double elevM = 0;  // mean elevation of the pavement (the two ends)
-    // W1b (1.2.3): the pavement follows a straight grade between the pair's primary landing
+    // W1b (1.3): the pavement follows a straight grade between the pair's primary landing
     // threshold (gradeElevM[0]) and its far end (gradeElevM[1]), clamped beyond them.
     LatLon grade[2];
     double gradeElevM[2] = {0, 0};
@@ -194,7 +194,7 @@ double papiEyeElevationDeg(const RunwayFrame& frame, const RunwayInfo& runway, c
 int flasherActiveIndex(double timeS);
 
 // ---- terrain flattening -----------------------------------------------------------------------
-// W1b (1.2.3): graded along the runway, blending to the DEM over 150 m (it was a flat area with a
+// W1b (1.3): graded along the runway, blending to the DEM over 150 m (it was a flat area with a
 // 60 m blend, a visible step where the DEM differs from the published elevations).
 FlattenArea runwayFlattenArea(const RunwayInfo& runway, double lateralMarginM = 50.0,
                               double endMarginM = 100.0, float blendM = 150.0f);

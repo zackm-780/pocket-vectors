@@ -1,5 +1,5 @@
 #pragma once
-// 1.2.3: a scripted pilot who follows the flight director (AP off, FD on), for the FD flights in
+// 1.3: a scripted pilot who follows the flight director (AP off, FD on), for the FD flights in
 // FdFollowTest.cpp and FlyByFlightTest.cpp (N10).
 #include <algorithm>
 

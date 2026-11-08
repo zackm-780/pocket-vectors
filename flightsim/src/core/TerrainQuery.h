@@ -26,7 +26,7 @@ struct FlattenArea {
     double latDeg[4] = {0, 0, 0, 0}, lonDeg[4] = {0, 0, 0, 0};  // convex quad, CCW
     float elevM = 0;
     float blendM = 60;  // blend distance back to natural terrain
-    // Additive (W1b, 1.2.3): a graded area follows a straight grade along a centerline instead
+    // Additive (W1b, 1.3): a graded area follows a straight grade along a centerline instead
     // of the flat elevM. The surface at a point is the grade at its projection onto the segment
     // gradeLatDeg/gradeLonDeg[0] -> [1], clamped beyond the ends. elevM stays the mean of the
     // two ends for consumers that ignore grades.

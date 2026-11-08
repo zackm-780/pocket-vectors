@@ -577,7 +577,7 @@ bool Autopilot::captureOk(const AircraftState& ac, const NavState& nav, bool loc
 
 void Autopilot::updateModes(const AircraftState& ac, const NavState& nav) {
     // ---- lateral ----
-    // 1.2.3: NAV armed over ROL captures at once (airborne): ROL has no heading to intercept on,
+    // 1.3: NAV armed over ROL captures at once (airborne): ROL has no heading to intercept on,
     // and the NAV law flies its own intercept (<= max_intercept_deg). Before, ROL (NAV) held
     // the wings level until a closing intercept that never came, so a pilot who followed the FD
     // (a mode button turns it on in ROL) flew away from the GPS track. Over HDG (the pilot's

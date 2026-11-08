@@ -5,7 +5,7 @@
 // true distance to the quad (point to nearest edge or corner), so the blend ring has rounded
 // corners instead of FlatTerrain's farthest-edge-line distance.
 //
-// W1b (1.2.3): overlapping areas compose into one continuous surface. The areas apply in order of
+// W1b (1.3): overlapping areas compose into one continuous surface. The areas apply in order of
 // priority (then grade length, then quad size), lowest first, each one blending the surface built
 // so far toward its own: inside an area its surface wins, so the highest-priority area wins where
 // cores overlap, and around it the lower ones meet it through its blend ring instead of a step.
