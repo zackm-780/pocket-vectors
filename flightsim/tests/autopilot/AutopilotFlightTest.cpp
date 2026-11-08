@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #include "SimFixture.h"
@@ -223,7 +224,7 @@ TEST_CASE("sim: autopilot NAV arms off course and captures the leg on a closing 
         Autopilot& ap = f.sim.autopilot();
         bool armed = false, captured = false;
         double captureXtkNm = 0, maxXtkAfterNm = 0, captureS = 0;
-        int captureLeg = -1;
+        double establishedS = -1;
         long samples = 0;
         for (long i = 0; i < 600 * kSimHz; ++i) {
             f.sim.stepOnce();
@@ -241,10 +242,16 @@ TEST_CASE("sim: autopilot NAV arms off course and captures the leg on a closing 
                 captured = true;
                 captureS = s.simTimeS;
                 captureXtkNm = std::fabs(n.crossTrackNm);
-                captureLeg = n.activeLegIndex;
             }
-            if (captured && s.simTimeS > captureS + (jet ? 3.0 : 30.0) &&
-                n.activeLegIndex == captureLeg) {
+            // N10: once established (|XTK| < 0.1 NM after the capture), the XTK stays small for
+            // 90 s on any leg, the fly-by turn included (the captured leg alone can end within
+            // seconds now that the turns start earlier). The 737 captures 2.5 NM before a 90 degree
+            // turn on a 4.8 NM leg at 270 kt and enters the arc still 20 degrees off the track: it
+            // peaks at about 0.6 NM outside the arc (2.6 NM when the next leg is intercepted
+            // without one), so it gets 0.7 NM.
+            if (captured && establishedS < 0 && std::fabs(n.crossTrackNm) < 0.1f)
+                establishedS = s.simTimeS;
+            if (establishedS >= 0 && s.simTimeS < establishedS + 90.0) {
                 maxXtkAfterNm =
                     std::max(maxXtkAfterNm, static_cast<double>(std::fabs(n.crossTrackNm)));
                 ++samples;
@@ -256,7 +263,7 @@ TEST_CASE("sim: autopilot NAV arms off course and captures the leg on a closing 
         CHECK(captured);
         CHECK(captureXtkNm > 0.1);    // a genuine intercept, not an on-course capture
         CHECK(samples > 3 * kSimHz);  // the check below is not vacuous
-        CHECK(maxXtkAfterNm < 0.3);
+        CHECK(maxXtkAfterNm < (jet ? 0.7 : 0.3));
     }
 }
 

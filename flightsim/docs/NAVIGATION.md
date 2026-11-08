@@ -73,8 +73,18 @@ All geometry is **true** internally. Magnetic is used only for display and user 
 ### 2.3 Sequencing (N5)
 - Legs are flown as great-circle segments (TF) unless the type says otherwise.
 - **Fly-by** (default): sequence when along-track distance to the waypoint ≤ turn anticipation
-  `d = R · tan(Δψ/2)` with `R = V² / (g · tan(bank))`, V = ground speed, bank = 25° (jets) or
-  20° (light aircraft), Δψ = course change (capped at 120°).
+  `d = R · tan(Δψ/2)` plus half a roll-in (2.5 s at the ground speed), with
+  `R = V² / (g · tan(bank))`, V = ground speed, bank = min(25°, the AP's bank limit − 5°): 15°
+  for the light aircraft (limit 20°), 20° for the jets (limit 25°), Δψ = course change.
+- **Fly-by arcs (N10):** between a TF, IF or DF leg and a TF leg, with |Δψ| ≤ 135°, the turn is
+  an arc tangent to both legs: from T1 (d before the fix) to T2 (d after it), radius R, shrunk
+  when it does not fit in half of the shorter leg. From the sequence to T2 the guidance is
+  relative to the arc: DTK is its tangent, XTK the distance from it (+ = right), and NavState
+  carries `turnActive`, the feed-forward `turnBankDeg` and `legTrackTrueDeg` (the leg's own
+  course, which the nav box shows). The turn ends past T2 or more than 1 NM off the arc. Turns
+  over 135°, fly-over fixes and course or hold legs keep the plain sequence and intercept (Δψ
+  capped at 120° for the anticipation). The map page, the mini nav and the route overlay draw
+  the arcs with `NavState::turnRadiusNm`.
 - **Fly-over:** sequence when abeam (along-track ≤ 0).
 - Missed legs are not sequenced into until the MAP is passed airborne (§3.4).
 - Direct-to creates a DF leg from present position.

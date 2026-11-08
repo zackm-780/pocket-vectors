@@ -320,7 +320,10 @@ void buildNavBox(const NavState& nav, int navBoxLines, float magVarDeg, NavBoxTe
     formatDist(dist, sizeof dist, nav.distToWptNm);
     formatEte(ete, sizeof ete, nav.eteToWptS);
     formatMinimums(mins, sizeof mins, nav);
-    const int dtk = roundDeg3(trueToMagDeg(nav.desiredTrackTrueDeg, magVarDeg));
+    // N10: in a fly-by turn the box shows the course being turned onto (the leg's), not the
+    // arc's tangent, which counts through every degree of the turn.
+    const float dtkTrueDeg = nav.turnActive ? nav.legTrackTrueDeg : nav.desiredTrackTrueDeg;
+    const int dtk = roundDeg3(trueToMagDeg(dtkTrueDeg, magVarDeg));
 
     int n = 0;
     auto line = [&](const char* fmt, auto... args) {

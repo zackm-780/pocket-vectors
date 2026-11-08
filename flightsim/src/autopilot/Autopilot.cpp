@@ -677,7 +677,10 @@ float Autopilot::lateralBankCmd(const AircraftState& ac, const NavState& nav) {
                    maxAngle);
         const float wantTrack = nav.desiredTrackTrueDeg - angle;
         const float err = wrap180f(wantTrack - currentTrackDeg(ac));
-        return turnLawBankDeg(ac, err, cfg_.headingTauS);
+        // N10: in a fly-by turn the navigator's arc bank is fed forward; the law corrects around
+        // it, so the AP and the FD fly a constant-bank turn and roll out on the next leg.
+        const float feedForward = (!loc && nav.turnActive) ? nav.turnBankDeg : 0.f;
+        return feedForward + turnLawBankDeg(ac, err, cfg_.headingTauS);
     }
     }
     return 0.f;

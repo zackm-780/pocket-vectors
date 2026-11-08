@@ -57,7 +57,9 @@ private:
     void refreshCaches(const NavDatabase& db, double latDeg, double lonDeg);
     bool placeLabel(float x, float y, float w, float h);
     void drawRings(Renderer2D& r, const MapProjection& p, const AircraftState& ac);
-    void drawRoute(Renderer2D& r, const MapProjection& p, const FlightPlan& plan);
+    // N10: turnRadiusNm > 0 draws the fly-by turns as arcs (NavState::turnRadiusNm).
+    void drawRoute(Renderer2D& r, const MapProjection& p, const FlightPlan& plan,
+                   float turnRadiusNm);
     void drawAirports(Renderer2D& r, const MapProjection& p);
     void drawNavaids(Renderer2D& r, const MapProjection& p);
     void drawAircraft(Renderer2D& r, const MapProjection& p, const AircraftState& ac);

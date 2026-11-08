@@ -143,6 +143,7 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
 bool Simulation::initNavigation(std::string& error) {
     navigator_.clearPlan();
     navigator_.setAircraftCategory(profile_.category);
+    navigator_.setBankLimitDeg(autopilot_.config().bankLimitDeg);  // N10: fly-by turn bank
     const bool inAir = start_.kind != StartCondition::Kind::Runway;
     if (!scenario_.planPath.empty()) {
         const std::string path = paths_.resolveInputFile(scenario_.planPath);
