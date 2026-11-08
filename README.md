@@ -38,7 +38,7 @@ items into `Roms/PORTS`.
 ([updating](flightsim/INSTALL.md#2-updating-later), [changes](CHANGELOG.md)).
 
 The on-card folder stays `flightsim/` and the binary stays `flightsim.aarch64`, so an update keeps
-`flightsim/conf/` and `flightsim/data/`. From 1.2.1 the launch script is `PocketVectors.sh` (it was
+`flightsim/conf/` and `flightsim/data/`. From 1.2.2 the launch script is `PocketVectors.sh` (it was
 `FlightSim.sh`), so the Ports menu shows the game's name; after that update, delete the old
 `FlightSim.sh` from `Roms/PORTS`, or the game is listed twice.
 

@@ -18,8 +18,9 @@ The board was written before 1.2 took in all of Wave 6, so the cards that 1.2 fi
 |---|---|---|
 | **1.1** | Tagged `v1.1.0`. The release build failed, so there is no GitHub Release yet; the release workflow can be re-run for the tag from the Actions tab | Buttons that match the printed labels, in-game Help, the mini nav inset, world overlays |
 | **1.2** | Released as `v1.2.0` (2026-11-08) | The table below |
-| **1.2.1** | Merged (#13), device-tested 2026-11-07 (MED 59 fps in the cockpit). The launch-script rename and box art follow, then the owner tags `v1.2.1` | Device tuning (X3c): the HUD about three times faster on the CPU, the GPU clock in the log, MED's terrain detail from a texture and the sky after the terrain (toward 60 fps), and speed, altitude, VS, heading and the FMA in the chase view |
-| **After 1.2.1** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3), V-speed and flap bugs on the speed tape (H9, after F5), a flight log of past flights (U2) |
+| **1.2.1** | Released as `v1.2.1` (2026-11-08), device-tested 2026-11-07 (MED 59 fps in the cockpit) | Device tuning (X3c): the HUD about three times faster on the CPU, the GPU clock in the log, MED's terrain detail from a texture and the sky after the terrain (toward 60 fps), and speed, altitude, VS, heading and the FMA in the chase view |
+| **1.2.2** | In review (#14); the owner tags `v1.2.2` after a quick device check | The launch script `PocketVectors.sh` with box art, so the Ports menu shows the name, and a one-zip install on the release |
+| **After 1.2.2** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3), V-speed and flap bugs on the speed tape (H9, after F5), a flight log of past flights (U2) |
 
 ## Known issues
 

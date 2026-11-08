@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build one zip that unzips into the ports folder (Roms/PORTS).
 
-Python 3.8+, standard library only. The zip's top level is PocketVectors.sh (FlightSim.sh before 1.2.1), flightsim/ and, when the game
+Python 3.8+, standard library only. The zip's top level is PocketVectors.sh (FlightSim.sh before 1.2.2), flightsim/ and, when the game
 ships its box art, Imgs/PocketVectors.png for the stock Anbernic OS Ports menu.
 A data pack is required: the result must contain flightsim/data/terrain and
 flightsim/data/nav/nav.ini. Optional .fms files are copied to flightsim/data/plans/.
@@ -78,7 +78,7 @@ def materialize(path, dest):
     raise ValueError("not a zip or folder: " + path)
 
 
-# The launch script's name: PocketVectors.sh from 1.2.1, FlightSim.sh in older game zips.
+# The launch script's name: PocketVectors.sh from 1.2.2, FlightSim.sh in older game zips.
 LAUNCHERS = ("PocketVectors.sh", "FlightSim.sh")
 
 

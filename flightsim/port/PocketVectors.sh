@@ -1,7 +1,7 @@
 #!/bin/bash
 # Pocket Vectors - launch script (aarch64).
 #
-# The Ports menu lists this script by its file name, so it is PocketVectors.sh from 1.2.1 (FlightSim.sh
+# The Ports menu lists this script by its file name, so it is PocketVectors.sh from 1.2.2 (FlightSim.sh
 # before). The port folder keeps its name, "flightsim", so an update keeps conf/ and data/.
 #
 # Works with PortMaster (official template: https://portmaster.games/packaging.html) and without it.

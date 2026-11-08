@@ -55,7 +55,7 @@ numbers from it mean nothing. Device performance comes from the P1 probe and X3.
 
 ```
 PocketVectors.sh                 # launch script (PortMaster template; no spaces in the name).
-                                 # FlightSim.sh before 1.2.1: the stock Ports menu shows the file name
+                                 # FlightSim.sh before 1.2.2: the stock Ports menu shows the file name
 Imgs/PocketVectors.png           # stock OS box art (the SD-card zip has it; the script copies it
                                  # there on first launch when Roms/PORTS/Imgs exists)
 flightsim/

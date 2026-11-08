@@ -8,7 +8,7 @@ Takes an in-game render (a 4:3 screenshot, any size) and writes:
 The title glyphs are read from src/hud/StrokeFont.cpp, so the lettering matches the HUD: strokes
 1/8 of the cap height wide with square caps, HUD green over a dark outline.
 
-How the 1.2.1 art was made (pdx_oth data pack, HIGH, chase view, MIN declutter so the HUD only
+How the 1.2.2 art was made (pdx_oth data pack, HIGH, chase view, MIN declutter so the HUD only
 leaves its two value boxes at the edges, which the crop removes):
 
     xvfb-run -a -s "-screen 0 1280x960x24" ./build/flightsim --window 1280x960 \

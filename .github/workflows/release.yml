@@ -2,7 +2,7 @@ name: release
 
 # On a v* tag, build the RG40XXH game (no probe, no data pack) and attach it to the GitHub
 # Release, together with the pdx_oth data pack from a datapack workflow run (DATA_RUN_ID and
-# DATA_ARTIFACT below) and, from 1.2.1, one SD-card zip of both (tools/sdcard/make_sdcard_zip.py). Workflow artifacts expire after 30 days; a release asset stays, so the
+# DATA_ARTIFACT below) and, from 1.2.2, one SD-card zip of both (tools/sdcard/make_sdcard_zip.py). Workflow artifacts expire after 30 days; a release asset stays, so the
 # release keeps the pack. Copernicus DEM and ESA WorldCover may be redistributed with the
 # attribution in ATTRIBUTION.txt (DATA.md section 2), which the pack carries. If the artifact is
 # gone, the release still publishes and its notes link the 1.0 pack (no SIDs or STARs) with a
@@ -112,7 +112,7 @@ jobs:
           assets=("$asset")
           new_install="Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:"
           if [ -n "${PACK_ZIP}" ]; then
-            # One zip for a new install (from 1.2.1): the game, the pack and the stock OS box art.
+            # One zip for a new install (from 1.2.2): the game, the pack and the stock OS box art.
             sdzip="${RUNNER_TEMP}/pocket-vectors-${tag}-Roms-PORTS.zip"
             python3 tools/sdcard/make_sdcard_zip.py --game "$asset" --data "$PACK_ZIP" --out "$sdzip"
             ls -l "$sdzip"
@@ -141,7 +141,7 @@ jobs:
           Unzip \`pocket-vectors-${tag}-game.zip\` into \`Roms/PORTS\` and **merge** the folders, so
           \`flightsim/conf/\` and \`flightsim/data/\` stay. In the macOS Finder, "Replace" deletes
           \`flightsim/data/\`: merge instead, or copy \`data/\` back afterwards. If you created
-          \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it. From 1.2.1 the launch
+          \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it. From 1.2.2 the launch
           script is \`PocketVectors.sh\` (the Ports menu shows its name, with box art on the stock OS):
           delete the old \`FlightSim.sh\` from \`Roms/PORTS\`, or the game is listed twice.
           ${pack_update}

@@ -103,7 +103,7 @@ class MakeSdcardZipTest(unittest.TestCase):
                 self.assertFalse(stat.S_ISLNK(info.external_attr >> 16))
 
     def test_older_game_zip_with_flightsim_sh_still_works(self):
-        # Game zips before 1.2.1 have FlightSim.sh and no box art.
+        # Game zips before 1.2.2 have FlightSim.sh and no box art.
         with tempfile.TemporaryDirectory() as tmp:
             game = os.path.join(tmp, "game")
             pack = os.path.join(tmp, "pack")

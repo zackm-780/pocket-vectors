@@ -40,7 +40,7 @@ EOF
     pm-only) portdir="$pmroot/ports/$port" ;;
   esac
   mkdir -p "$portdir"
-  # Box art (1.2.1): the stock layout has the Ports menu's Imgs/ folder, the others do not.
+  # Box art (1.2.2): the stock layout has the Ports menu's Imgs/ folder, the others do not.
   if [ "$port" = flightsim ]; then
     echo png-stub > "$portdir/PocketVectors.png"
     [ "$layout" = rg40xxh-stock ] && mkdir -p "$sd/Imgs"

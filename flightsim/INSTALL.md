@@ -13,7 +13,7 @@ Download **`pocket-vectors-1.0.0-Roms-PORTS.zip`** from the GitHub release
 That zip is the game and the Pacific Northwest data pack (`pdx_oth`) together. It is about 125 MB.
 Unzip it **into** `Roms/PORTS`. The zip has no extra folder around the game: its contents are
 
-- `FlightSim.sh` (`PocketVectors.sh` from 1.2.1)
+- `FlightSim.sh` (`PocketVectors.sh` from 1.2.2)
 - `flightsim/` (the binary, libraries, and `flightsim/data/` with terrain and nav)
 
 so after a correct unzip you have `Roms/PORTS/FlightSim.sh` next to `Roms/PORTS/flightsim/`.
@@ -30,7 +30,7 @@ The zip is built that way because FAT/exFAT cards cannot store symlinks.
 ## 2. Updating later
 
 **From 1.0 to 1.1 or later:** download `pocket-vectors-vX.Y.Z-game.zip` from the newest release,
-unzip it into `Roms/PORTS` and merge the folders (your `conf/` and `data/` stay). **1.2.1 renames the
+unzip it into `Roms/PORTS` and merge the folders (your `conf/` and `data/` stay). **1.2.2 renames the
 launch script** to `PocketVectors.sh`, so the Ports menu shows "PocketVectors" with box art: delete the
 old `FlightSim.sh` from `Roms/PORTS` after that update, or the game is listed twice. On the stock OS
 the box art goes into `Roms/PORTS/Imgs/PocketVectors.png` the first time the game starts. If you created
