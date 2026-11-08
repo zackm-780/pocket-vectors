@@ -8,9 +8,11 @@
 #include <functional>
 #include <utility>
 
+#include "hud/StrokeFont.h"
 #include "nav/FlightPlan.h"
 #include "nav/Procedures.h"
 #include "ui/MenuScreens.h"
+#include "ui/UiPainter.h"
 
 namespace fsim {
 
@@ -28,6 +30,8 @@ const char* kFooterList = "UP DOWN MOVE   A SELECT   B BACK";
 // ---- flight plan (setup) ---------------------------------------------------------------------------------
 
 class PlanScreen : public Screen {
+    static constexpr float kPlanRowH = 30.0f;
+
 public:
     PlanScreen() : nav_(7, kListRows) {}
     ScreenId id() const override { return ScreenId::Plan; }
@@ -87,28 +91,40 @@ public:
         rows[6].label = "CLEAR PLAN";
         rows[6].enabled = s.hasPlan();
         const float x = r.centered(kContentX);
-        drawList(r, t, x, kListTop, kContentW, 30, nav_, rows);
+        drawList(r, t, x, kListTop, kContentW, kPlanRowH, nav_, rows);
 
-        float y = 250;
-        r.line(x, y - 14, x + kContentW, y - 14, t.dim.withAlpha(0.5f));
+        // 1.2.3: the summary sits below the list, wherever the list ends (N8 added the SID and
+        // STAR rows, and the fixed y of the divider and the summary put them over APPROACH and
+        // CLEAR PLAN).
+        const float listBottom = kListTop + static_cast<float>(rows.size()) * kPlanRowH;
+        const float divY = listBottom + 4;
+        r.line(x, divY, x + kContentW, divY, t.dim.withAlpha(0.5f));
+        float y = divY + 18;
         if (!s.hasPlan()) {
-            r.text(x + 10, y + 4, "NO FLIGHT PLAN: THE FLIGHT STARTS WITHOUT ONE", TextSize::S,
-                   t.dim);
+            r.text(x + 10, y, "NO FLIGHT PLAN: THE FLIGHT STARTS WITHOUT ONE", TextSize::S, t.dim);
             return;
         }
         r.text(x + 10, y, ("PLAN  " + s.planName).c_str(), TextSize::S, t.text);
-        // Route, wrapped to the content width.
+        // Route, wrapped to the content width, above the distance and approach lines.
         std::string route = "ROUTE  " + s.routeText();
-        const size_t maxChars = 62;
+        const size_t maxChars =
+            static_cast<size_t>((kContentW - 20.0f) / StrokeFont::advancePx(TextSize::S));
+        const float routeBottom = kFooterRuleY - 40;  // room for DISTANCE and APPROACH
         y += 16;
-        while (!route.empty() && y < 330) {
+        while (!route.empty()) {
+            const bool lastLine = y + 14 > routeBottom;  // no room below for another line
             size_t cut = std::min(route.size(), maxChars);
             if (route.size() > maxChars) {
                 const size_t sp = route.substr(0, maxChars).find_last_of(' ');
                 if (sp != std::string::npos) cut = sp;
             }
-            r.text(x + 10, y, route.substr(0, cut).c_str(), TextSize::S, t.dim);
+            std::string line = route.substr(0, cut);
             route.erase(0, std::min(route.size(), cut + 1));
+            if (lastLine && !route.empty()) {
+                line = fitText(line + " " + route, static_cast<int>(maxChars));
+                route.clear();
+            }
+            r.text(x + 10, y, line.c_str(), TextSize::S, t.dim);
             y += 14;
         }
         const AircraftEntry* ac = m.aircraftEntry(s.aircraftId);

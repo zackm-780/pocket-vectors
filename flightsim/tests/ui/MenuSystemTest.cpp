@@ -465,6 +465,7 @@ TEST_CASE("ui: canned screens open and draw inside the canvas; bad specs are rej
                              "runway:XTST",
                              "start",
                              "plan:XTST-pattern",
+                             "plan:none",
                              "approach:XTST-pattern",
                              "settings",
                              "pause",
