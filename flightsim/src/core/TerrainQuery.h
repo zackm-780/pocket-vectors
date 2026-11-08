@@ -26,6 +26,17 @@ struct FlattenArea {
     double latDeg[4] = {0, 0, 0, 0}, lonDeg[4] = {0, 0, 0, 0};  // convex quad, CCW
     float elevM = 0;
     float blendM = 60;  // blend distance back to natural terrain
+    // Additive (W1b, 1.2.3): a graded area follows a straight grade along a centerline instead
+    // of the flat elevM. The surface at a point is the grade at its projection onto the segment
+    // gradeLatDeg/gradeLonDeg[0] -> [1], clamped beyond the ends. elevM stays the mean of the
+    // two ends for consumers that ignore grades.
+    bool graded = false;
+    double gradeLatDeg[2] = {0, 0}, gradeLonDeg[2] = {0, 0};
+    float gradeElevM[2] = {0, 0};
+    // Additive (W1b): where areas overlap the higher priority wins (ties: the longer grade, then
+    // the larger quad), and the lower one blends into it smoothly instead of meeting it in a step
+    // (world/terrain/FlattenSet). Runways use 0; taxiways and aprons will sit below.
+    int priority = 0;
 };
 
 class TerrainQuery {

@@ -1,6 +1,8 @@
 #pragma once
 // Constant-elevation terrain that honours FlattenArea. Used for tests, the synthetic world and as
-// the fallback when no terrain pack is installed (ARCHITECTURE section 8).
+// the fallback when no terrain pack is installed (ARCHITECTURE section 8). It follows a graded
+// area's grade (W1b) but keeps its simple rules otherwise: the first area containing the point
+// wins and `priority` is ignored (world/terrain/FlattenSet composes overlapping areas smoothly).
 
 #include <vector>
 

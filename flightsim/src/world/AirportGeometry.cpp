@@ -150,6 +150,12 @@ RunwayInfo makeRunwayInfo(const Airport& airport, const Runway& r) {
         opposite && opposite->ils.has_value() && !opposite->approxGeometry && opposite->hard;
     info.primary = !opposite || r.ident < opposite->ident;
     info.elevM = runwayFlatElevM(airport, r);
+    // W1b: the grade of the pair, from the primary direction's landing threshold to its far end.
+    const Runway& prim = (!info.primary && opposite) ? *opposite : r;
+    info.grade[0] = {prim.thrLatDeg, prim.thrLonDeg};
+    info.grade[1] = {prim.endLatDeg, prim.endLonDeg};
+    info.gradeElevM[0] = ftToM(prim.thrElevFt);
+    info.gradeElevM[1] = ftToM(prim.endElevFt);
     info.papi = r.hard && !r.approxGeometry && mToFt(lengthM) >= kPapiMinRunwayFt;
     info.approachLights = info.instrument;
     return info;
@@ -157,8 +163,38 @@ RunwayInfo makeRunwayInfo(const Airport& airport, const Runway& r) {
 
 // ---- frame ------------------------------------------------------------------------------------
 
-RunwayFrame::RunwayFrame(const RunwayInfo& info)
-    : thr_(info.thr), headingTrueRad_(info.headingTrueRad), elevM_(info.elevM) {}
+namespace {
+
+// Elevation of the grade g[0] -> g[1] at the point's projection, clamped beyond the ends.
+double gradeAt(const LatLon g[2], const double elevM[2], double fallbackM, double latDeg,
+               double lonDeg) {
+    const double mPerDegLat = kEarthRadiusM * kRadPerDeg;
+    const double mPerDegLon = mPerDegLat * std::cos(degToRad(g[0].latDeg));
+    const double ex = (g[1].lonDeg - g[0].lonDeg) * mPerDegLon;
+    const double ey = (g[1].latDeg - g[0].latDeg) * mPerDegLat;
+    const double len2 = ex * ex + ey * ey;
+    if (len2 < 1.0) return fallbackM;
+    const double px = (lonDeg - g[0].lonDeg) * mPerDegLon;
+    const double py = (latDeg - g[0].latDeg) * mPerDegLat;
+    const double t = std::min(1.0, std::max(0.0, (px * ex + py * ey) / len2));
+    return elevM[0] + (elevM[1] - elevM[0]) * t;
+}
+
+}  // namespace
+
+double runwayGradeElevM(const RunwayInfo& r, double latDeg, double lonDeg) {
+    return gradeAt(r.grade, r.gradeElevM, r.elevM, latDeg, lonDeg);
+}
+
+RunwayFrame::RunwayFrame(const RunwayInfo& info, const SurfaceElevFn* surface)
+    : thr_(info.thr), headingTrueRad_(info.headingTrueRad), elevM_(info.elevM),
+      grade_{info.grade[0], info.grade[1]}, gradeElevM_{info.gradeElevM[0], info.gradeElevM[1]},
+      surface_(surface) {}
+
+double RunwayFrame::surfaceElevM(double latDeg, double lonDeg) const {
+    if (surface_ && *surface_) return (*surface_)(latDeg, lonDeg);
+    return gradeAt(grade_, gradeElevM_, elevM_, latDeg, lonDeg);
+}
 
 LatLon RunwayFrame::latLon(double alongM, double lateralM) const {
     LatLon p = thr_;
@@ -177,7 +213,7 @@ Ecef RunwayFrame::toEcef(double alongM, double lateralM, double upM) const {
     GeoPos g;
     g.latDeg = p.latDeg;
     g.lonDeg = p.lonDeg;
-    g.altMslM = elevM_ + upM;
+    g.altMslM = surfaceElevM(p.latDeg, p.lonDeg) + upM;
     return geodeticToEcef(g);
 }
 
@@ -466,14 +502,27 @@ FlattenArea runwayFlattenArea(const RunwayInfo& r, double lateralMarginM, double
     }
     area.elevM = static_cast<float>(r.elevM);
     area.blendM = blendM;
+    area.graded = true;  // W1b
+    for (int i = 0; i < 2; ++i) {
+        area.gradeLatDeg[i] = r.grade[i].latDeg;
+        area.gradeLonDeg[i] = r.grade[i].lonDeg;
+        area.gradeElevM[i] = static_cast<float>(r.gradeElevM[i]);
+    }
+    area.priority = 0;
     return area;
 }
 
-void registerAirportFlatten(const Airport& airport, TerrainQuery& terrain) {
+std::vector<FlattenArea> airportFlattenAreas(const Airport& airport) {
+    std::vector<FlattenArea> out;
     for (const Runway& rwy : airport.runways) {
         const RunwayInfo info = makeRunwayInfo(airport, rwy);
-        if (info.primary) terrain.addFlattenArea(runwayFlattenArea(info));
+        if (info.primary) out.push_back(runwayFlattenArea(info));
     }
+    return out;
+}
+
+void registerAirportFlatten(const Airport& airport, TerrainQuery& terrain) {
+    for (const FlattenArea& a : airportFlattenAreas(airport)) terrain.addFlattenArea(a);
 }
 
 double airportLowestFlatElevM(const Airport& airport) {
@@ -563,24 +612,32 @@ void SurfaceMeshBuilder::addPoly(const RunwayFrame& frame, const Poly& poly, dou
 }
 
 void SurfaceMeshBuilder::addStrip(const RunwayFrame& frame, double a0, double a1, double l0,
-                                  double l1, double liftM, const float rgb[3], double maxSegmentM) {
+                                  double l1, double liftM, const float rgb[3], double maxSegmentM,
+                                  int lateralSegments) {
     const int segments = std::max(1, static_cast<int>(std::ceil((a1 - a0) / maxSegmentM)));
-    SurfaceMesh& mesh = current(2 * (segments + 1));
-    const uint16_t base = static_cast<uint16_t>(mesh.verts.size());
-    for (int k = 0; k <= segments; ++k) {
-        const double a = a0 + (a1 - a0) * k / segments;
-        pushVertex(frame.toEcef(a, l0, liftM), up_, rgb);
-        pushVertex(frame.toEcef(a, l1, liftM), up_, rgb);
-    }
-    for (int k = 0; k < segments; ++k) {
-        const uint16_t i0 = static_cast<uint16_t>(base + 2 * k);
-        const uint16_t idx[6] = {i0,
-                                 static_cast<uint16_t>(i0 + 1),
-                                 static_cast<uint16_t>(i0 + 2),
-                                 static_cast<uint16_t>(i0 + 2),
-                                 static_cast<uint16_t>(i0 + 1),
-                                 static_cast<uint16_t>(i0 + 3)};
-        mesh.indices.insert(mesh.indices.end(), idx, idx + 6);
+    const int cols = std::max(1, lateralSegments) + 1;  // vertices across
+    // Rows of `cols` vertices; split into several meshes when a 16-bit index would overflow.
+    int k = 0;
+    while (k < segments) {
+        const int rows = std::min(segments - k, std::max(1, 60000 / cols - 1));
+        SurfaceMesh& mesh = current(cols * (rows + 1));
+        const uint16_t base = static_cast<uint16_t>(mesh.verts.size());
+        for (int i = 0; i <= rows; ++i) {
+            const double a = a0 + (a1 - a0) * (k + i) / segments;
+            for (int c = 0; c < cols; ++c)
+                pushVertex(frame.toEcef(a, l0 + (l1 - l0) * c / (cols - 1), liftM), up_, rgb);
+        }
+        for (int i = 0; i < rows; ++i) {
+            for (int c = 0; c + 1 < cols; ++c) {
+                const uint16_t v0 = static_cast<uint16_t>(base + i * cols + c);
+                const uint16_t v1 = static_cast<uint16_t>(v0 + 1);
+                const uint16_t v2 = static_cast<uint16_t>(v0 + cols);
+                const uint16_t v3 = static_cast<uint16_t>(v2 + 1);
+                const uint16_t idx[6] = {v0, v1, v2, v2, v1, v3};
+                mesh.indices.insert(mesh.indices.end(), idx, idx + 6);
+            }
+        }
+        k += rows;
     }
 }
 
@@ -644,15 +701,18 @@ Ecef runwayCenterEcef(const RunwayInfo& r) {
     return RunwayFrame(r).toEcef(r.usableM() * 0.5, 0, 0);
 }
 
-RunwayMeshes buildRunwayMeshes(const RunwayInfo& r) {
+RunwayMeshes buildRunwayMeshes(const RunwayInfo& r, const SurfaceElevFn* surface) {
     RunwayMeshes out;
-    const RunwayFrame frame(r);
+    const RunwayFrame frame(r, surface);
     const Ecef anchor = runwayCenterEcef(r);
 
     if (r.primary) {
         SurfaceMeshBuilder pave(anchor);
+        // On a composed surface (crossings) the pavement needs a grid that can follow it.
+        const double alongM = surface ? 30.0 : 250.0;
+        const int across = surface ? std::max(1, static_cast<int>(std::ceil(r.widthM / 15.0))) : 1;
         pave.addStrip(frame, -r.displacedM, r.usableM(), -r.widthM * 0.5, r.widthM * 0.5,
-                      kPavementLiftM, r.hard ? kAsphaltRgb : kGrassStripRgb);
+                      kPavementLiftM, r.hard ? kAsphaltRgb : kGrassStripRgb, alongM, across);
         out.pavement = pave.finish();
     }
 

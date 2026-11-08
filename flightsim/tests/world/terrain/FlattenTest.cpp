@@ -1,7 +1,9 @@
 // Flatten areas: same semantics as core/FlatTerrain, blend by true distance to the quad.
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include "core/FlatTerrain.h"
 #include "core/Units.h"
@@ -182,4 +184,165 @@ TEST_CASE("terrain: TerrainService applies flatten areas over the natural surfac
     q.clearFlattenAreas();
     at(0, 0, lat, lon);
     CHECK(q.elevationM(lat, lon) == doctest::Approx(svc.naturalElevationM(lat, lon)));
+}
+
+// ---- W1b (1.2.3): graded areas and crossing runways ---------------------------------------------
+
+namespace {
+
+// A runway-like graded area: centerline from (e0, n0) to (e1, n1) in metres around kLat0/kLon0,
+// elevations z0 -> z1, pavement half width hw plus a 50 m margin, 100 m beyond the ends.
+FlattenArea gradedRunway(double e0, double n0, double e1, double n1, float z0, float z1,
+                         double hw = 22.5, float blendM = 150.0f) {
+    const double len = std::hypot(e1 - e0, n1 - n0);
+    const double ue = (e1 - e0) / len, un = (n1 - n0) / len;  // along
+    const double re = un, rn = -ue;                           // right of along
+    const double a0 = -100.0, a1 = len + 100.0, l = hw + 50.0;
+    const double along[4] = {a0, a0, a1, a1};
+    const double lateral[4] = {-l, l, l, -l};  // clockwise; FlattenSet accepts either
+    FlattenArea a;
+    for (int i = 0; i < 4; ++i)
+        at(e0 + ue * along[i] + re * lateral[i], n0 + un * along[i] + rn * lateral[i], a.latDeg[i],
+           a.lonDeg[i]);
+    a.graded = true;
+    at(e0, n0, a.gradeLatDeg[0], a.gradeLonDeg[0]);
+    at(e1, n1, a.gradeLatDeg[1], a.gradeLonDeg[1]);
+    a.gradeElevM[0] = z0;
+    a.gradeElevM[1] = z1;
+    a.elevM = 0.5f * (z0 + z1);
+    a.blendM = blendM;
+    return a;
+}
+
+double surfaceAt(const FlattenSet& set, double e, double n, float natural = 95.0f) {
+    double lat, lon;
+    at(e, n, lat, lon);
+    return set.elevationM(lat, lon, [natural] { return natural; });
+}
+
+}  // namespace
+
+TEST_CASE("terrain: a graded area follows its grade, clamped beyond the ends") {
+    FlattenSet set;
+    set.add(gradedRunway(-1500, 0, 1500, 0, 100.0f, 103.0f));
+    for (double e = -1500; e <= 1500; e += 100) {
+        CAPTURE(e);
+        CHECK(surfaceAt(set, e, 0) ==
+              doctest::Approx(100.0 + 3.0 * (e + 1500) / 3000).epsilon(1e-5));
+        CHECK(surfaceAt(set, e, 60) ==
+              doctest::Approx(surfaceAt(set, e, 0)).epsilon(1e-5));  // margin
+    }
+    CHECK(surfaceAt(set, -1580, 0) == doctest::Approx(100.0f));  // the end pad keeps the end value
+    CHECK(surfaceAt(set, 1580, 0) == doctest::Approx(103.0f));
+    // The blend goes from the grade to the natural terrain.
+    const double d = 75.0;  // half way through the 150 m blend beside the middle
+    CHECK(surfaceAt(set, 0, 72.5 + d) ==
+          doctest::Approx(101.5 + (95.0 - 101.5) * smoothstep(0.5)).epsilon(1e-4));
+    // FlatTerrain follows the grade too.
+    FlatTerrain flat(95.0f);
+    flat.addFlattenArea(gradedRunway(-1500, 0, 1500, 0, 100.0f, 103.0f));
+    double lat, lon;
+    at(750, 0, lat, lon);
+    CHECK(flat.elevationM(lat, lon) == doctest::Approx(102.25f));
+}
+
+// Owner, 2026-11-08 (KPDX 28L across 03/21): "when I hit an intersecting runway I bounced pretty
+// dramatically. Runway transitions should always be smooth."
+TEST_CASE("terrain: crossing runways at different elevations meet without a step (<= 1:100)") {
+    for (const float lowerM : {0.6f, 3.0f}) {  // KPDX-like, and a large difference
+        CAPTURE(lowerM);
+        FlattenSet set;
+        // B (shorter, crossing at 60 degrees) first: insertion order must not matter.
+        const double c = std::cos(degToRad(60.0)), s = std::sin(degToRad(60.0));
+        set.add(
+            gradedRunway(-900 * c, -900 * s, 900 * c, 900 * s, 100.0f - lowerM, 101.0f - lowerM));
+        set.add(gradedRunway(-1700, 0, 1700, 0, 100.0f, 100.4f));  // A: longer, wins
+        // A's centerline is exactly A's grade, across the crossing too.
+        double worstA = 0;
+        for (double e = -1700; e <= 1700; e += 5)
+            worstA = std::max(worstA,
+                              std::fabs(surfaceAt(set, e, 0) - (100.0 + 0.4 * (e + 1700) / 3400)));
+        CHECK(worstA < 0.001);
+        // Along B's centerline (and 15 m either side) there is no step and no slope over 1:100.
+        double worstSlope = 0, worstJump = 0;
+        for (const double off : {-15.0, 0.0, 15.0}) {
+            double prev = 0;
+            for (double t = -1000; t <= 1000; t += 1) {
+                const double z = surfaceAt(set, t * c + off * s, t * s - off * c);
+                if (t > -1000) {
+                    worstSlope = std::max(worstSlope, std::fabs(z - prev));  // per metre
+                    worstJump = std::max(worstJump, std::fabs(z - prev));
+                }
+                prev = z;
+            }
+        }
+        std::printf("[W1b] crossing %.1f m lower: worst slope along B 1:%.0f\n", lowerM,
+                    1.0 / worstSlope);
+        CHECK(worstSlope <= 0.01);
+        // The whole field (both pavements and the area between): a 2 m grid, no gradient steeper
+        // than 1:100 on any pavement.
+        double worstGrid = 0;
+        for (double n = -800; n <= 800; n += 2) {
+            for (double e = -1700; e <= 1700; e += 2) {
+                const double tB = e * c + n * s, lB = e * s - n * c;  // along and across B
+                const bool onA = std::fabs(n) <= 22.5;
+                const bool onB = std::fabs(lB) <= 22.5 && std::fabs(tB) <= 900;
+                if (!onA && !onB) continue;
+                const double z = surfaceAt(set, e, n);
+                const double gx = (surfaceAt(set, e + 1, n) - z),
+                             gy = (surfaceAt(set, e, n + 1) - z);
+                worstGrid = std::max(worstGrid, std::hypot(gx, gy));
+            }
+        }
+        CHECK(worstGrid <= 0.01 + 1e-4);  // grade + transition
+    }
+}
+
+TEST_CASE("terrain: W1b synthetic pack: a 4 m DEM step under a runway end, graded and blended") {
+    // DEM: 100 m, and 104 m east of the last 50 m of a 2,000 m east-west runway. The runway is
+    // graded from 100.0 m (west threshold) to 100.5 m (east end), as published.
+    TempDir dir;
+    PackWriter w(dir.path, 7, 7);
+    const double endE = 1000.0;
+    auto dem = [&](double, double lon) {
+        const double e = (lon - kLon0) * kMPerDegLon;
+        return e > endE - 50.0 ? 104.0 : 100.0;
+    };
+    const TileId t = tileAt(7, kLat0, kLon0);
+    w.writeTile(t, dem);
+    w.finish();
+    TerrainService svc(dir.path);
+    REQUIRE(svc.isOpen());
+    svc.update(kLat0, kLon0);
+    REQUIRE(svc.waitForIdle(20));
+    svc.addFlattenArea(gradedRunway(-endE, 0, endE, 0, 100.0f, 100.5f));
+    double lat, lon;
+    // Centerline: within 0.3 m of the graded line over the whole pavement (the DEM step is gone).
+    double worstOff = 0;
+    for (double e = -endE; e <= endE; e += 10) {
+        at(e, 0, lat, lon);
+        worstOff = std::max(worstOff, std::fabs(svc.elevationM(lat, lon) -
+                                                (100.0 + 0.5 * (e + endE) / (2 * endE))));
+    }
+    CHECK(worstOff <= 0.3);
+    // Beyond the east end (pad, then the blend up to the 104 m DEM) and beside the middle (the
+    // blend down to 100 m): no slope steeper than 1:20.
+    auto worstSlope = [&](double e0, double n0, double de, double dn, int steps) {
+        double worst = 0;
+        at(e0, n0, lat, lon);
+        double prev = svc.elevationM(lat, lon);
+        for (int i = 1; i <= steps; ++i) {
+            at(e0 + de * i, n0 + dn * i, lat, lon);
+            const double z = svc.elevationM(lat, lon);
+            worst = std::max(worst, std::fabs(z - prev) / std::hypot(de, dn));
+            prev = z;
+        }
+        return worst;
+    };
+    const double endSlope = worstSlope(endE, 0, 5, 0, 80);  // 400 m beyond the end
+    const double sideSlope = worstSlope(0, 0, 0, 5, 80);    // 400 m to the north
+    std::printf("[W1b] 4 m DEM step: worst off grade %.3f m, end blend 1:%.0f, side 1:%.0f\n",
+                worstOff, 1.0 / endSlope, sideSlope > 0 ? 1.0 / sideSlope : 0.0);
+    CHECK(endSlope <= 1.0 / 20);
+    CHECK(sideSlope <= 1.0 / 20);
 }

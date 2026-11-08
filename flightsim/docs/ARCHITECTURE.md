@@ -254,7 +254,11 @@ struct FlattenArea {               // e.g. a runway rectangle plus margin, force
   double latDeg[4], lonDeg[4];     // convex quad, CCW
   float  elevM;
   float  blendM = 60;              // blend distance back to natural terrain
-};
+  bool   graded = false;           // additive (W1b): straight grade along a centerline...
+  double gradeLatDeg[2], gradeLonDeg[2];  // ...from end 0 to end 1 (clamped beyond the ends)
+  float  gradeElevM[2];            // elevation at each end; elevM stays their mean
+  int    priority = 0;             // additive (W1b): higher wins where areas overlap, the lower
+};                                 //   blends into it (no step); ties: the longer grade
 class TerrainQuery {
  public:
   virtual ~TerrainQuery() = default;

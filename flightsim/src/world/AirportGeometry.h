@@ -17,6 +17,7 @@
 // the runway's flat elevation. Headings are true.
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -61,7 +62,11 @@ struct RunwayInfo {
     double lengthM = 0;         // whole pavement, start to end
     double displacedM = 0;      // start -> threshold
     double widthM = 0;
-    double elevM = 0;  // flat elevation of the whole pavement (mean of the two ends)
+    double elevM = 0;  // mean elevation of the pavement (the two ends)
+    // W1b (1.2.3): the pavement follows a straight grade between the pair's primary landing
+    // threshold (gradeElevM[0]) and its far end (gradeElevM[1]), clamped beyond them.
+    LatLon grade[2];
+    double gradeElevM[2] = {0, 0};
     bool hard = true, lighted = false, approx = false;
     bool instrument = false;          // this direction has an ILS and a trustworthy geometry
     bool oppositeInstrument = false;  // the other direction does
@@ -73,15 +78,24 @@ struct RunwayInfo {
 
 // Builds the info for one landing direction. The opposite direction is looked up in `airport`.
 RunwayInfo makeRunwayInfo(const Airport& airport, const Runway& runway);
-// Flat elevation used for the pavement AND the terrain flatten area (mean of the two ends of the
-// pair's primary direction).
+// Mean elevation of the pavement (the two ends of the pair's primary direction): the flatten
+// area's elevM and the airport's reference height. The surface itself is graded (W1b).
 double runwayFlatElevM(const Airport& airport, const Runway& runway);
+// The runway's own grade at a point (its projection on the grade line, clamped), meters MSL.
+double runwayGradeElevM(const RunwayInfo& runway, double latDeg, double lonDeg);
+
+// Surface elevation (meters MSL) at a point: the composed airport surface the pavement follows
+// (world/terrain/FlattenSet over the airport's flatten areas), so the pavement matches the ground
+// the wheels feel where runways cross.
+using SurfaceElevFn = std::function<double(double latDeg, double lonDeg)>;
 
 // Runway-local frame -> ECEF.
 class RunwayFrame {
 public:
     RunwayFrame() = default;
-    explicit RunwayFrame(const RunwayInfo& info);
+    // Heights follow the runway's grade, or `surface` when given (it must outlive the frame).
+    explicit RunwayFrame(const RunwayInfo& info, const SurfaceElevFn* surface = nullptr);
+    double surfaceElevM(double latDeg, double lonDeg) const;
     LatLon latLon(double alongM, double lateralM) const;
     Ecef toEcef(double alongM, double lateralM, double upM) const;
     Vec3d upEcef(double alongM, double lateralM) const;  // geodetic normal
@@ -92,6 +106,9 @@ private:
     LatLon thr_;
     double headingTrueRad_ = 0;
     double elevM_ = 0;
+    LatLon grade_[2];
+    double gradeElevM_[2] = {0, 0};
+    const SurfaceElevFn* surface_ = nullptr;
 };
 
 // ---- markings ---------------------------------------------------------------------------------
@@ -177,9 +194,13 @@ double papiEyeElevationDeg(const RunwayFrame& frame, const RunwayInfo& runway, c
 int flasherActiveIndex(double timeS);
 
 // ---- terrain flattening -----------------------------------------------------------------------
+// W1b (1.2.3): graded along the runway, blending to the DEM over 150 m (it was a flat area with a
+// 60 m blend, a visible step where the DEM differs from the published elevations).
 FlattenArea runwayFlattenArea(const RunwayInfo& runway, double lateralMarginM = 50.0,
-                              double endMarginM = 100.0, float blendM = 60.0f);
-// Registers one flatten area per runway pair of the airport (primary directions only).
+                              double endMarginM = 100.0, float blendM = 150.0f);
+// One flatten area per runway pair of the airport (primary directions only).
+std::vector<FlattenArea> airportFlattenAreas(const Airport& airport);
+// Registers airportFlattenAreas() with the terrain.
 void registerAirportFlatten(const Airport& airport, TerrainQuery& terrain);
 // Lowest flat runway elevation of the airport (m), or airport elevation when it has no runways.
 double airportLowestFlatElevM(const Airport& airport);
@@ -218,9 +239,11 @@ class SurfaceMeshBuilder {
 public:
     SurfaceMeshBuilder(const Ecef& anchor, const float rgbFallback[3] = nullptr);
     void addPoly(const RunwayFrame& frame, const Poly& poly, double liftM, const float rgb[3]);
-    // Strip [a0,a1] x [l0,l1], split along the runway so it follows the earth's curvature.
+    // Strip [a0,a1] x [l0,l1], split along the runway so it follows the earth's curvature (and
+    // the frame's surface), and across it into lateralSegments.
     void addStrip(const RunwayFrame& frame, double a0, double a1, double l0, double l1,
-                  double liftM, const float rgb[3], double maxSegmentM = 250.0);
+                  double liftM, const float rgb[3], double maxSegmentM = 250.0,
+                  int lateralSegments = 1);
     // Axis-aligned (in runway coordinates) box from the ground to heightM, with shaded walls.
     void addBox(const RunwayFrame& frame, double a0, double a1, double l0, double l1,
                 double bottomM, double heightM, const float wallRgb[3], const float roofRgb[3]);
@@ -240,7 +263,9 @@ struct RunwayMeshes {
     LightMesh lights;
     RunwayMarkings markingData;
 };
-RunwayMeshes buildRunwayMeshes(const RunwayInfo& runway);
+// With `surface`, the pavement, markings and lights follow it (a finer pavement grid: 30 m along,
+// about 15 m across); without it they follow the runway's grade.
+RunwayMeshes buildRunwayMeshes(const RunwayInfo& runway, const SurfaceElevFn* surface = nullptr);
 
 // Generic apron, taxiway stub and a few box buildings beside the primary runway of an airport
 // (placed clear of every runway). Empty for airports without a hard runway.
