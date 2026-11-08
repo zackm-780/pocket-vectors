@@ -40,6 +40,11 @@ EOF
     pm-only) portdir="$pmroot/ports/$port" ;;
   esac
   mkdir -p "$portdir"
+  # Box art (1.2.1): the stock layout has the Ports menu's Imgs/ folder, the others do not.
+  if [ "$port" = flightsim ]; then
+    echo png-stub > "$portdir/PocketVectors.png"
+    [ "$layout" = rg40xxh-stock ] && mkdir -p "$sd/Imgs"
+  fi
   printf '#!/bin/sh\necho "FAKEBIN ran in $(pwd)"\necho "FAKEBIN args $*"\n' > "$portdir/$port.aarch64"
   chmod +x "$portdir/$port.aarch64"
   env -i PATH="$PATH" HOME="$root/home" XDG_DATA_HOME="$root/xdg" bash "$launcher" >/dev/null 2>&1
@@ -65,13 +70,21 @@ check() {
   fi
 }
 
-for pair in "port/FlightSim.sh flightsim" "tools/probe/port/FlightSimProbe.sh flightsimprobe"; do
+for pair in "port/PocketVectors.sh flightsim" "tools/probe/port/FlightSimProbe.sh flightsimprobe"; do
   set -- $pair
   script="$HERE/$1" port="$2"
   check "$script" "$port" rg40xxh-stock "$WORK/rg40xxh-stock-$port/sdcard/Roms/PORTS/$port"
   check "$script" "$port" pm-only "$WORK/pm-only-$port/roms/ports/$port"
   check "$script" "$port" no-portmaster "$WORK/no-portmaster-$port/sdcard/Roms/PORTS/$port"
 done
+
+# The game script copies its box art into an existing Imgs/ folder, and creates none elsewhere.
+art="$WORK/rg40xxh-stock-flightsim/sdcard/Roms/PORTS/Imgs/PocketVectors.png"
+if [ -f "$art" ]; then echo "ok   flightsim box art copied to Roms/PORTS/Imgs/PocketVectors.png"
+else echo "FAIL flightsim box art not copied to Roms/PORTS/Imgs/"; failures=$((failures + 1)); fi
+if [ -e "$WORK/no-portmaster-flightsim/sdcard/Roms/PORTS/Imgs" ]; then
+  echo "FAIL flightsim created an Imgs/ folder where the launcher has none"; failures=$((failures + 1))
+else echo "ok   flightsim creates no Imgs/ folder where the launcher has none"; fi
 
 [ "$failures" -eq 0 ] && echo "launch scripts: all layouts pass" || echo "launch scripts: $failures failure(s)"
 [ "$failures" -eq 0 ]

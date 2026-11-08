@@ -11,10 +11,10 @@ part B of S2 and most of X3a here; their `Status:` lines say so. The external ch
 in 1.2 too. The 2026-11-05 device session (the DEVICE.md §6 timing run) gave T2's frame numbers:
 MED holds 30 fps in the cockpit, LOW 60 (DEVICE.md §3). The PR #11 checklist runs alongside the
 1.2.0 release PR (#12), which adds the session's fixes and S2 part A (WORK_PACKAGES I3). The owner ships 1.2 now (**v1.2.0**)
-and takes **X3c next as 1.2.1** (HUD CPU, the GPU clock in the log, MED toward 60). **2026-11-07:**
-v1.2.0 is tagged; X3c is refined (plus the owner's ask for flight data in the chase view) and in
-review as 1.2.1, waiting for its device run. The phases below are the original plan; take the open
-cards in that order.
+and takes **X3c next as 1.2.1** (HUD CPU, the GPU clock in the log, MED toward 60). **2026-11-08:**
+v1.2.0 is released. X3c is merged (#13) and device-tested: MED 59 fps in the cockpit, HUD 3.2 ms.
+Before the owner tags v1.2.1, a small packaging PR renames the launch script to `PocketVectors.sh`
+and adds box art. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).
@@ -55,12 +55,12 @@ session can be thrown away and a fresh one picks up from the board.
 |---|---|---|---|---|---|---|
 | [T1](T1.md) | Device session 1: confirm the post-1.0 build | 1 | none | | owner, then builder writes up | `docs/DEVICE.md` |
 | [R2](R2.md) | Version 1.1.0 and release notes | 1 | none | medium | builder | `release.yml`, `CMakeLists.txt` |
-| [P1b](P1b.md) | Probe prompts and tool detection in the launch log | 1 | none | medium | builder | `port/FlightSim.sh` |
+| [P1b](P1b.md) | Probe prompts and tool detection in the launch log | 1 | none | medium | builder | `port/PocketVectors.sh` |
 | [X3a](X3a.md) | Frame timing breakdown and a bench run | 1 | none | high | builder | `App.cpp`, `Cli.*` |
 | [X3b](X3b.md) | Quality presets (wire `graphics_quality`) | 2 | X3a, T1 | high | builder | `App.cpp`, `Settings.*`, `FlightScreens.cpp` |
 | [N7](N7.md) | Go-around (TOGA) and FLC | 2 | none | high | builder | `core/AutopilotState.h`, `core/Actions.h`, `controls_default.ini` |
 | [S2](S2.md) | Audio: no crackle, voice callouts | 2 | none (part B: OD1) | medium | builder | `App.cpp`, `Settings.*`, `FlightScreens.cpp` |
-| [X5](X5.md) | Live METAR at launch | 2 | P1b + one device launch log, OD4 | medium | builder | `port/FlightSim.sh`, `Settings.*`, `FlightScreens.cpp` |
+| [X5](X5.md) | Live METAR at launch | 2 | P1b + one device launch log, OD4 | medium | builder | `port/PocketVectors.sh`, `Settings.*`, `FlightScreens.cpp` |
 | [F5](F5.md) | Stall warning by flap setting | 2 | none | medium | builder | `core/AircraftProfile.h` |
 | [W1b](W1b.md) | Runways flush with the terrain at KPDX | 2 | none | high | builder | `src/world/terrain/` |
 | [U1](U1.md) | Quick flight and landing score | 2 | OD3 | medium | builder | `App.cpp`, `SetupScreens.cpp` |
@@ -94,6 +94,7 @@ exists. The builder sets `done` in its own pull request, so the merge marks it d
 | OD2 | Attach more prebuilt region packs (bayarea, mthood, tam_diablo) to releases | R3 | From 1.2.0 a release attaches a `pdx_oth` pack with SIDs and STARs (from a datapack run); no other regions |
 | OD3 | Add Quick Flight and landing scores (a suggestion, not in PLAN.md) | U1 | U1 waits |
 | OD4 | Fetch METARs over Wi-Fi at launch | X5 | Off by default, a setting turns it on |
+| OD5 | Pin the GPU clock: the 1.2.1 device run read 420 MHz all session (the lowest of 420–648 MHz, `simple_ondemand` governor). The launch script runs as root and could set the devfreq governor to `performance` (or raise `min_freq`) while the game runs, at a battery and heat cost; it would likely lift the 30 fps cases under an overcast layer and in the chase orbit | a launch-script card, not yet written | Leave the governor alone |
 
 ## Not planned
 

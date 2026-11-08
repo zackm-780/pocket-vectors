@@ -2,7 +2,7 @@ name: release
 
 # On a v* tag, build the RG40XXH game (no probe, no data pack) and attach it to the GitHub
 # Release, together with the pdx_oth data pack from a datapack workflow run (DATA_RUN_ID and
-# DATA_ARTIFACT below). Workflow artifacts expire after 30 days; a release asset stays, so the
+# DATA_ARTIFACT below) and, from 1.2.1, one SD-card zip of both (tools/sdcard/make_sdcard_zip.py). Workflow artifacts expire after 30 days; a release asset stays, so the
 # release keeps the pack. Copernicus DEM and ESA WorldCover may be redistributed with the
 # attribution in ATTRIBUTION.txt (DATA.md section 2), which the pack carries. If the artifact is
 # gone, the release still publishes and its notes link the 1.0 pack (no SIDs or STARs) with a
@@ -110,8 +110,18 @@ jobs:
           asset="${RUNNER_TEMP}/pocket-vectors-${tag}-game.zip"
           cp dist/flightsim-portmaster.zip "$asset"
           assets=("$asset")
+          new_install="Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:"
           if [ -n "${PACK_ZIP}" ]; then
-            assets+=("$PACK_ZIP")
+            # One zip for a new install (from 1.2.1): the game, the pack and the stock OS box art.
+            sdzip="${RUNNER_TEMP}/pocket-vectors-${tag}-Roms-PORTS.zip"
+            python3 tools/sdcard/make_sdcard_zip.py --game "$asset" --data "$PACK_ZIP" --out "$sdzip"
+            ls -l "$sdzip"
+            assets+=("$sdzip" "$PACK_ZIP")
+            new_install="**Easiest:** download \`$(basename "$sdzip")\` (the game and the pack together) and unzip
+          it **into** \`Roms/PORTS\`, so you get \`Roms/PORTS/PocketVectors.sh\` next to \`Roms/PORTS/flightsim/\`.
+          If the unzip tool makes a folder named after the zip, move its contents into \`Roms/PORTS\`.
+
+          Or unzip the game zip into \`Roms/PORTS\` and add the Pacific Northwest terrain and nav pack:"
             pack_name="$(basename "$PACK_ZIP")"
             pack_link="[${pack_name}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${pack_name}) (on this release, with SIDs and STARs)"
             pack_update="For SIDs and STARs on the flight-plan screen, also download \`${pack_name}\` and copy its
@@ -124,19 +134,21 @@ jobs:
           cat > "$notes" <<EOF
           Pocket Vectors ${tag} for the Anbernic RG40XXH (stock OS, 64-bit, SDL2).
 
-          The game zip is the game only: \`FlightSim.sh\` and \`flightsim/\`, with no probe and no terrain pack.
+          The game zip is the game only: \`PocketVectors.sh\` and \`flightsim/\`, with no probe and no terrain pack.
 
           ## Update an existing install
 
           Unzip \`pocket-vectors-${tag}-game.zip\` into \`Roms/PORTS\` and **merge** the folders, so
           \`flightsim/conf/\` and \`flightsim/data/\` stay. In the macOS Finder, "Replace" deletes
           \`flightsim/data/\`: merge instead, or copy \`data/\` back afterwards. If you created
-          \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it.
+          \`flightsim/conf/controls.ini\` for the 1.0 A/B workaround, delete it. From 1.2.1 the launch
+          script is \`PocketVectors.sh\` (the Ports menu shows its name, with box art on the stock OS):
+          delete the old \`FlightSim.sh\` from \`Roms/PORTS\`, or the game is listed twice.
           ${pack_update}
 
           ## New install
 
-          Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:
+          ${new_install}
           unzip ${pack_link}
           and copy the \`data/\` folder inside it to \`Roms/PORTS/flightsim/\`. Or combine both into one zip
           with \`flightsim/tools/sdcard/make_sdcard_zip.py\` (see flightsim/INSTALL.md).

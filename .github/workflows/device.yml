@@ -48,7 +48,7 @@ jobs:
         working-directory: flightsim
         run: |
           for f in tools/build_device.sh tools/docker/*.sh port/*.sh; do bash -n "$f"; done
-          bash -n port/FlightSim.sh
+          bash -n port/PocketVectors.sh
           bash -n tools/probe/port/FlightSimProbe.sh
           shellcheck -S warning tools/build_device.sh tools/docker/*.sh port/package_port.sh port/check_package.sh \
             port/test_launch_scripts.sh

@@ -26,8 +26,9 @@ An AI agent working on a contribution follows the same path as a person:
 - Wait until CI is green, including the device workflow.
 - Leave the pull request for the owner's review and approval. Do not merge it.
 
-The on-device folder stays `flightsim/`, with `FlightSim.sh` and `flightsim.aarch64`, so an
-update does not drop a player's `conf/` or `data/`.
+The on-device folder stays `flightsim/`, with `flightsim.aarch64`, so an update does not drop a
+player's `conf/` or `data/`. The launch script is `PocketVectors.sh` from 1.2.1 (it was
+`FlightSim.sh`), because the Ports menu lists scripts by file name.
 
 ## What to put in the pull request
 

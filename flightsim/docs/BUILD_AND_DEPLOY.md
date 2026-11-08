@@ -54,7 +54,10 @@ numbers from it mean nothing. Device performance comes from the P1 probe and X3.
 ## 6. PortMaster package layout (sideload)
 
 ```
-FlightSim.sh                       # launch script (PortMaster template; no spaces in the name)
+PocketVectors.sh                 # launch script (PortMaster template; no spaces in the name).
+                                 # FlightSim.sh before 1.2.1: the stock Ports menu shows the file name
+Imgs/PocketVectors.png           # stock OS box art (the SD-card zip has it; the script copies it
+                                 # there on first launch when Roms/PORTS/Imgs exists)
 flightsim/
   flightsim.aarch64                # main binary
   libs.aarch64/libJSBSim.so.1      # shipped shared lib (real file; no soname symlinks)
@@ -63,8 +66,10 @@ flightsim/
   conf/                            # created at runtime: settings.ini, controls.ini, log
   data/                            # user-built data pack (terrain/, nav/, plans/) — not in the zip
   licenses/                        # JSBSim (LGPL-2.1), SDL2 (zlib), gptokeyb, data attributions
-  port.json  gameinfo.xml  README.md  screenshot.png
+  port.json  gameinfo.xml  README.md  screenshot.png (640x480)  PocketVectors.png (300x225)
 ```
+
+The two images come from `tools/art/make_tile.py` (an in-game render lettered in the HUD stroke font).
 
 Launch script requirements (P1). Follow the official template at
 <https://portmaster.games/packaging.html>:
@@ -89,11 +94,11 @@ it holds the binary. Without PortMaster the game handles Select+Start itself.
 ### 7.1 Copy the ports (SD-card safe)
 Player install steps are in `flightsim/INSTALL.md`.
 1. From the `device` workflow run, download the artifact `flightsim-sdcard-PORTS`: both ports
-   already unpacked (`FlightSim.sh`, `flightsim/`, `FlightSimProbe.sh`, `flightsimprobe/`). Unzip
+   already unpacked (`PocketVectors.sh`, `flightsim/`, `FlightSimProbe.sh`, `flightsimprobe/`). Unzip
    it once and copy the four items into the ports folder (`Roms/PORTS` on the stock OS). The
    PortMaster zips (`flightsim-device-zips`, or `flightsim/dist/` from `tools/build_device.sh`)
    hold the same files.
-2. The script and its folder must sit **side by side**: `FlightSim.sh` next to `flightsim/`,
+2. The script and its folder must sit **side by side**: `PocketVectors.sh` next to `flightsim/`,
    `FlightSimProbe.sh` next to `flightsimprobe/`.
 3. The packages contain **no symlinks**. Avoid re-zipping the port folder on Ubuntu with tools
    that turn libraries into symlinks again.
@@ -114,7 +119,7 @@ Player install steps are in `flightsim/INSTALL.md`.
    about 0.4 GB by default and about 3 GB with the world layer (`include_world` on; hours of
    downloads, only needed to fly far outside the region).
 2. Launch "Flight Sim". Exit with **Select + Start**.
-3. **Logs:** every launch writes `flightsim_launch_log.txt` **next to `FlightSim.sh`**, even when
+3. **Logs:** every launch writes `flightsim_launch_log.txt` **next to `PocketVectors.sh`**, even when
    the game never starts. It records PortMaster detection, the folder used, the libraries found, and the
    game's own output and exit status, and whether the OS userspace is 64-bit (the build needs it;
    some Anbernic stock OS releases are 32-bit). The game also keeps `flightsim/conf/log.txt`.
@@ -127,7 +132,7 @@ Player install steps are in `flightsim/INSTALL.md`.
   `/lib/ld-linux-aarch64.so.1` (same for the probe). They always pass the port folder
   (`--asset-dir` for the game, `--jsbsim-dir` for the probe), because under the loader
   `/proc/self/exe` names the loader, not the binary.
-- **Line endings:** keep `FlightSim.sh` / `FlightSimProbe.sh` as Unix LF. CRLF from a Windows editor
+- **Line endings:** keep `PocketVectors.sh` / `FlightSimProbe.sh` as Unix LF. CRLF from a Windows editor
   can break `#!/bin/bash`.
 - **Userspace:** the build is **aarch64 (64-bit)** glibc. Some stock images are 32-bit armhf; those
   cannot run this port (`/lib/ld-linux-aarch64.so.1` missing). The launch log records this.

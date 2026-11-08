@@ -70,9 +70,18 @@ X3 tunes; MED stays the default (owner, 2026-11-06).
 | LOW, cockpit | 60 locked (p95 17.0 ms) | 9.4 ms | 6.6 ms | 37k tris | the 60 fps stretch met |
 | HIGH, cockpit | 30 | | | | |
 
-X3c (1.2.1) works on the HUD's CPU time (3.0× fewer instructions on the desktop, the same
-picture), logs the GPU clock and moves MED toward 60 fps (detail noise from a texture, the sky
-after the terrain). Its device timing run fills in the next table.
+X3c (1.2.1) cut the HUD's CPU time (3.0× fewer instructions on the desktop, the same picture),
+logs the GPU clock and moved MED to 60 fps (detail noise from a texture, the sky after the
+terrain). **Measured on the RG40XXH** (1.2.1 build, 2026-11-07, DEVICE.md §3, MED only):
+
+| Case | fps | CPU per frame | HUD | Terrain | Against the budget |
+|---|---|---|---|---|---|
+| MED, cockpit | 58.9 (p95 17.0 ms) | 6.4 ms | 3.2 ms | 35.5k tris, 90 draws (airports included) | the 60 fps stretch met on MED; terrain and draws within budget; HUD 1.6× its 2 ms |
+| MED, inside OVC | 59.8 | 6.6 ms | 3.5 ms | 36.5k tris | |
+| MED, under an OVC layer | 30–40 | 6.6 ms | 3.3 ms | 35.3k tris | GPU-bound: the cloud layer's fill |
+| MED, chase | 55, 30 while orbiting | 3.6 ms | 0.6 ms | 35.1k tris | GPU dips while the camera orbits |
+
+The GPU ran at 420 MHz throughout, the lowest of its 420–648 MHz steps.
 
 ## 4. Decision log
 
@@ -102,7 +111,8 @@ Append new decisions at the bottom. Don't rewrite old ones; supersede them with 
 | D20 | **Licence: Apache-2.0** for the project's own code, with a `NOTICE` file that credits Zack Martin. | Forks may modify and redistribute the code if they keep the copyright and the NOTICE. Compatible with JSBSim (LGPL-2.1, linked as a shared library) and SDL2 (zlib). Data packs keep their sources' terms (ATTRIBUTION.txt). `LICENSE` and `NOTICE` ship in `port/licenses/`. |
 | D5a | **External chase view (V1, 1.2)** with aircraft models built in code from primitives per category (single, twin, bizjet, airliner, heavy), one draw call each. D5 still holds for the cockpit view: no cockpit model. | The v2 list asked for an outside view. Models in code need no files or licences and stay inside the draw-call budget. |
 | D22 | **GPWS voice (S2, 1.2): clips generated offline with CMU Flite 2.2, voice `rms`**, by `tools/audio/make_voice_clips.py`, committed as `assets/audio/voice/*.wav` (15 clips, 16-bit mono 22,050 Hz, about 0.5 MB). Flite is not linked or shipped; its BSD-style licence (keep the notice, mark modifications, no endorsement) travels in `port/licenses/Flite-voice-NOTE.txt`. Missing clips fall back to the X2 tones; `gpws_voice = false` keeps the tones. | Needs no recording session, no paid voice and no runtime dependency; the clips are small and can be regenerated or swapped for recorded ones with the same names. Owner to confirm. |
-| D21 | **Name: Pocket Vectors**, subtitle "Retro Flight Sim with Modern Data". Display name only: folders, scripts and binaries stay `flightsim/`, `FlightSim.sh`, `flightsim.aarch64` so updates keep `conf/` and `data/`. | Display name set 2026-10-21. The on-card folder name stays stable across updates. |
+| D21 | **Name: Pocket Vectors**, subtitle "Retro Flight Sim with Modern Data". Display name only: folders, scripts and binaries stay `flightsim/`, `FlightSim.sh`, `flightsim.aarch64` so updates keep `conf/` and `data/`. | Display name set 2026-10-21. The on-card folder name stays stable across updates. Amended by D21a. |
+| D21a | **The launch script is `PocketVectors.sh`** (from 1.2.1), with box art for the stock OS (`Roms/PORTS/Imgs/PocketVectors.png`, copied there by the script) and `flightsim/screenshot.png` for gameinfo.xml / PortMaster. The folder and binary keep their names. | Owner, 2026-11-08: the stock Ports menu lists scripts by file name and showed "FlightSim". Keeping `flightsim/` means an update still keeps `conf/` and `data/`; updating players delete the old `FlightSim.sh`. |
 
 ## 5. Fleet
 

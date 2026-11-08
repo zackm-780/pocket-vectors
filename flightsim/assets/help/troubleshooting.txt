@@ -1,5 +1,5 @@
 TROUBLESHOOTING
-Read flightsim_launch_log.txt next to FlightSim.sh. It lists the folders it searched.
+Read flightsim_launch_log.txt next to PocketVectors.sh. It lists the folders it searched.
 The game log is flightsim/conf/log.txt.
 Buttons in the wrong place: open Help, Button test, and use Swap A/B or Swap X/Y. That writes flightsim/conf/controls.ini and leaves every other line alone.
 If Select does nothing, set select to back, guide in that file. See INSTALL.md.

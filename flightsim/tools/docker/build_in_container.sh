@@ -79,7 +79,7 @@ if [ -f CMakeLists.txt ] && [ -f src/main.cpp ]; then
   # Same soname chain as the probe; package_port.sh ships only libs.aarch64/libJSBSim.so.1.
   find "$BUILD/main" -name 'libJSBSim.so*' \( -type f -o -type l \) -exec cp -a {} "$MAIN_LIBS/" \;
   [ -n "$(find "$MAIN_LIBS" -name "libJSBSim.so*" -print -quit)" ] || { echo "libJSBSim.so not found after the main build" >&2; exit 1; }
-  MAIN_PKG=(--port-dir port --script port/FlightSim.sh --name flightsim --binary "$MAIN_BIN" --libs-dir "$MAIN_LIBS"
+  MAIN_PKG=(--port-dir port --script port/PocketVectors.sh --name flightsim --binary "$MAIN_BIN" --libs-dir "$MAIN_LIBS"
             --licenses-dir port/licenses --strip "$STRIP_CMD")
   MAIN_DIR="$(dirname "$MAIN_BIN")"
   [ -d "$MAIN_DIR/jsbsim" ] && MAIN_PKG+=(--runtime "$MAIN_DIR/jsbsim:jsbsim")

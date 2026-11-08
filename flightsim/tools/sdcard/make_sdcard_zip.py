@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build one zip that unzips into the ports folder (Roms/PORTS).
 
-Python 3.8+, standard library only. The zip's top level is FlightSim.sh and flightsim/.
+Python 3.8+, standard library only. The zip's top level is PocketVectors.sh (FlightSim.sh before 1.2.1), flightsim/ and, when the game
+ships its box art, Imgs/PocketVectors.png for the stock Anbernic OS Ports menu.
 A data pack is required: the result must contain flightsim/data/terrain and
 flightsim/data/nav/nav.ini. Optional .fms files are copied to flightsim/data/plans/.
 
@@ -77,19 +78,21 @@ def materialize(path, dest):
     raise ValueError("not a zip or folder: " + path)
 
 
+# The launch script's name: PocketVectors.sh from 1.2.1, FlightSim.sh in older game zips.
+LAUNCHERS = ("PocketVectors.sh", "FlightSim.sh")
+
+
 def find_game(root):
-    found = None
+    """Returns (folder holding the launch script and flightsim/, launch script name)."""
     for dirpath, dirnames, filenames in os.walk(root):
-        if "FlightSim.sh" not in filenames:
+        launcher = next((name for name in LAUNCHERS if name in filenames), None)
+        if launcher is None:
             continue
         port = os.path.join(dirpath, "flightsim")
         binary = os.path.join(port, "flightsim.aarch64")
         if os.path.isdir(port) and os.path.isfile(binary) and not os.path.islink(binary):
-            found = dirpath
-            break
-    if found is None:
-        raise ValueError("game has no FlightSim.sh next to flightsim/flightsim.aarch64")
-    return found
+            return dirpath, launcher
+    raise ValueError("game has no PocketVectors.sh (or FlightSim.sh) next to flightsim/flightsim.aarch64")
 
 
 def find_data(root):
@@ -126,15 +129,15 @@ def copy_tree(src, dst):
                 shutil.copyfile(source, target)
 
 
-def validate(stage):
-    script = os.path.join(stage, "FlightSim.sh")
+def validate(stage, launcher):
+    script = os.path.join(stage, launcher)
     port = os.path.join(stage, "flightsim")
     binary = os.path.join(port, "flightsim.aarch64")
     lib = os.path.join(port, "libs.aarch64", "libJSBSim.so.1")
     terrain = os.path.join(port, "data", "terrain")
     nav = os.path.join(port, "data", "nav", "nav.ini")
     if not os.path.isfile(script) or os.path.islink(script):
-        raise ValueError("FlightSim.sh is missing")
+        raise ValueError(launcher + " is missing")
     if not os.path.isfile(binary) or os.path.islink(binary) or os.path.getsize(binary) == 0:
         raise ValueError("flightsim/flightsim.aarch64 is missing or empty")
     if not os.path.isfile(lib) or os.path.islink(lib) or os.path.getsize(lib) == 0:
@@ -169,15 +172,20 @@ def build(game, data_packs, plans, out_path):
         game_src = os.path.join(tmp, "game")
         os.makedirs(game_src)
         materialize(game, game_src)
-        game_root = find_game(game_src)
+        game_root, launcher = find_game(game_src)
         stage = os.path.join(tmp, "stage")
         os.makedirs(stage)
-        shutil.copyfile(os.path.join(game_root, "FlightSim.sh"), os.path.join(stage, "FlightSim.sh"))
-        with open(os.path.join(stage, "FlightSim.sh"), "rb") as inp:
+        shutil.copyfile(os.path.join(game_root, launcher), os.path.join(stage, launcher))
+        with open(os.path.join(stage, launcher), "rb") as inp:
             text = inp.read().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
-        with open(os.path.join(stage, "FlightSim.sh"), "wb") as out:
+        with open(os.path.join(stage, launcher), "wb") as out:
             out.write(text)
         copy_tree(os.path.join(game_root, "flightsim"), os.path.join(stage, "flightsim"))
+        # Stock Anbernic OS box art: Roms/PORTS/Imgs/<launch script name>.png.
+        art = os.path.join(stage, "flightsim", "PocketVectors.png")
+        if os.path.isfile(art):
+            os.makedirs(os.path.join(stage, "Imgs"), exist_ok=True)
+            shutil.copyfile(art, os.path.join(stage, "Imgs", launcher[:-3] + ".png"))
         for index, pack in enumerate(data_packs):
             pack_src = os.path.join(tmp, "pack-%d" % index)
             os.makedirs(pack_src)
@@ -193,13 +201,13 @@ def build(game, data_packs, plans, out_path):
                 if not os.path.isfile(plan):
                     raise ValueError("plan not found: " + plan)
                 shutil.copyfile(plan, os.path.join(plan_dir, os.path.basename(plan)))
-        validate(stage)
+        validate(stage, launcher)
         write_zip(stage, out_path)
 
 
 def main(argv):
     parser = argparse.ArgumentParser(description="Assemble a Roms/PORTS zip for Pocket Vectors.")
-    parser.add_argument("--game", required=True, help="game zip or folder (FlightSim.sh + flightsim/)")
+    parser.add_argument("--game", required=True, help="game zip or folder (PocketVectors.sh + flightsim/)")
     parser.add_argument(
         "--data",
         action="append",
