@@ -42,9 +42,11 @@ work without a card, and reading all of it costs about 45k tokens on every turn.
 - **You cannot test on the device.** Prove behaviour on desktop with unit tests, headless scenario
   runs, traces and screenshots, and mark the PR "needs device test" when on-device behaviour matters.
 - Never commit secrets. Never push to `main` directly.
-- **Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md).** Fork the repo, open a pull request,
-  and wait for CI, including the device workflow. The owner reviews and approves before merge.
-  Do not merge the pull request yourself.
+- **Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md).** Open a pull request and wait for CI,
+  including the device workflow. **In the owner's own agent sessions** (owner, 2026-11-08): once
+  every check is green, the agent merges its pull request itself (a merge commit). The owner
+  device-checks `main`, not branches, and tags a release only once `main` is stable; agents never
+  tag. Outside contributions (forks) still wait for the owner's review and approval.
 
 ## Working with the owner
 

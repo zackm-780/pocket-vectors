@@ -320,7 +320,7 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
         stack_.push_back(makeSetupScreen());
         stack_.push_back(makeStartTypeScreen(*this));
     } else if (name == "plan" || name == "approach") {
-        // plan:none opens the screen without a plan (1.2.3: for its screenshot).
+        // plan:none opens the screen without a plan (1.3: for its screenshot).
         if (!(name == "plan" && arg == "none") && !planFile(arg)) {
             error = err;
             return false;

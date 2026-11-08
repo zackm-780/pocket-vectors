@@ -93,7 +93,7 @@ public:
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, kPlanRowH, nav_, rows);
 
-        // 1.2.3: the summary sits below the list, wherever the list ends (N8 added the SID and
+        // 1.3: the summary sits below the list, wherever the list ends (N8 added the SID and
         // STAR rows, and the fixed y of the divider and the summary put them over APPROACH and
         // CLEAR PLAN).
         const float listBottom = kListTop + static_cast<float>(rows.size()) * kPlanRowH;

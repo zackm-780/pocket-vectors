@@ -121,7 +121,7 @@ public:
         rows[0].enabled = haveLast_;
         const float top = 172, rowH = 30;
         drawList(r, t, cx - 160, top, 320, rowH, nav_, rows);
-        // Below the list, wherever it ends (1.2.3: the plan screens' text sat on their rows).
+        // Below the list, wherever it ends (1.3: the plan screens' text sat on their rows).
         if (haveLast_ && nav_.selected() == 0)
             r.text(cx, top + rows.size() * rowH + 24, lastFlightSummary(last_).c_str(), TextSize::S,
                    t.dim, HAlign::Center);

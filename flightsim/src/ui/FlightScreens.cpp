@@ -421,7 +421,7 @@ public:
             sub = b;
         }
         drawScreenFrame(r, t, "FLIGHT PLAN", sub, "A SELECT   B BACK   START RESUME");
-        // 1.2.3: the F6 fuel line shares the subtitle's line, right aligned (at y 66 it was
+        // 1.3: the F6 fuel line shares the subtitle's line, right aligned (at y 66 it was
         // drawn over the subtitle); it drops above the footer when both do not fit.
         if (fuelLine_[0]) {
             const float x0 = r.centered(kContentX);
@@ -464,7 +464,7 @@ public:
         }
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, kRowH, nav_, rows);
-        // 1.2.3: the hint goes below the action rows (it sat on DEPARTURE once N8 made them 5).
+        // 1.3: the hint goes below the action rows (it sat on DEPARTURE once N8 made them 5).
         if (legs_.empty())
             r.text(x + 10, kListTop + static_cast<float>(kActionRows) * kRowH + 20,
                    "DIRECT TO CREATES A ONE-LEG PLAN", TextSize::S, t.dim);

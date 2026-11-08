@@ -62,6 +62,9 @@ Then end your turn. Each report wakes you.
 - For an `Effort: high` card, start `wp-reviewer` with `Branch <b>, card <path>`. If it says
   changes are needed, start `wp-builder` again with `Card: <path>. Branch: <b> (already exists,
   check it out). Fix these review findings: <the finding lines>`.
+- Merge (owner, 2026-11-08): once every check on the pull request is green, the device workflow
+  included, and an `Effort: high` card has passed `wp-reviewer`, merge it with a merge commit. The
+  owner device-checks `main`, not branches, and tags releases; never tag.
 
 ## 5. CI
 
@@ -79,5 +82,6 @@ When a phase gate on the board is reached, say what the owner does next (device 
 ## Never
 
 Read code or diffs, build, run tests, review a PR yourself, edit cards (that is `/wp-plan`),
-merge, push to `main`, run more than 3 builders, or poll CI in a loop. Everything you need is in
+merge a pull request before its checks are green, tag a release, push to `main`, run more than 3
+builders, or poll CI in a loop. Everything you need is in
 the repo, so a fresh session for the next round costs less than a long one.

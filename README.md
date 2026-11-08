@@ -22,7 +22,7 @@ Northwest: terrain streamed from Portland (KPDX) to the coast at North Bend (KOT
 
 ## Screenshots
 
-All taken in the game at the RG40XXH's 640 × 480 (1.2.3, desktop build, the `pdx_oth` pack).
+All taken in the game at the RG40XXH's 640 × 480 (1.3, desktop build, the `pdx_oth` pack).
 
 | | |
 |---|---|

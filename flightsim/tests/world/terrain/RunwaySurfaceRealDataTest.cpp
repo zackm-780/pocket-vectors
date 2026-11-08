@@ -1,4 +1,4 @@
-// W1b (1.2.3): the runway surface at KPDX on the real pdx_oth pack. Manual checks: they need the
+// W1b (1.3): the runway surface at KPDX on the real pdx_oth pack. Manual checks: they need the
 // real nav and terrain packs and only run when FSIM_REAL_DATA_DIR points at a data root
 // (<root>/nav, <root>/terrain); otherwise they return immediately (tests never need real data).
 //

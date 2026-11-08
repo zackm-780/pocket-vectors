@@ -186,7 +186,7 @@ TEST_CASE("terrain: TerrainService applies flatten areas over the natural surfac
     CHECK(q.elevationM(lat, lon) == doctest::Approx(svc.naturalElevationM(lat, lon)));
 }
 
-// ---- W1b (1.2.3): graded areas and crossing runways ---------------------------------------------
+// ---- W1b (1.3): graded areas and crossing runways ---------------------------------------------
 
 namespace {
 

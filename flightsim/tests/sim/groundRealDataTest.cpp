@@ -126,7 +126,7 @@ TEST_CASE("sim: ground real data: KPDX 28L runway start sits on the runway and t
     REQUIRE_MESSAGE(sim.init(sc, "", err), err);
     const Airport* kpdx = w.nav.findAirport("KPDX");
     const Runway* rwy = findRunway(*kpdx, "28L");
-    // W1b (1.2.3): the pavement is graded between the ends; the start is near the 28L threshold.
+    // W1b (1.3): the pavement is graded between the ends; the start is near the 28L threshold.
     const double padFt =
         mToFt(world::runwayGradeElevM(world::makeRunwayInfo(*kpdx, *rwy),
                                       sim.startCondition().latDeg, sim.startCondition().lonDeg));

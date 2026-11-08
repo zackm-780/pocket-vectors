@@ -26,6 +26,11 @@ An AI agent working on a contribution follows the same path as a person:
 - Wait until CI is green, including the device workflow.
 - Leave the pull request for the owner's review and approval. Do not merge it.
 
+The owner's own agent sessions work differently (owner, 2026-11-08): they branch in this
+repository, and once every check is green, including the device workflow, the agent merges its
+pull request. The owner device-checks `main` rather than each branch, and tags a release only once
+`main` is stable. Agents never tag.
+
 The on-device folder stays `flightsim/`, with `flightsim.aarch64`, so an update does not drop a
 player's `conf/` or `data/`. The launch script is `PocketVectors.sh` from 1.2.2 (it was
 `FlightSim.sh`), because the Ports menu lists scripts by file name.

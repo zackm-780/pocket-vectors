@@ -157,7 +157,7 @@ TEST_CASE("autopilot: NAV arms over HDG off course and captures on a closing int
     CHECK(r.ap.state().latArmed == LatMode::Off);
 }
 
-// 1.2.3 (owner, 2026-11-08: "If I follow it, I get off the GPS track"): a mode button turns the
+// 1.3 (owner, 2026-11-08: "If I follow it, I get off the GPS track"): a mode button turns the
 // FD on in ROL, and ROL (NAV) used to hold the wings level until a closing intercept that never
 // came. NAV armed over ROL now captures at once and the NAV law flies the intercept.
 TEST_CASE("autopilot: NAV over ROL captures at once off course and turns toward the course") {
