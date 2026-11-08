@@ -56,6 +56,17 @@ long long parseId(std::string_view s) {
     return v;
 }
 
+// W8a: one whole token as a finite number ("45.5abc", "nan" and "inf" fail).
+bool parseCoord(std::string_view s, double& out) {
+    if (s.empty() || s.size() > 31) return false;
+    char buf[32];
+    std::memcpy(buf, s.data(), s.size());
+    buf[s.size()] = '\0';
+    char* end = nullptr;
+    out = std::strtod(buf, &end);
+    return end == buf + s.size() && std::isfinite(out);
+}
+
 // W8a: "lat lon lat lon ..." into `out` (cleared first). False on an odd count, a token that is
 // not a number or a coordinate out of range. No string is built per point.
 bool parsePoints(std::string_view s, std::vector<LatLon>& out) {
@@ -68,9 +79,7 @@ bool parsePoints(std::string_view s, std::vector<LatLon>& out) {
         if (i >= s.size()) break;
         size_t j = i;
         while (j < s.size() && s[j] != ' ') ++j;
-        bool ok;
-        pair[n++] = num(s.substr(i, j - i), ok);
-        if (!ok) return false;
+        if (!parseCoord(s.substr(i, j - i), pair[n++])) return false;
         if (n == 2) {
             if (std::fabs(pair[0]) > 90.0 || std::fabs(pair[1]) > 180.0) return false;
             out.push_back(LatLon{pair[0], pair[1]});

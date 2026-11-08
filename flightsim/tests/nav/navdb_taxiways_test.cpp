@@ -63,7 +63,7 @@ TEST_CASE("nav: taxiway segments load with kind, ref, width, surface and points 
 
     const Airport* koth = db().findAirport("KOTH");
     REQUIRE(koth != nullptr);
-    REQUIRE(koth->taxiways.size() == 1);  // the three bad KOTH rows are skipped
+    REQUIRE(koth->taxiways.size() == 1);  // the five bad KOTH rows are skipped
     CHECK(koth->taxiways[0].widthM == doctest::Approx(15.0f));
     CHECK_FALSE(koth->taxiways[0].hard);  // grass
 }
@@ -86,8 +86,9 @@ TEST_CASE("nav: aprons load as open rings; bad rows are skipped and counted") {
 
     CHECK(db().stats().taxiways == 4);
     CHECK(db().stats().aprons == 2);
-    // Unknown airport, odd point count, one point, a bad number (taxiways) and a two-point ring.
-    CHECK(db().stats().skippedRows >= 5);
+    // Unknown airport, odd point count, one point, three bad numbers ("abc", "43.417000x", "nan")
+    // and a two-point ring.
+    CHECK(db().stats().skippedRows >= 7);
     // Airports without rows and XTST keep empty lists.
     const Airport* ksfo = db().findAirport("KSFO");
     REQUIRE(ksfo != nullptr);
