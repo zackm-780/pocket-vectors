@@ -46,6 +46,53 @@ double num(std::string_view s, double def = 0) {
     return ok ? v : def;
 }
 
+// W8a: an OSM way id (digits only); 0 when the field is not one.
+long long parseId(std::string_view s) {
+    long long v = 0;
+    for (const char c : s) {
+        if (c < '0' || c > '9') return 0;
+        v = v * 10 + (c - '0');
+    }
+    return v;
+}
+
+// W8a: "lat lon lat lon ..." into `out` (cleared first). False on an odd count, a token that is
+// not a number or a coordinate out of range. No string is built per point.
+bool parsePoints(std::string_view s, std::vector<LatLon>& out) {
+    out.clear();
+    double pair[2] = {0, 0};
+    int n = 0;
+    size_t i = 0;
+    while (i < s.size()) {
+        while (i < s.size() && s[i] == ' ') ++i;
+        if (i >= s.size()) break;
+        size_t j = i;
+        while (j < s.size() && s[j] != ' ') ++j;
+        bool ok;
+        pair[n++] = num(s.substr(i, j - i), ok);
+        if (!ok) return false;
+        if (n == 2) {
+            if (std::fabs(pair[0]) > 90.0 || std::fabs(pair[1]) > 180.0) return false;
+            out.push_back(LatLon{pair[0], pair[1]});
+            n = 0;
+        }
+        i = j;
+    }
+    return n == 0;
+}
+
+bool hardSurface(std::string_view s) {
+    return s == "asphalt" || s == "concrete";
+}
+
+// W8a: the taxiway width when the pack has none (TAXIWAYS.md section 1, same as the tool).
+float defaultTaxiwayWidthM(TaxiwayKind kind, AirportType type) {
+    if (kind == TaxiwayKind::Taxilane) return 7.5f;
+    if (type == AirportType::Large) return 23.0f;
+    if (type == AirportType::Medium) return 15.0f;
+    return 10.5f;
+}
+
 AirportType parseAirportType(std::string_view s) {
     if (s == "large") return AirportType::Large;
     if (s == "medium") return AirportType::Medium;
@@ -383,6 +430,70 @@ void CsvNavDatabase::loadFixes(const std::string& path) {
     stats_.fixes = fixes_.size();
 }
 
+void CsvNavDatabase::loadTaxiways(const std::string& path) {
+    CsvReader csv;
+    if (!csv.open(path)) {
+        LOG_INFO("nav: no taxiways.csv (%s); airports keep the generic apron", path.c_str());
+        return;
+    }
+    const int cApt = csv.column("airport_ident"), cWay = csv.column("osm_way_id"),
+              cKind = csv.column("kind"), cRef = csv.column("ref"), cWidth = csv.column("width_m"),
+              cSurf = csv.column("surface"), cPts = csv.column("points");
+    if (cApt < 0 || cPts < 0) {
+        LOG_WARN("nav: taxiways.csv has no usable columns; ignored");
+        return;
+    }
+    std::vector<LatLon> pts;
+    while (csv.next()) {
+        const auto it = byIdent_.find(toUpper(csv.field(cApt)));
+        if (it == byIdent_.end() || !parsePoints(csv.field(cPts), pts) || pts.size() < 2) {
+            ++stats_.skippedRows;
+            continue;
+        }
+        Airport& apt = airports_[static_cast<size_t>(it->second)];
+        Taxiway t;
+        t.osmWayId = parseId(csv.field(cWay));
+        t.kind = csv.field(cKind) == "taxilane" ? TaxiwayKind::Taxilane : TaxiwayKind::Taxiway;
+        t.ref = std::string(csv.field(cRef));
+        bool widthOk;
+        const double widthM = num(csv.field(cWidth), widthOk);
+        t.widthM = widthOk && widthM > 0 ? static_cast<float>(widthM)
+                                         : defaultTaxiwayWidthM(t.kind, apt.type);
+        t.hard = cSurf < 0 || hardSurface(csv.field(cSurf));
+        t.points = pts;
+        apt.taxiways.push_back(std::move(t));
+        ++stats_.taxiways;
+    }
+}
+
+void CsvNavDatabase::loadAprons(const std::string& path) {
+    CsvReader csv;
+    if (!csv.open(path)) {
+        LOG_INFO("nav: no aprons.csv (%s)", path.c_str());
+        return;
+    }
+    const int cApt = csv.column("airport_ident"), cWay = csv.column("osm_way_id"),
+              cSurf = csv.column("surface"), cPts = csv.column("points");
+    if (cApt < 0 || cPts < 0) {
+        LOG_WARN("nav: aprons.csv has no usable columns; ignored");
+        return;
+    }
+    std::vector<LatLon> pts;
+    while (csv.next()) {
+        const auto it = byIdent_.find(toUpper(csv.field(cApt)));
+        if (it == byIdent_.end() || !parsePoints(csv.field(cPts), pts) || pts.size() < 3) {
+            ++stats_.skippedRows;
+            continue;
+        }
+        Apron a;
+        a.osmWayId = parseId(csv.field(cWay));
+        a.hard = cSurf < 0 || hardSurface(csv.field(cSurf));
+        a.points = pts;
+        airports_[static_cast<size_t>(it->second)].aprons.push_back(std::move(a));
+        ++stats_.aprons;
+    }
+}
+
 bool CsvNavDatabase::load(const std::string& navDir, std::string& error) {
     const auto t0 = now();
     reset();
@@ -402,13 +513,15 @@ bool CsvNavDatabase::load(const std::string& navDir, std::string& error) {
     synthesizeMissingIls();
     loadNavaids(Paths::join(dir, "navaids.csv"));
     loadFixes(Paths::join(dir, "fixes.csv"));
+    loadTaxiways(Paths::join(dir, "taxiways.csv"));  // W8a: optional (ODbL, OpenStreetMap)
+    loadAprons(Paths::join(dir, "aprons.csv"));
     buildIndexes();
     stats_.airports = airports_.size();
     stats_.loadMs = std::chrono::duration<double, std::milli>(now() - t0).count();
     LOG_INFO("nav: loaded %zu airports, %zu runways, %zu navaids, %zu fixes, %zu real + %zu "
-             "synthesized ILS (%zu rows skipped) in %.0f ms",
+             "synthesized ILS, %zu taxiway segments, %zu aprons (%zu rows skipped) in %.0f ms",
              stats_.airports, stats_.runways, stats_.navaids, stats_.fixes, stats_.realIls,
-             stats_.synthIls, stats_.skippedRows, stats_.loadMs);
+             stats_.synthIls, stats_.taxiways, stats_.aprons, stats_.skippedRows, stats_.loadMs);
     return true;
 }
 

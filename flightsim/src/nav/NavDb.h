@@ -29,6 +29,7 @@ namespace fsim {
 struct NavDbStats {
     size_t airports = 0, runways = 0, navaids = 0, fixes = 0;
     size_t realIls = 0, synthIls = 0;
+    size_t taxiways = 0, aprons = 0;  // W8a: taxiway segments and aprons (OpenStreetMap)
     size_t skippedRows = 0;  // rows with missing or unusable data, or that reference unknown rows
     double loadMs = 0;
 };
@@ -45,8 +46,10 @@ class CsvNavDatabase : public NavDatabase {
 public:
     CsvNavDatabase();  // XTST only until load() succeeds
 
-    // Loads airports.csv, runways.csv, navaids.csv, ils.csv, fixes.csv and magvar.bin from
-    // `navDir`. airports.csv and runways.csv are required; the others are optional (logged).
+    // Loads airports.csv, runways.csv, navaids.csv, ils.csv, fixes.csv, taxiways.csv, aprons.csv
+    // and magvar.bin from `navDir`. airports.csv and runways.csv are required; the others are
+    // optional (logged). Without taxiways.csv / aprons.csv (packs before 1.3) every airport keeps
+    // empty `taxiways` / `aprons`.
     // On failure returns false and leaves only XTST in the database.
     bool load(const std::string& navDir, std::string& error);
     const NavDbStats& stats() const { return stats_; }
@@ -86,6 +89,8 @@ private:
     bool loadRunways(const std::string& path, std::string& error);
     void loadNavaids(const std::string& path);
     void loadFixes(const std::string& path);
+    void loadTaxiways(const std::string& path);  // W8a
+    void loadAprons(const std::string& path);    // W8a
 
     std::vector<Airport> airports_;
     std::vector<AirportExtra> extra_;

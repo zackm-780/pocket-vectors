@@ -130,7 +130,10 @@ maintainer added `Approach` / `ApproachTransition` to `NavTypes.h` (the one appr
 real CIFP procedures and N5's synthesized approaches both produce) and
 `NavDatabase::navaidsNear()` (default empty). F1 added `FlapDetent::vfeKt` (per-detent flap limit; 0 = use the profile `vfeKt`)
 and stores extra profile sections `[crash]`/`[ground]` as `crash.*`/`ground.*` keys in
-`AircraftProfile::properties` (documented in `src/sim/README.md`). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
+`AircraftProfile::properties` (documented in `src/sim/README.md`). W8a added
+`TaxiwayKind`, `Taxiway` and `Apron` to `NavTypes.h` (OpenStreetMap geometry, DATA.md 5.8-5.9; points
+are `LatLon`, so `NavTypes.h` includes `Geo.h`) and `Airport::taxiways` / `Airport::aprons` (empty
+without OSM data). After WP-00 lands, changes are **additive only** (CLAUDE.md). Every struct
 must have safe defaults, so a zero-initialised value means "nothing / invalid".
 
 ```cpp
@@ -292,10 +295,16 @@ struct Runway {                       // ONE LANDING DIRECTION (e.g. "28R")
   bool   hard = true, lighted = false, approxGeometry = false;
   std::optional<Ils> ils;
 };
+enum class TaxiwayKind { Taxiway, Taxilane };                                    // additive (W8a)
+struct Taxiway { long long osmWayId = 0; TaxiwayKind kind = TaxiwayKind::Taxiway;  // additive (W8a):
+                 std::string ref; float widthM = 0; bool hard = true;               // one segment, split
+                 std::vector<LatLon> points; };                                    // at shared nodes
+struct Apron { long long osmWayId = 0; bool hard = true; std::vector<LatLon> points; };  // W8a, open ring
 struct Airport {
   std::string ident, name, iso;  double latDeg = 0, lonDeg = 0; float elevFt = 0;
   AirportType type = AirportType::Unknown;
   std::vector<Runway> runways;  // both directions of every runway
+  std::vector<Taxiway> taxiways; std::vector<Apron> aprons;  // additive (W8a), OSM, may be empty
 };
 enum class NavaidType { Vor, VorDme, Vortac, Tacan, Ndb, NdbDme, Dme };
 struct Navaid { std::string ident, name; NavaidType type; float freqKhz = 0;

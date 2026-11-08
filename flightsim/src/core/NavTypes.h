@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "core/Geo.h"
+
 namespace fsim {
 
 enum class AirportType { Large, Medium, Small, Seaplane, Unknown };
@@ -36,12 +38,35 @@ struct Runway {
     std::optional<Ils> ils;
 };
 
+// Additive (W8a): taxiway and apron geometry from OpenStreetMap (DATA.md 5.8-5.10, ODbL 1.0,
+// PLAN D23). Optional in a pack: airports without it keep empty lists.
+enum class TaxiwayKind { Taxiway, Taxilane };
+
+// One taxiway segment: an OSM way split where it meets another taxiway (a shared node), so
+// interior points are bends and the ends are junctions or dead ends.
+struct Taxiway {
+    long long osmWayId = 0;  // repeats across the segments of one way
+    TaxiwayKind kind = TaxiwayKind::Taxiway;
+    std::string ref;             // "C", "A1"; empty when OSM has no name
+    float widthM = 0;            // the OSM width tag, else the default by airport type
+    bool hard = true;            // asphalt or concrete
+    std::vector<LatLon> points;  // >= 2, in way order
+};
+
+struct Apron {
+    long long osmWayId = 0;
+    bool hard = true;
+    std::vector<LatLon> points;  // outer ring, >= 3, open (the first point is not repeated)
+};
+
 struct Airport {
     std::string ident, name, iso;
     double latDeg = 0, lonDeg = 0;
     float elevFt = 0;
     AirportType type = AirportType::Unknown;
-    std::vector<Runway> runways;  // both directions of every runway
+    std::vector<Runway> runways;    // both directions of every runway
+    std::vector<Taxiway> taxiways;  // additive (W8a); empty without OSM data
+    std::vector<Apron> aprons;      // additive (W8a)
 };
 
 enum class NavaidType { Vor, VorDme, Vortac, Tacan, Ndb, NdbDme, Dme };
