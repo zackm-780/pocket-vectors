@@ -16,8 +16,9 @@ v1.2.0 and v1.2.1 are released. X3c (#13, 1.2.1) is device-tested: MED 59 fps in
 HUD 3.2 ms. A small packaging PR (#14, 1.2.2) renames the launch script to `PocketVectors.sh` and
 adds box art. **1.3** (2026-11-08, on `main`, the owner tags `v1.3.0` once `main` is stable): the
 owner's flight director, plan-screen and runway-intersection bugs, W1b (#15, extended to smooth
-crossings), U2 (#16, the flight log) and N10 (#19, fly-by arcs); planned as 1.2.3 and 1.2.4. The
-phases below are the original plan; take the open cards in that order.
+crossings), U2 (#16, the flight log) and N10 (#19, fly-by arcs); planned as 1.2.3 and 1.2.4.
+**Taxiways** (W8a, W8b, W8c; owner, 2026-11-08) go into **1.3.0** too, one card after another, before
+the owner tags it. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).
@@ -53,7 +54,7 @@ session can be thrown away and a fresh one picks up from the board.
 | 2b | T2 (owner, done 2026-11-05), then X3c (refined 2026-11-07: parts A–E, one pull request) | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor, moves MED toward 60 and shows the flight data in the chase view | owner tags **v1.2.0**, then **v1.2.1** for X3c |
 | 2c | N10 (owner, 2026-11-08: arcs between GPS legs) | alone: it shares `Autopilot.cpp` and the navigator with the 1.3 fixes | N10 merged | in **v1.3.0** |
 | 3 | N8, N9, H8, W7, R3, H9, U2, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first. H9 waits for F5 and X3c | T3 done | owner tags **v1.4.0** (1.3 went out early, 2026-11-08) |
-| 4 | W8a, W8b, W8c (owner, 2026-11-08: taxiways; [../TAXIWAYS.md](../TAXIWAYS.md)) | one at a time: each needs the one before | W8c merged and device-checked | the owner decides |
+| 4 | W8a, W8b, W8c (owner, 2026-11-08: taxiways; [../TAXIWAYS.md](../TAXIWAYS.md)) | one at a time: each needs the one before | W8c merged and device-checked | in **v1.3.0** (owner, 2026-11-08) |
 
 ## Cards
 
@@ -81,7 +82,9 @@ session can be thrown away and a fresh one picks up from the board.
 | [H9](H9.md) | V-speed and flap bugs on the speed tape | 3 | X3c, F5 | high | builder | `Hud.cpp`, `HudLogic.*`, `core/AircraftProfile.h`, `core/AircraftState.h`, `assets/aircraft/*.ini` |
 | [U2](U2.md) | Flight log | 3 | none | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T3](T3.md) | Device session 3: phase-3 build | 3 | phase 3 merged | | owner | `docs/DEVICE.md` |
-| [W8](W8.md) | Taxiways from OpenStreetMap (outline: W8a data, W8b ground, W8c drawing) | 4 | W1b merged, OD6 | high | planner refines, then builder | `tools/nav/`, `src/nav/NavDb*`, `core/NavTypes.h`, `src/world/terrain/`, `src/world/AirportGeometry.*`, `src/world/AirportRenderer.*` |
+| [W8a](W8a.md) | Taxiways from OpenStreetMap: extraction, pack format, loader | 4 | OD6 | high | builder | `tools/nav/`, `tools/datapack/`, `datapack.yml`, `src/nav/NavDb*`, `core/NavTypes.h` |
+| [W8b](W8b.md) | Smooth ground under taxiways and aprons (FlattenSet grid index) | 4 | W8a, W1b | high | builder | `src/world/terrain/`, `src/world/TaxiwayGeometry.*`, `src/world/AirportGeometry.*`, `TerrainRendererLod.cpp` |
+| [W8c](W8c.md) | Draw taxiways and aprons | 4 | W8b | high | builder | `src/world/TaxiwayGeometry.*`, `src/world/AirportGeometry.*`, `src/world/AirportRenderer.*`, `src/ui/HelpPages.cpp`, `src/app/Scenario.*` |
 
 **Hot files.** Two cards in flight at the same time must not share an entry in the Hot files
 column. Settings rows (`Settings.*`, `assets/settings_default.ini`, `FlightScreens.cpp`) count as
@@ -89,7 +92,9 @@ one hot file. Phase 2 can start with X3b, N7 and F5 together, then W1b, then S2,
 the hot files free up. Added 2026-11-07: H9 shares `core/AircraftProfile.h` with F5 (it waits for
 it anyway) and `Hud.cpp` / `HudLogic.*` with X3c; U2 shares `App.cpp` and `SetupScreens.cpp` with
 U1, so those two never run together. Added 2026-11-08: N10 shares `MapPage*` with H8, and the navigator and
-`core/NavState.h` with any nav card.
+`core/NavState.h` with any nav card. W8a, W8b and W8c run one at a time; W8b shares
+`src/world/terrain/` with W1b (done) and `TerrainRendererLod.cpp` with X3c (done), W8c shares
+`AirportGeometry.*` with W8b, and W8a shares `core/NavTypes.h` and `src/nav/NavDb*` with N8 and N9.
 
 **Status values** (first line of each card): `ready`, `owner`, `blocked (<on what>)`,
 `outline (planner refines)`, `done (<PR>)`. A card is taken when an `origin/wp/<ID>-*` branch
