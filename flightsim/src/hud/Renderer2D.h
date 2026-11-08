@@ -18,11 +18,18 @@
 // * Transforms: push()/pop() with translate()/rotate() (rotation in radians, clockwise on
 //   screen because y is down). No scaling: line widths stay in virtual px. A clip rect passed to
 //   pushClip() is mapped through the current transform as a bounding box.
-// * No heap allocation after warm-up: vertex vectors keep their capacity across frames.
+// * No heap allocation after warm-up: the vertex arrays keep their capacity across frames.
+// * X3c: the batch is built per stroke, not per vertex. A stroke's directions are computed once
+//   for both the outline and the colour pass, a stroke wholly inside the clip rect skips the
+//   per-triangle clip tests, and end() uploads the three layers with BufferSubData into one of 4
+//   rotating buffers (no merged copy, and never a buffer the GPU may still read). The vertices
+//   are the same floats in the same order as before, so the pixels do not change.
 // * Angles for arcs: 0 = +x (right), increasing clockwise on screen (x = cx + r cos a,
 //   y = cy + r sin a). So -pi/2 is straight up.
 
+#include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "gfx/GlApi.h"
@@ -161,16 +168,39 @@ public:
     // ---- introspection (tests, debugging) ---------------------------------------------------
     const Renderer2DStats& stats() const { return stats_; }
     long long totalDrawCalls() const { return totalDrawCalls_; }
-    // The merged batch (outline first), valid after end().
-    const Vertex* batchData() const { return merged_.data(); }
-    int batchVertexCount() const { return static_cast<int>(merged_.size()); }
+    // The batch in draw order (backs, outlines, colour), valid after end(). Built on demand: the
+    // upload itself never makes this copy.
+    const Vertex* batchData() const;
+    int batchVertexCount() const;
     // Vertices recorded since begin(), before end().
     int pendingVertexCount() const {
-        return static_cast<int>(backVerts_.size() + outlineVerts_.size() + colorVerts_.size());
+        return backVerts_.size() + outlineVerts_.size() + colorVerts_.size();
     }
-    int pendingOutlineVertexCount() const { return static_cast<int>(outlineVerts_.size()); }
+    int pendingOutlineVertexCount() const { return outlineVerts_.size(); }
 
 private:
+    // Vertex storage that keeps its capacity across frames. grow(n) hands out n slots at the end
+    // with one capacity check, so strokes write their vertices through a pointer.
+    class VertexArray {
+    public:
+        int size() const { return size_; }
+        const Vertex* data() const { return data_.get(); }
+        int capacity() const { return capacity_; }
+        void clear() { size_ = 0; }
+        void reserve(int n);
+        Vertex* grow(int n) {
+            if (size_ + n > capacity_) reserve(std::max(size_ + n, 2 * capacity_));
+            Vertex* p = data_.get() + size_;
+            size_ += n;
+            return p;
+        }
+        void shrink(int n) { size_ -= n; }  // returns the last n slots
+
+    private:
+        std::unique_ptr<Vertex[]> data_;
+        int size_ = 0, capacity_ = 0;
+    };
+    enum class ClipClass { Inside, Outside, Partial };
     struct Affine {
         float a = 1, b = 0, c = 0, d = 1, tx = 0,
               ty = 0;  // x' = a x + c y + tx, y' = b x + d y + ty
@@ -182,25 +212,41 @@ private:
     Pt2 xf(float x, float y) const {
         return {xf_.a * x + xf_.c * y + xf_.tx, xf_.b * x + xf_.d * y + xf_.ty};
     }
-    void emitTriangle(std::vector<Vertex>& out, Pt2 a, Pt2 b, Pt2 c, const std::uint8_t rgba[4]);
+    void emitTriangle(VertexArray& out, Pt2 a, Pt2 b, Pt2 c, const std::uint8_t rgba[4]);
     // Strokes a path given in the CURRENT transform's local coordinates.
     void strokePath(const Pt2* local, int n, bool closed, float widthPx, LineCap cap, Color c,
                     bool outline);
-    void emitStroke(std::vector<Vertex>& out, const Pt2* pts, int n, bool closed, float widthPx,
+    // The same with packed colours; outlineRgba == nullptr draws no outline.
+    void strokePacked(const Pt2* local, int n, bool closed, float widthPx, LineCap cap,
+                      const std::uint8_t rgba[4], const std::uint8_t* outlineRgba);
+    // Drops coincident neighbours of a path into path_ (screen space; `transform` maps local
+    // points through the current transform first) and computes the segment directions into
+    // dirs_. Returns false when nothing is left to draw.
+    bool preparePath(const Pt2* pts, int n, bool closed, bool transform);
+    // One pass (outline or colour) over the prepared path.
+    void emitPreparedStroke(VertexArray& out, float widthPx, LineCap cap,
+                            const std::uint8_t rgba[4]);
+    void emitStroke(VertexArray& out, const Pt2* pts, int n, bool closed, float widthPx,
                     LineCap cap, const std::uint8_t rgba[4]);
-    void fillScreenPolygon(std::vector<Vertex>& out, const Pt2* pts, int n,
-                           const std::uint8_t rgba[4]);
+    ClipClass classifyPrepared(float marginPx) const;
+    void fillScreenPolygon(VertexArray& out, const Pt2* pts, int n, const std::uint8_t rgba[4]);
     void fillPath(const Pt2* local, int n, Color c, FillMode mode);
+    void fillPacked(const Pt2* local, int n, FillMode mode, const std::uint8_t rgba[4],
+                    const std::uint8_t outlineRgba[4]);
     void outlineColor(Color c, std::uint8_t rgba[4]) const;
     static void packColor(Color c, std::uint8_t rgba[4]);
-    void drawGlyphStrokes(const Glyph& g, float originX, float capTopY, float unit, Color c,
+    void drawGlyphStrokes(const Glyph& g, float originX, float capTopY, float unit,
+                          const std::uint8_t rgba[4], const std::uint8_t outlineRgba[4],
                           float widthPx);
+    void buildMerged() const;
 
     const gfx::GlApi& gl_;
     gfx::GlFlavor flavor_;
     gfx::ShaderProgram program_;
     bool ready_ = false;
-    gfx::GLuint vbo_ = 0;
+    static constexpr int kVboRing = 4;  // one buffer per end(), reused 4 batches later
+    gfx::GLuint vbos_[kVboRing] = {};
+    int vboNext_ = 0;
     gfx::GLint uScale_ = -1;
 
     HudView view_;
@@ -219,8 +265,14 @@ private:
     float outlineAlpha_ = 0.6f;
     float textWidthPx_ = 0.0f;
 
-    std::vector<Vertex> backVerts_, outlineVerts_, colorVerts_, merged_;
-    std::vector<Pt2> local_, scratch_, scratch2_;  // reused path buffers
+    VertexArray backVerts_, outlineVerts_, colorVerts_;
+    mutable std::vector<Vertex> merged_;  // batchData() only
+    mutable bool mergedStale_ = false;
+    std::vector<Pt2> local_, scratch_;  // reused path buffers
+    std::vector<Pt2> path_, dirs_;      // prepared path: deduped points, segment directions
+    int pathCount_ = 0;                 // points in use in path_
+    bool pathClosed_ = false;
+    Pt2 pathMin_, pathMax_;  // bounds of path_
     Renderer2DStats stats_;
     long long totalDrawCalls_ = 0;
 };

@@ -1,5 +1,7 @@
 #pragma once
-// W4: full-screen sky pass, drawn first each frame. One draw call (a single oversized triangle).
+// W4: full-screen sky pass. One draw call (a single oversized triangle). X3c: drawn right after
+// the terrain, depth-tested at the far plane, so the GPU skips it wherever terrain already is
+// (it used to shade every pixel first and then lose half of them to the terrain).
 // The per-pixel view ray is built in the vertex shader from the clip-space corner and the lens
 // (tan of the half FOV), so the fragment shader gets an interpolated eye-space ray and needs no
 // matrix inverse (GLES2-safe). Local "up" and the sun direction arrive as eye-space uniforms.
@@ -22,8 +24,9 @@ public:
     Sky& operator=(const Sky&) = delete;
 
     bool init();
-    // Draws into the bound framebuffer with depth test off, then re-enables the depth test. Call
-    // after clearing and before any scene geometry.
+    // Draws into the bound framebuffer where the depth buffer still holds the cleared 1.0 (depth
+    // test on, GL_LEQUAL, no depth writes; the triangle sits at z = w). Call after the opaque
+    // terrain and before anything blended. Leaves the depth test on, GL_LESS, depth writes on.
     void draw(const gfx::Camera& camera, const Atmosphere& atmosphere);
 
 private:

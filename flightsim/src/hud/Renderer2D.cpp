@@ -29,8 +29,8 @@ constexpr size_t kInitialVertices = 1u << 15;
 
 using Vertex = Renderer2D::Vertex;
 
-void pushVertex(std::vector<Vertex>& out, Pt2 p, const std::uint8_t rgba[4]) {
-    out.push_back({p.x, p.y, rgba[0], rgba[1], rgba[2], rgba[3]});
+inline void put(Vertex* v, Pt2 p, const std::uint8_t rgba[4]) {
+    *v = {p.x, p.y, rgba[0], rgba[1], rgba[2], rgba[3]};
 }
 
 // Clips a convex polygon (max 8 points) against one axis-aligned half plane.
@@ -73,25 +73,34 @@ HudView HudView::fromDrawable(int widthPx, int heightPx) {
     return v;
 }
 
+void Renderer2D::VertexArray::reserve(int n) {
+    if (n <= capacity_) return;
+    std::unique_ptr<Vertex[]> next(new Vertex[static_cast<size_t>(n)]);
+    if (size_ > 0)
+        std::memcpy(next.get(), data_.get(), sizeof(Vertex) * static_cast<size_t>(size_));
+    data_ = std::move(next);
+    capacity_ = n;
+}
+
 Renderer2D::~Renderer2D() {
-    if (vbo_) gl_.DeleteBuffers(1, &vbo_);
+    if (vbos_[0]) gl_.DeleteBuffers(kVboRing, vbos_);
 }
 
 bool Renderer2D::init() {
     backVerts_.reserve(kInitialVertices);
     outlineVerts_.reserve(kInitialVertices);
     colorVerts_.reserve(kInitialVertices);
-    merged_.reserve(3 * kInitialVertices);
     local_.reserve(256);
     scratch_.reserve(256);
-    scratch2_.reserve(256);
+    path_.reserve(256);
+    dirs_.reserve(256);
     if (!program_.build(gl_, flavor_, kVertexShader, kFragmentShader, {"aPos", "aColor"})) {
         LOG_ERROR("Renderer2D: shader build failed");
         return false;
     }
     uScale_ = program_.uniform("uScale");
-    gl_.GenBuffers(1, &vbo_);
-    ready_ = vbo_ != 0;
+    gl_.GenBuffers(kVboRing, vbos_);
+    ready_ = vbos_[0] != 0;
     return ready_;
 }
 
@@ -110,23 +119,41 @@ void Renderer2D::begin(int drawableWidthPx, int drawableHeightPx) {
     outlineVerts_.clear();
     colorVerts_.clear();
     merged_.clear();
+    mergedStale_ = false;
     stats_ = {};
     if (outlineVerts_.capacity() == 0) {  // used without init() (tests)
         backVerts_.reserve(kInitialVertices);
         outlineVerts_.reserve(kInitialVertices);
         colorVerts_.reserve(kInitialVertices);
-        merged_.reserve(3 * kInitialVertices);
     }
 }
 
-void Renderer2D::end() {
+void Renderer2D::buildMerged() const {
     merged_.clear();
-    merged_.insert(merged_.end(), backVerts_.begin(), backVerts_.end());
-    merged_.insert(merged_.end(), outlineVerts_.begin(), outlineVerts_.end());
-    merged_.insert(merged_.end(), colorVerts_.begin(), colorVerts_.end());
-    const int n = static_cast<int>(merged_.size());
+    merged_.insert(merged_.end(), backVerts_.data(), backVerts_.data() + backVerts_.size());
+    merged_.insert(merged_.end(), outlineVerts_.data(),
+                   outlineVerts_.data() + outlineVerts_.size());
+    merged_.insert(merged_.end(), colorVerts_.data(), colorVerts_.data() + colorVerts_.size());
+    mergedStale_ = false;
+}
+
+const Vertex* Renderer2D::batchData() const {
+    if (mergedStale_) buildMerged();
+    return merged_.data();
+}
+
+int Renderer2D::batchVertexCount() const {
+    if (mergedStale_) buildMerged();
+    return static_cast<int>(merged_.size());
+}
+
+void Renderer2D::end() {
+    const int nb = backVerts_.size(), no = outlineVerts_.size(), nc = colorVerts_.size();
+    const int n = nb + no + nc;
     stats_.vertices = n;
     stats_.triangles = n / 3;
+    merged_.clear();
+    mergedStale_ = true;
     if (!ready_ || n == 0) return;
 
     gl_.Viewport(0, 0, view_.drawableW, view_.drawableH);
@@ -137,10 +164,24 @@ void Renderer2D::end() {
     program_.use();
     gl_.Uniform4f(uScale_, 2.0f / view_.virtualWidth, 2.0f / kHudVirtualHeightPx, 0.0f, 0.0f);
 
-    gl_.BindBuffer(gfx::GL_ARRAY_BUFFER, vbo_);
-    // BufferData with a new size orphans the old storage, so the driver never stalls on it.
-    gl_.BufferData(gfx::GL_ARRAY_BUFFER, static_cast<gfx::GLsizeiptr>(n * sizeof(Vertex)),
-                   merged_.data(), gfx::GL_DYNAMIC_DRAW);
+    // X3c: a different buffer each batch, so re-specifying it never waits for the GPU to finish
+    // reading it (the driver need not orphan), and the three layers go up without a merged copy.
+    gl_.BindBuffer(gfx::GL_ARRAY_BUFFER, vbos_[vboNext_]);
+    vboNext_ = (vboNext_ + 1) % kVboRing;
+    auto bytes = [](int count) {
+        return static_cast<gfx::GLsizeiptr>(count) * static_cast<gfx::GLsizeiptr>(sizeof(Vertex));
+    };
+    if (gl_.BufferSubData) {
+        gl_.BufferData(gfx::GL_ARRAY_BUFFER, bytes(n), nullptr, gfx::GL_DYNAMIC_DRAW);
+        if (nb > 0) gl_.BufferSubData(gfx::GL_ARRAY_BUFFER, 0, bytes(nb), backVerts_.data());
+        if (no > 0)
+            gl_.BufferSubData(gfx::GL_ARRAY_BUFFER, bytes(nb), bytes(no), outlineVerts_.data());
+        if (nc > 0)
+            gl_.BufferSubData(gfx::GL_ARRAY_BUFFER, bytes(nb + no), bytes(nc), colorVerts_.data());
+    } else {
+        buildMerged();
+        gl_.BufferData(gfx::GL_ARRAY_BUFFER, bytes(n), merged_.data(), gfx::GL_DYNAMIC_DRAW);
+    }
     gl_.EnableVertexAttribArray(0);
     gl_.EnableVertexAttribArray(1);
     gl_.VertexAttribPointer(0, 2, gfx::GL_FLOAT, 0, sizeof(Vertex), nullptr);
@@ -223,21 +264,22 @@ void Renderer2D::outlineColor(Color c, std::uint8_t rgba[4]) const {
     packColor(Color(0, 0, 0, outlineAlpha_ * c.a), rgba);
 }
 
-void Renderer2D::emitTriangle(std::vector<Vertex>& out, Pt2 a, Pt2 b, Pt2 c,
-                              const std::uint8_t rgba[4]) {
+void Renderer2D::emitTriangle(VertexArray& out, Pt2 a, Pt2 b, Pt2 c, const std::uint8_t rgba[4]) {
     if (!clipOn_) {
-        pushVertex(out, a, rgba);
-        pushVertex(out, b, rgba);
-        pushVertex(out, c, rgba);
+        Vertex* v = out.grow(3);
+        put(v, a, rgba);
+        put(v + 1, b, rgba);
+        put(v + 2, c, rgba);
         return;
     }
     const float minX = std::min({a.x, b.x, c.x}), maxX = std::max({a.x, b.x, c.x});
     const float minY = std::min({a.y, b.y, c.y}), maxY = std::max({a.y, b.y, c.y});
     if (maxX <= clip_.x0 || minX >= clip_.x1 || maxY <= clip_.y0 || minY >= clip_.y1) return;
     if (minX >= clip_.x0 && maxX <= clip_.x1 && minY >= clip_.y0 && maxY <= clip_.y1) {
-        pushVertex(out, a, rgba);
-        pushVertex(out, b, rgba);
-        pushVertex(out, c, rgba);
+        Vertex* v = out.grow(3);
+        put(v, a, rgba);
+        put(v + 1, b, rgba);
+        put(v + 2, c, rgba);
         return;
     }
     Pt2 bufA[8] = {a, b, c}, bufB[8];
@@ -247,39 +289,81 @@ void Renderer2D::emitTriangle(std::vector<Vertex>& out, Pt2 a, Pt2 b, Pt2 c,
     if (n) n = clipEdge(bufA, n, bufB, 2, clip_.y0);
     if (n) n = clipEdge(bufB, n, bufA, 3, clip_.y1);
     for (int i = 1; i + 1 < n; ++i) {
-        pushVertex(out, bufA[0], rgba);
-        pushVertex(out, bufA[i], rgba);
-        pushVertex(out, bufA[i + 1], rgba);
+        Vertex* v = out.grow(3);
+        put(v, bufA[0], rgba);
+        put(v + 1, bufA[i], rgba);
+        put(v + 2, bufA[i + 1], rgba);
     }
 }
 
-void Renderer2D::fillScreenPolygon(std::vector<Vertex>& out, const Pt2* pts, int n,
+void Renderer2D::fillScreenPolygon(VertexArray& out, const Pt2* pts, int n,
                                    const std::uint8_t rgba[4]) {
     for (int i = 1; i + 1 < n; ++i) emitTriangle(out, pts[0], pts[i], pts[i + 1], rgba);
 }
 
-void Renderer2D::emitStroke(std::vector<Vertex>& out, const Pt2* pts, int n, bool closed,
-                            float widthPx, LineCap cap, const std::uint8_t rgba[4]) {
+bool Renderer2D::preparePath(const Pt2* pts, int n, bool closed, bool transform) {
     // Drop coincident neighbours so every segment has a direction.
-    scratch2_.clear();
+    if (static_cast<int>(path_.size()) < n) path_.resize(static_cast<size_t>(n));
+    Pt2* out = path_.data();
+    int m = 0;
     for (int i = 0; i < n; ++i) {
-        if (!scratch2_.empty()) {
-            const Pt2& q = scratch2_.back();
-            if (std::fabs(pts[i].x - q.x) < 1e-4f && std::fabs(pts[i].y - q.y) < 1e-4f) continue;
+        const Pt2 p = transform ? xf(pts[i].x, pts[i].y) : pts[i];
+        if (m > 0) {
+            const Pt2& q = out[m - 1];
+            if (std::fabs(p.x - q.x) < 1e-4f && std::fabs(p.y - q.y) < 1e-4f) continue;
         }
-        scratch2_.push_back(pts[i]);
+        out[m++] = p;
     }
-    if (closed && scratch2_.size() > 1) {
-        const Pt2& f = scratch2_.front();
-        const Pt2& l = scratch2_.back();
-        if (std::fabs(f.x - l.x) < 1e-4f && std::fabs(f.y - l.y) < 1e-4f) scratch2_.pop_back();
+    if (closed && m > 1) {
+        const Pt2& f = out[0];
+        const Pt2& l = out[m - 1];
+        if (std::fabs(f.x - l.x) < 1e-4f && std::fabs(f.y - l.y) < 1e-4f) --m;
     }
-    const int m = static_cast<int>(scratch2_.size());
+    pathCount_ = m;
+    if (m == 0) return false;
+    if (m == 2) closed = false;
+    pathClosed_ = closed;
+    pathMin_ = pathMax_ = out[0];
+    for (int i = 1; i < m; ++i) {
+        pathMin_.x = std::min(pathMin_.x, out[i].x);
+        pathMin_.y = std::min(pathMin_.y, out[i].y);
+        pathMax_.x = std::max(pathMax_.x, out[i].x);
+        pathMax_.y = std::max(pathMax_.y, out[i].y);
+    }
+    // Segment directions, shared by the outline and the colour pass.
+    if (m > 1) {
+        const int segs = closed ? m : m - 1;
+        if (static_cast<int>(dirs_.size()) < segs) dirs_.resize(static_cast<size_t>(segs));
+        Pt2* dir = dirs_.data();
+        for (int i = 0; i < segs; ++i) {
+            const Pt2& p = out[i];
+            const Pt2& q = out[(i + 1) % m];
+            const float dx = q.x - p.x, dy = q.y - p.y;
+            const float len = std::sqrt(dx * dx + dy * dy);
+            dir[i] = {dx / len, dy / len};
+        }
+    }
+    return true;
+}
+
+Renderer2D::ClipClass Renderer2D::classifyPrepared(float marginPx) const {
+    const float x0 = pathMin_.x - marginPx, x1 = pathMax_.x + marginPx;
+    const float y0 = pathMin_.y - marginPx, y1 = pathMax_.y + marginPx;
+    // Every vertex of the stroke lies inside this box, so per-triangle clipping would reject all
+    // of them (outside) or pass all of them unchanged (inside, strictly).
+    if (x1 <= clip_.x0 || x0 >= clip_.x1 || y1 <= clip_.y0 || y0 >= clip_.y1)
+        return ClipClass::Outside;
+    if (x0 > clip_.x0 && x1 < clip_.x1 && y0 > clip_.y0 && y1 < clip_.y1) return ClipClass::Inside;
+    return ClipClass::Partial;
+}
+
+void Renderer2D::emitPreparedStroke(VertexArray& out, float widthPx, LineCap cap,
+                                    const std::uint8_t rgba[4]) {
+    const int m = pathCount_;
     const float hw = widthPx * 0.5f;
-    if (m == 0) return;
     if (m == 1) {
         if (cap == LineCap::Square) {  // a dot
-            const Pt2 p = scratch2_[0];
+            const Pt2 p = path_[0];
             emitTriangle(out, {p.x - hw, p.y - hw}, {p.x + hw, p.y - hw}, {p.x + hw, p.y + hw},
                          rgba);
             emitTriangle(out, {p.x - hw, p.y - hw}, {p.x + hw, p.y + hw}, {p.x - hw, p.y + hw},
@@ -287,22 +371,30 @@ void Renderer2D::emitStroke(std::vector<Vertex>& out, const Pt2* pts, int n, boo
         }
         return;
     }
-    if (m == 2) closed = false;
+    const bool closed = pathClosed_;
     const int segs = closed ? m : m - 1;
-
-    auto dirOf = [&](int i, Pt2& d) {
-        const Pt2& p = scratch2_[static_cast<size_t>(i % m)];
-        const Pt2& q = scratch2_[static_cast<size_t>((i + 1) % m)];
-        const float dx = q.x - p.x, dy = q.y - p.y;
-        const float len = std::sqrt(dx * dx + dy * dy);
-        d = {dx / len, dy / len};
+    // Vertices stay within sqrt(2) x hw of a path point (square caps), so 1.5 x hw bounds them.
+    const ClipClass cls = clipOn_ ? classifyPrepared(1.5f * hw + 0.01f) : ClipClass::Inside;
+    if (cls == ClipClass::Outside) return;
+    const bool direct = cls == ClipClass::Inside;
+    const int reserved = direct ? 6 * (segs + m) : 0;  // segments plus at most m joins
+    Vertex* w = direct ? out.grow(reserved) : nullptr;
+    Vertex* const start = w;
+    auto tri = [&](Pt2 a, Pt2 b, Pt2 c) {
+        if (direct) {
+            put(w, a, rgba);
+            put(w + 1, b, rgba);
+            put(w + 2, c, rgba);
+            w += 3;
+        } else {
+            emitTriangle(out, a, b, c, rgba);
+        }
     };
 
     for (int i = 0; i < segs; ++i) {
-        Pt2 d;
-        dirOf(i, d);
-        Pt2 p = scratch2_[static_cast<size_t>(i)];
-        Pt2 q = scratch2_[static_cast<size_t>((i + 1) % m)];
+        const Pt2 d = dirs_[static_cast<size_t>(i)];
+        Pt2 p = path_[static_cast<size_t>(i)];
+        Pt2 q = path_[static_cast<size_t>((i + 1) % m)];
         if (cap == LineCap::Square && !closed) {
             if (i == 0) p = {p.x - d.x * hw, p.y - d.y * hw};
             if (i == segs - 1) q = {q.x + d.x * hw, q.y + d.y * hw};
@@ -310,22 +402,21 @@ void Renderer2D::emitStroke(std::vector<Vertex>& out, const Pt2* pts, int n, boo
         const float nx = -d.y * hw, ny = d.x * hw;
         const Pt2 a{p.x + nx, p.y + ny}, b{p.x - nx, p.y - ny};
         const Pt2 c{q.x + nx, q.y + ny}, e{q.x - nx, q.y - ny};
-        emitTriangle(out, a, b, c, rgba);
-        emitTriangle(out, c, b, e, rgba);
+        tri(a, b, c);
+        tri(c, b, e);
     }
 
     // Joins: bevel on the outer side plus one rim vertex, which reads as round at HUD widths.
     const int firstJoin = closed ? 0 : 1;
     const int lastJoin = closed ? m - 1 : m - 2;
     for (int j = firstJoin; j <= lastJoin; ++j) {
-        Pt2 d0, d1;
-        dirOf((j + m - 1) % m, d0);
-        dirOf(j, d1);
+        const Pt2 d0 = dirs_[static_cast<size_t>((j + m - 1) % m)];
+        const Pt2 d1 = dirs_[static_cast<size_t>(j)];
         const float cross = d0.x * d1.y - d0.y * d1.x;
         const float dot = d0.x * d1.x + d0.y * d1.y;
         if (std::fabs(cross) < 1e-3f && dot > 0) continue;
         const float s = cross > 0 ? -1.0f : 1.0f;
-        const Pt2 p = scratch2_[static_cast<size_t>(j)];
+        const Pt2 p = path_[static_cast<size_t>(j)];
         const Pt2 n0{-d0.y * s, d0.x * s}, n1{-d1.y * s, d1.x * s};
         float mx = n0.x + n1.x, my = n0.y + n1.y;
         const float ml = std::sqrt(mx * mx + my * my);
@@ -338,44 +429,58 @@ void Renderer2D::emitStroke(std::vector<Vertex>& out, const Pt2* pts, int n, boo
         }
         const Pt2 a{p.x + n0.x * hw, p.y + n0.y * hw}, b{p.x + n1.x * hw, p.y + n1.y * hw};
         const Pt2 r{p.x + mx * hw, p.y + my * hw};
-        emitTriangle(out, p, a, r, rgba);
-        emitTriangle(out, p, r, b, rgba);
+        tri(p, a, r);
+        tri(p, r, b);
     }
+    if (direct) out.shrink(reserved - static_cast<int>(w - start));
+}
+
+void Renderer2D::emitStroke(VertexArray& out, const Pt2* pts, int n, bool closed, float widthPx,
+                            LineCap cap, const std::uint8_t rgba[4]) {
+    if (preparePath(pts, n, closed, false)) emitPreparedStroke(out, widthPx, cap, rgba);
+}
+
+void Renderer2D::strokePacked(const Pt2* local, int n, bool closed, float widthPx, LineCap cap,
+                              const std::uint8_t rgba[4], const std::uint8_t* outlineRgba) {
+    if (!preparePath(local, n, closed, true)) return;
+    if (outlineRgba)
+        emitPreparedStroke(outlineVerts_, widthPx + 2.0f * outlineWidthPx_, cap, outlineRgba);
+    emitPreparedStroke(colorVerts_, widthPx, cap, rgba);
 }
 
 void Renderer2D::strokePath(const Pt2* local, int n, bool closed, float widthPx, LineCap cap,
                             Color c, bool outline) {
     if (n < 1 || c.a <= 0.0f) return;
-    scratch_.clear();
-    for (int i = 0; i < n; ++i) scratch_.push_back(xf(local[i].x, local[i].y));
-    std::uint8_t rgba[4];
-    if (outline && outlineOn_) {
-        outlineColor(c, rgba);
-        emitStroke(outlineVerts_, scratch_.data(), n, closed, widthPx + 2.0f * outlineWidthPx_, cap,
-                   rgba);
-    }
+    std::uint8_t rgba[4], outlineRgba[4];
+    const bool withOutline = outline && outlineOn_;
+    if (withOutline) outlineColor(c, outlineRgba);
     packColor(c, rgba);
-    emitStroke(colorVerts_, scratch_.data(), n, closed, widthPx, cap, rgba);
+    strokePacked(local, n, closed, widthPx, cap, rgba, withOutline ? outlineRgba : nullptr);
 }
 
-void Renderer2D::fillPath(const Pt2* local, int n, Color c, FillMode mode) {
-    if (n < 3 || c.a <= 0.0f) return;
+void Renderer2D::fillPacked(const Pt2* local, int n, FillMode mode, const std::uint8_t rgba[4],
+                            const std::uint8_t outlineRgba[4]) {
+    if (n < 3) return;
     scratch_.clear();
     for (int i = 0; i < n; ++i) scratch_.push_back(xf(local[i].x, local[i].y));
-    std::uint8_t rgba[4];
     if (mode == FillMode::Back) {
-        packColor(c, rgba);
         fillScreenPolygon(backVerts_, scratch_.data(), n, rgba);
         return;
     }
     if (mode == FillMode::FrontOutlined && outlineOn_) {
         // Stroke centered on the edge: the inner half is covered by the fill drawn later.
-        outlineColor(c, rgba);
         emitStroke(outlineVerts_, scratch_.data(), n, true, 2.0f * outlineWidthPx_, LineCap::Butt,
-                   rgba);
+                   outlineRgba);
     }
-    packColor(c, rgba);
     fillScreenPolygon(colorVerts_, scratch_.data(), n, rgba);
+}
+
+void Renderer2D::fillPath(const Pt2* local, int n, Color c, FillMode mode) {
+    if (n < 3 || c.a <= 0.0f) return;
+    std::uint8_t rgba[4], outlineRgba[4];
+    packColor(c, rgba);
+    outlineColor(c, outlineRgba);
+    fillPacked(local, n, mode, rgba, outlineRgba);
 }
 
 // ---- primitives ----------------------------------------------------------------------------
@@ -460,18 +565,21 @@ void Renderer2D::fillPolygon(const Pt2* pts, int n, Color c, FillMode mode) {
 
 // ---- text ----------------------------------------------------------------------------------
 
-void Renderer2D::drawGlyphStrokes(const Glyph& g, float originX, float capTopY, float unit, Color c,
+void Renderer2D::drawGlyphStrokes(const Glyph& g, float originX, float capTopY, float unit,
+                                  const std::uint8_t rgba[4], const std::uint8_t outlineRgba[4],
                                   float widthPx) {
     Pt2 pts[32];
     for (int s = 0; s < g.strokeCount; ++s) {
         const GlyphStroke& st = g.strokes[s];
         const int n = std::min(st.count, 32);
+        if (n < 1) continue;
         for (int i = 0; i < n; ++i)
             pts[i] = {originX + st.points[i].x * unit, capTopY + st.points[i].y * unit};
         if (st.filled)
-            fillPath(pts, n, c, FillMode::FrontOutlined);
+            fillPacked(pts, n, FillMode::FrontOutlined, rgba, outlineRgba);
         else
-            strokePath(pts, n, st.closed, widthPx, LineCap::Square, c, true);
+            strokePacked(pts, n, st.closed, widthPx, LineCap::Square, rgba,
+                         outlineOn_ ? outlineRgba : nullptr);
     }
 }
 
@@ -484,11 +592,15 @@ void Renderer2D::text(float x, float y, const char* utf8, TextSize size, Color c
     const float top = StrokeFont::capTopY(y, size, v);
     float cellX = StrokeFont::originX(x, utf8, size, h);
     const float width = textWidthPx_ > 0 ? textWidthPx_ : StrokeFont::strokeWidthPx(size);
+    std::uint8_t rgba[4], outlineRgba[4];  // X3c: packed once per string, not per glyph stroke
+    packColor(c, rgba);
+    outlineColor(c, outlineRgba);
     const char* p = utf8;
     std::uint32_t cells[3];
     while (const int n = StrokeFont::nextCells(p, cells)) {
         for (int i = 0; i < n; ++i) {
-            drawGlyphStrokes(StrokeFont::glyph(cells[i]), cellX + pad, top, unit, c, width);
+            drawGlyphStrokes(StrokeFont::glyph(cells[i]), cellX + pad, top, unit, rgba, outlineRgba,
+                             width);
             cellX += adv;
         }
     }

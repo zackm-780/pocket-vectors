@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.1
+
+Device tuning from the 1.2 timing run on the RG40XXH (X3c), and the flight data in the chase view.
+
+- **Chase view:** speed, altitude, vertical speed and heading now show in the chase view, where
+  the cockpit HUD has them (the tapes' value boxes, the heading box, GS / Mach, VS and the
+  altimeter setting), plus the autopilot modes while the AP or the FD is on. No tapes or pitch
+  ladder, so the aircraft stays the focus.
+- **HUD CPU time:** the HUD is built about three times faster (the same picture, bit for bit). It
+  took 8 ms of CPU per frame in the cockpit on the handheld.
+- **GRAPHICS QUALITY MED** draws the terrain's detail noise from a texture: the same kind of
+  noise for much less GPU work. HIGH keeps the 1.2.0 shader, LOW still has none.
+- The sky is drawn after the terrain, so the GPU no longer shades it where the terrain covers it.
+- **Performance log:** the launch log shows the GPU clock (`gpu clock:` lines, and
+  `gpu <cur>/<max> MHz` on the SHOW FPS lines), and the draw count includes the airports.
+
 ## 1.2.0
 
 - **1.1 device-test fixes.** The gear no longer moves when a menu closes with A. L2 + D-pad

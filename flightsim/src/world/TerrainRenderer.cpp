@@ -59,7 +59,7 @@ constexpr char kFragmentHead[] = "#ifdef GL_ES\n"
                                  "#endif\n"
                                  "#endif\n";
 
-constexpr char kFragmentBody[] =
+constexpr char kFragmentDecls[] =
     "uniform vec3 uSun;\n"
     "uniform vec3 uAmbient;\n"
     "uniform vec3 uDiffuse;\n"
@@ -77,7 +77,12 @@ constexpr char kFragmentBody[] =
     "  p = fract(p * 0.1031);\n"
     "  p += dot(p, p.yzx + 19.19);\n"
     "  return fract((p.x + p.y) * p.z);\n"
-    "}\n"
+    "}\n";
+
+// X3c: the two ways to make the detail noise. Both are value noise with smoothstep fades, periodic
+// in 256 lattice cells (the per-node base in setNoiseUniforms() relies on that).
+// Procedural (HIGH, the 1.2.0 shader): 8 hashes per octave, all ALU, in highp.
+constexpr char kNoiseProcedural[] =
     "float vnoise(vec3 p) {\n"
     "  vec3 i = floor(p);\n"
     "  vec3 f = fract(p);\n"
@@ -89,7 +94,23 @@ constexpr char kFragmentBody[] =
     "  float c = mix(hash3(vec3(i0.x, i0.y, i1.z)), hash3(vec3(i1.x, i0.y, i1.z)), f.x);\n"
     "  float d = mix(hash3(vec3(i0.x, i1.y, i1.z)), hash3(vec3(i1.x, i1.y, i1.z)), f.x);\n"
     "  return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);\n"
-    "}\n"
+    "}\n";
+
+// Texture (MED): one bilinear fetch per octave from a 256 x 256 table (detailNoiseTable()). The
+// smoothstep weights go into the texture coordinate, so the hardware filter does the x / y mix;
+// G holds the value of the next z slice, which sits at (+37, +17) in the table.
+constexpr char kNoiseTexture[] =
+    "uniform sampler2D uNoiseTex;\n"
+    "float vnoise(vec3 p) {\n"
+    "  vec3 i = floor(p);\n"
+    "  vec3 f = fract(p);\n"
+    "  f = f * f * (3.0 - 2.0 * f);\n"
+    "  vec2 uv = i.xy + vec2(37.0, 17.0) * i.z + f.xy;\n"
+    "  vec2 rg = texture2D(uNoiseTex, (uv + 0.5) * (1.0 / 256.0)).rg;\n"
+    "  return mix(rg.x, rg.y, f.z);\n"
+    "}\n";
+
+constexpr char kFragmentMain[] =
     "void main() {\n"
     "  vec3 n = normalize(vNormal);\n"
     "  float ndl = max(dot(n, uSun), 0.0);\n"
@@ -123,12 +144,46 @@ constexpr char kFragmentBody[] =
     "  gl_FragColor = vec4(fsimApplyFog(rgb, vDist), 1.0);\n"
     "}\n";
 
+constexpr int kNoiseTableSize = 256;
+
 constexpr float kWaterRgb[3] = {0.04f, 0.10f, 0.18f};
 constexpr double kSeaRadiusM = 500000.0;
 constexpr double kSeaRebuildM = 25000.0;
 constexpr float kNoMorphStartM = 1e30f;
 
 }  // namespace
+
+const char* detailNoiseName(DetailNoise n) {
+    switch (n) {
+    case DetailNoise::Off: return "off";
+    case DetailNoise::Texture: return "texture";
+    case DetailNoise::Procedural: return "procedural";
+    }
+    return "?";
+}
+
+std::vector<uint8_t> detailNoiseTable() {
+    constexpr int n = kNoiseTableSize;
+    std::vector<uint8_t> r(static_cast<size_t>(n * n));
+    uint32_t state = 0x9E3779B9u;  // xorshift32, fixed seed: the same terrain on every run
+    for (uint8_t& v : r) {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        v = static_cast<uint8_t>(state >> 24);
+    }
+    std::vector<uint8_t> rgba(static_cast<size_t>(n * n * 4));
+    for (int y = 0; y < n; ++y) {
+        for (int x = 0; x < n; ++x) {
+            uint8_t* t = &rgba[static_cast<size_t>((y * n + x) * 4)];
+            t[0] = r[static_cast<size_t>(y * n + x)];
+            t[1] = r[static_cast<size_t>(((y + 17) % n) * n + (x + 37) % n)];  // next z slice
+            t[2] = 0;
+            t[3] = 255;
+        }
+    }
+    return rgba;
+}
 
 std::string TerrainRenderStats::summary() const {
     char buf[320];
@@ -149,6 +204,7 @@ TerrainRenderer::~TerrainRenderer() {
     std::vector<uint32_t> vbos;
     selector_.clear(vbos);
     deleteBuffers(vbos);
+    if (noiseTex_) gl_.DeleteTextures(1, &noiseTex_);
     if (ibo_) gl_.DeleteBuffers(1, &ibo_);
     if (seaVbo_) gl_.DeleteBuffers(1, &seaVbo_);
     if (seaIbo_) gl_.DeleteBuffers(1, &seaIbo_);
@@ -167,24 +223,49 @@ void TerrainRenderer::setConfig(const TerrainRenderConfig& cfg) {
     selector_.setConfig(cfg.lod);
 }
 
-bool TerrainRenderer::init() {
-    const std::string fragment = std::string(kFragmentHead) + fogGlsl() + kFragmentBody;
-    if (!program_.build(gl_, flavor_, kVertexShader, fragment.c_str(),
-                        {"aPos", "aMorph", "aNormal", "aColor"}))
+bool TerrainRenderer::buildProgram(Program& p, const char* noiseGlsl) {
+    const std::string fragment =
+        std::string(kFragmentHead) + fogGlsl() + kFragmentDecls + noiseGlsl + kFragmentMain;
+    if (!p.program.build(gl_, flavor_, kVertexShader, fragment.c_str(),
+                         {"aPos", "aMorph", "aNormal", "aColor"}))
         return false;
-    loc_.mvp = program_.uniform("uMvp");
-    loc_.eyeOffset = program_.uniform("uEyeOffset");
-    loc_.morph = program_.uniform("uMorph");
-    loc_.noiseA = program_.uniform("uNoiseA");
-    loc_.noiseB = program_.uniform("uNoiseB");
-    loc_.sun = program_.uniform("uSun");
-    loc_.ambient = program_.uniform("uAmbient");
-    loc_.diffuse = program_.uniform("uDiffuse");
-    loc_.water = program_.uniform("uWater");
-    loc_.detail = program_.uniform("uDetail");
-    loc_.moon = program_.uniform("uMoon");    // X4
-    loc_.night = program_.uniform("uNight");  // X4
-    fogUniforms_.locate(program_);
+    Locations& l = p.loc;
+    l.mvp = p.program.uniform("uMvp");
+    l.eyeOffset = p.program.uniform("uEyeOffset");
+    l.morph = p.program.uniform("uMorph");
+    l.noiseA = p.program.uniform("uNoiseA");
+    l.noiseB = p.program.uniform("uNoiseB");
+    l.sun = p.program.uniform("uSun");
+    l.ambient = p.program.uniform("uAmbient");
+    l.diffuse = p.program.uniform("uDiffuse");
+    l.water = p.program.uniform("uWater");
+    l.detail = p.program.uniform("uDetail");
+    l.moon = p.program.uniform("uMoon");    // X4
+    l.night = p.program.uniform("uNight");  // X4
+    l.noiseTex = p.program.uniform("uNoiseTex");
+    p.fog.locate(p.program);
+    return true;
+}
+
+bool TerrainRenderer::init() {
+    if (!buildProgram(procedural_, kNoiseProcedural)) return false;
+    // X3c: the texture noise (MED). Without it MED falls back to the procedural shader.
+    if (buildProgram(textured_, kNoiseTexture)) {
+        const std::vector<uint8_t> table = detailNoiseTable();
+        gl_.GenTextures(1, &noiseTex_);
+        gl_.BindTexture(gfx::GL_TEXTURE_2D, noiseTex_);
+        gl_.PixelStorei(gfx::GL_UNPACK_ALIGNMENT, 4);
+        gl_.TexImage2D(gfx::GL_TEXTURE_2D, 0, static_cast<gfx::GLint>(gfx::GL_RGBA),
+                       kNoiseTableSize, kNoiseTableSize, 0, gfx::GL_RGBA, gfx::GL_UNSIGNED_BYTE,
+                       table.data());
+        gl_.TexParameteri(gfx::GL_TEXTURE_2D, gfx::GL_TEXTURE_MIN_FILTER, gfx::GL_LINEAR);
+        gl_.TexParameteri(gfx::GL_TEXTURE_2D, gfx::GL_TEXTURE_MAG_FILTER, gfx::GL_LINEAR);
+        gl_.TexParameteri(gfx::GL_TEXTURE_2D, gfx::GL_TEXTURE_WRAP_S, gfx::GL_REPEAT);
+        gl_.TexParameteri(gfx::GL_TEXTURE_2D, gfx::GL_TEXTURE_WRAP_T, gfx::GL_REPEAT);
+        gl_.BindTexture(gfx::GL_TEXTURE_2D, 0);
+    } else {
+        LOG_WARN("terrain: texture detail noise unavailable, MED uses the procedural shader");
+    }
     const std::vector<uint16_t>& ix = nodeIndices();
     gl_.GenBuffers(1, &ibo_);
     gl_.BindBuffer(gfx::GL_ELEMENT_ARRAY_BUFFER, ibo_);
@@ -431,15 +512,25 @@ void TerrainRenderer::render(const gfx::Camera& camera, const Atmosphere* atmosp
     gl_.DepthMask(1);
     gl_.Disable(gfx::GL_CULL_FACE);
     gl_.Disable(gfx::GL_BLEND);
-    program_.use();
-    fogUniforms_.set(gl_, fog);
+    // X3c: MED's texture noise, or the procedural shader (HIGH, and LOW where the noise is off).
+    const bool textured =
+        cfg_.detailNoise == DetailNoise::Texture && textured_.program.valid() && noiseTex_ != 0;
+    const Program& prog = textured ? textured_ : procedural_;
+    loc_ = prog.loc;
+    prog.program.use();
+    prog.fog.set(gl_, fog);
+    if (textured) {
+        gl_.ActiveTexture(gfx::GL_TEXTURE0);
+        gl_.BindTexture(gfx::GL_TEXTURE_2D, noiseTex_);
+        gl_.Uniform1i(loc_.noiseTex, 0);
+    }
     gl_.Uniform3f(loc_.sun, light.sunDirEcef[0], light.sunDirEcef[1], light.sunDirEcef[2]);
     gl_.Uniform3f(loc_.ambient, light.ambientRgb[0], light.ambientRgb[1], light.ambientRgb[2]);
     gl_.Uniform3f(loc_.diffuse, light.diffuseRgb[0], light.diffuseRgb[1], light.diffuseRgb[2]);
     gl_.Uniform3f(loc_.moon, light.moonRgb[0], light.moonRgb[1], light.moonRgb[2]);  // X4
     gl_.Uniform1f(loc_.night, light.nightFactor);                                    // X4
     gl_.Uniform3f(loc_.water, kWaterRgb[0], kWaterRgb[1], kWaterRgb[2]);
-    if (cfg_.detailNoise)
+    if (cfg_.detailNoise != DetailNoise::Off)
         gl_.Uniform4f(loc_.detail, 0.28f, 150.0f, 1500.0f, 0);
     else  // X3: both detail fades are 0 beyond 5 cm, so the shader skips the noise
         gl_.Uniform4f(loc_.detail, 0.0f, 0.0f, 0.01f, 0);

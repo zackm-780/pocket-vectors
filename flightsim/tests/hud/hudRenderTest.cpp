@@ -9,6 +9,8 @@
 #include "core/Units.h"
 #include "gfx/Camera.h"
 #include "hud/Hud.h"
+#include "hud/NavHud.h"
+#include "hud/NavHudFake.h"
 
 using namespace fsim;
 using namespace fsim::gfx;
@@ -30,6 +32,7 @@ struct HudFakeGl {
         api.DeleteBuffers = [](GLsizei, const GLuint*) {};
         api.BindBuffer = [](GLenum, GLuint) {};
         api.BufferData = [](GLenum, GLsizeiptr, const void*, GLenum) {};
+        api.BufferSubData = [](GLenum, GLintptr, GLsizeiptr, const void*) {};
         api.CreateShader = [](GLenum) -> GLuint { return 1; };
         api.ShaderSource = [](GLuint, GLsizei, const GLchar* const*, const GLint*) {};
         api.CompileShader = [](GLuint) {};
@@ -205,4 +208,22 @@ TEST_CASE("hud: wide screens and both HUD colors draw without fault") {
         CHECK(v.x > -40);
         CHECK(v.x < sc.r2d.virtualWidth() + 40);
     }
+}
+
+TEST_CASE("hud: the cockpit batch with the ILS overlay stays under 40k vertices") {
+    // X3c: the device spent 8 ms on the HUD at 33.8k vertices (2026-11-05). The vertex count is
+    // what the CPU, the upload and the GPU pay for; keep an eye on it.
+    Scene sc;
+    NavHud nav;
+    sc.hud.setOverlay(&nav);
+    NavState ns;
+    AutopilotState ap;
+    std::uint32_t warn = 0;
+    REQUIRE(hudFake("loc_gs", 1, sc.s, 0, ns, ap, warn));
+    nav.setStates(ns, ap);
+    sc.opt.extraWarnings = warn;
+    const int n = sc.vertices();
+    CHECK(n > 20000);  // the full HUD: tapes, ladder, FMA, nav box, scales
+    CHECK(n < 40000);
+    CHECK(sc.r2d.stats().drawCalls == 1);
 }

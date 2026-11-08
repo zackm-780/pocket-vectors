@@ -293,6 +293,7 @@ void AirportRenderer::drawSurface(const Camera& camera, const GpuSurface& s) {
     gl_.VertexAttribPointer(2, 3, GL_FLOAT, 0, stride, reinterpret_cast<const void*>(24));
     gl_.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, s.ibo);
     gl_.DrawElements(GL_TRIANGLES, s.indexCount, GL_UNSIGNED_SHORT, nullptr);
+    ++stats_.drawCalls;
 }
 
 void AirportRenderer::drawSurfaces(const Camera& camera, const std::vector<GpuSurface>& list) {
@@ -302,6 +303,7 @@ void AirportRenderer::drawSurfaces(const Camera& camera, const std::vector<GpuSu
 void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewportH, double timeS) {
     stats_.runwaysDrawn = 0;
     stats_.lightsDrawn = 0;
+    stats_.drawCalls = 0;
     if (!surfaceProgram_.valid() || !lightProgram_.valid()) return;
     update(camera);
     stats_.activeAirports = static_cast<int>(active_.size());
@@ -405,6 +407,7 @@ void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewpo
             gl_.VertexAttribPointer(2, 3, GL_FLOAT, 0, stride, reinterpret_cast<const void*>(24));
             gl_.DrawArrays(GL_POINTS, 0, r.lights.count);
             stats_.lightsDrawn += r.lights.count;
+            ++stats_.drawCalls;
         }
     }
     gl_.DisableVertexAttribArray(0);

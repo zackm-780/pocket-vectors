@@ -42,6 +42,8 @@ struct HudFrame {
 };
 
 // H3 extension point (FMA row, nav box, LOC / GS scales, heading tape marks, FD cue, minimums).
+// X3c: also called in the external chase view (frame.options.externalView), where an overlay
+// draws only what belongs off the cockpit eye point (NavHud: the FMA row).
 class HudOverlay {
 public:
     virtual ~HudOverlay() = default;

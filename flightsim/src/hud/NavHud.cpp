@@ -52,6 +52,12 @@ void NavHud::draw(const HudFrame& f) {
     minimums_.update(nav_, static_cast<float>(f.state.altMslFt + f.state.altBaroOffsetFt),
                      f.nowS);  // X1: indicated;
 
+    if (f.options.externalView) {  // X3c: the chase view shows the FMA row with the AP or FD on
+        if (f.visibility.fma && (ap_.apEngaged || ap_.fdOn)) drawFma(f);
+        f.r.setLineWidth(2.0f);
+        return;
+    }
+
     if (f.visibility.fma) drawFma(f);
     if (f.visibility.headingTape) drawHeadingMarks(f);
     drawBugs(f);

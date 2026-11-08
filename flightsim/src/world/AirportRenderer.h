@@ -42,6 +42,7 @@ public:
         int runwaysDrawn = 0;
         int lightsDrawn = 0;
         int refreshes = 0;
+        int drawCalls = 0;  // X3c: surfaces, markings, buildings and light strips, last render()
     };
 
     AirportRenderer(const gfx::GlApi& gl, gfx::GlFlavor flavor) : gl_(gl), flavor_(flavor) {}

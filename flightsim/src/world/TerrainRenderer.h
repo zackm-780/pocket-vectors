@@ -4,8 +4,8 @@
 // camera-relative ECEF (RTC, ARCHITECTURE section 4), with land-class colours, procedural detail,
 // sun lighting and the shared W4 fog. Ocean (no tile) is a camera-centred sea disc at height 0.
 //
-// Call order per frame: terrainService.update(...), clear, sky, terrainRenderer.render(...), then
-// airports, HUD. All GL calls are on the main thread. Mesh building happens on the main thread
+// Call order per frame: terrainService.update(...), clear, terrainRenderer.render(...), sky (X3c:
+// after the terrain, depth-tested), then airports, HUD. All GL calls are on the main thread. Mesh building happens on the main thread
 // too, bounded by uploadsPerFrame (each node mesh is about 357 vertices and builds in well under
 // a millisecond); the tile IO itself stays on W1's worker.
 
@@ -22,13 +22,22 @@
 
 namespace fsim::world {
 
+// X3 / X3c: the detail noise on near terrain (two value-noise octaves, ~6 m and ~40 m features).
+enum class DetailNoise {
+    Off,         // none: skips the costliest fragment work (graphics_quality = low)
+    Texture,     // one fetch per octave from a 256 x 256 table texture (med, the default)
+    Procedural,  // 8 hashes per octave in the shader, the 1.2.0 look (high)
+};
+const char* detailNoiseName(DetailNoise n);  // "off", "texture", "procedural"
+// The texture noise's table: 256 x 256 RGBA8, R a random byte per cell (fixed seed), G the R of
+// the cell at (+37, +17), the next z slice of the 3D lattice. Exposed for tests.
+std::vector<uint8_t> detailNoiseTable();
+
 struct TerrainRenderConfig {
     LodConfig lod;
     int uploadsPerFrame = 4;  // node meshes built and uploaded per frame (GPU upload budget)
     bool seaDisc = true;
-    // X3: procedural detail noise in the fragment shader (two value-noise octaves near the eye).
-    // Off skips the costliest fragment work on near terrain (graphics_quality = low).
-    bool detailNoise = true;
+    DetailNoise detailNoise = DetailNoise::Texture;
 };
 
 struct TerrainRenderStats {
@@ -70,8 +79,15 @@ private:
     struct Locations {
         gfx::GLint mvp = -1, eyeOffset = -1, morph = -1, noiseA = -1, noiseB = -1, sun = -1,
                    ambient = -1, diffuse = -1, water = -1, detail = -1, moon = -1,
-                   night = -1;  // X4
+                   night = -1,  // X4
+            noiseTex = -1;      // X3c
     };
+    struct Program {
+        gfx::ShaderProgram program;
+        Locations loc;
+        FogUniforms fog;
+    };
+    bool buildProgram(Program& p, const char* noiseGlsl);
 
     ViewParams makeView(const gfx::Camera& camera) const;
     int buildQueued(int maxBuilds);
@@ -89,9 +105,9 @@ private:
     terrain::TerrainService& svc_;
     TerrainRenderConfig cfg_;
     TerrainSelector selector_;
-    gfx::ShaderProgram program_;
-    Locations loc_;
-    FogUniforms fogUniforms_;
+    Program procedural_, textured_;  // X3c: the two detail-noise shaders
+    Locations loc_;                  // the locations of the program in use this frame
+    gfx::GLuint noiseTex_ = 0;
     gfx::GLuint ibo_ = 0;
     int vboCount_ = 0;
 

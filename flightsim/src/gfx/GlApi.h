@@ -27,6 +27,7 @@ using GLfloat = float;
 using GLchar = char;
 using GLubyte = unsigned char;
 using GLsizeiptr = std::ptrdiff_t;
+using GLintptr = std::ptrdiff_t;
 
 // clang-format off
 constexpr GLenum GL_DEPTH_BUFFER_BIT = 0x00000100, GL_COLOR_BUFFER_BIT = 0x00004000;
@@ -76,6 +77,7 @@ constexpr GLenum GL_TEXTURE_2D = 0x0DE1, GL_TEXTURE0 = 0x84C0, GL_LUMINANCE = 0x
     X(void, DeleteBuffers, (GLsizei n, const GLuint* buffers))                            \
     X(void, BindBuffer, (GLenum target, GLuint buffer))                                   \
     X(void, BufferData, (GLenum target, GLsizeiptr size, const void* data, GLenum usage)) \
+    X(void, BufferSubData, (GLenum target, GLintptr offset, GLsizeiptr size, const void* data)) \
     X(GLuint, CreateShader, (GLenum type))                                                \
     X(void, ShaderSource, (GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length)) \
     X(void, CompileShader, (GLuint shader))                                               \

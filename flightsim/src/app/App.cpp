@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "app/FrameStats.h"     // X3
+#include "app/GpuClock.h"       // X3c
 #include "app/RenderQuality.h"  // X3
 #include "app/Settings.h"       // P3
 #include "app/Simulation.h"
@@ -160,7 +161,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         terrainRenderer->setConfig(tc);
         LOG_INFO("graphics quality %s: terrain %.1f px/cell, %d uploads/frame, detail %s",
                  graphicsQualityLabel(settings.graphicsQuality), tc.lod.pixelsPerCell,
-                 tc.uploadsPerFrame, tc.detailNoise ? "on" : "off");
+                 tc.uploadsPerFrame, world::detailNoiseName(tc.detailNoise));
     };
     if (terrainSvc) {
         terrainRenderer =
@@ -327,6 +328,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                                    // Select + Start (gptokeyb) can kill the game before its exit
     const bool perfSync = settings.perfGpuSync;
     if (perfSync) LOG_INFO("perf: perf_gpu_sync on (glFinish after each pass)");
+    GpuClock gpuClock;  // X3c: Mali devfreq clock with the timing; absent on most desktops
+    if (gpuClock.open()) LOG_INFO("%s", gpuClock.describe().c_str());
     auto passEnd = [&](PerfPass p) {
         if (perfSync) window.gl().Finish();
         const std::uint64_t t = SDL_GetPerformanceCounter();
@@ -341,6 +344,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         std::snprintf(label, sizeof label, "%s%s", graphicsQualityLabel(appliedQuality),
                       perfSync ? ", gpu sync" : "");
         LOG_INFO("%s", frameStats.sessionSummary(label).c_str());
+        if (gpuClock.available()) LOG_INFO("%s", gpuClock.describe().c_str());  // X3c
     };
     auto applySettings = [&]() {
         switch (settings.hudColor) {
@@ -713,10 +717,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 else
                     std::snprintf(line, sizeof line, "-- FPS");
                 const Color c = colors::kWhite.withAlpha(0.85f);
-                hud2d.text(hud2d.leftX() + 16, 36, line, TextSize::S, c);
+                const HudRect& z = hudzones::kFpsReadout;  // X3c: a zone the chase layout avoids
+                hud2d.text(hud2d.leftX() + z.x, z.y + 9, line, TextSize::S, c);
                 if (shownPerf.frames > 0) {
                     std::snprintf(line, sizeof line, "CPU %.1f MS", shownPerf.meanCpuMs());
-                    hud2d.text(hud2d.leftX() + 16, 52, line, TextSize::S, c);
+                    hud2d.text(hud2d.leftX() + z.x, z.y + 25, line, TextSize::S, c);
                 }
             }
             hud2d.end();
@@ -755,8 +760,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             const world::TerrainRenderStats* ts =
                 terrainRenderer ? &terrainRenderer->stats() : nullptr;
             perf.terrainTriangles = ts ? ts->triangles : 0;
-            perf.drawCalls = (ts ? ts->drawCalls : 0) + clouds.lastDrawCalls() +
-                             (chase ? externalView.lastDrawCalls() : 0) +
+            perf.drawCalls = (ts ? ts->drawCalls : 0) + airports.stats().drawCalls +  // X3c
+                             clouds.lastDrawCalls() + (chase ? externalView.lastDrawCalls() : 0) +
                              worldOverlay.lastDrawCalls() + hudDraws;
             if (perfSkipFrames > 0)
                 --perfSkipFrames;
@@ -776,7 +781,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 std::snprintf(title, sizeof title, "Pocket Vectors | %.0f fps | %.0f kt | %.0f ft",
                               frameStats.window().fps(), s.iasKt, s.altMslFt);
                 window.setTitle(title);
-                LOG_INFO("%s", frameStats.windowLine().c_str());  // X3
+                LOG_INFO("%s%s", frameStats.windowLine().c_str(),
+                         gpuClock.windowTag().c_str());  // X3, X3c: the GPU clock
                 if (terrainRenderer)
                     LOG_INFO("%s", terrainRenderer->stats().summary().c_str());  // W2
             }

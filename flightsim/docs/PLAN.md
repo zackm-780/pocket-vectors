@@ -70,7 +70,9 @@ X3 tunes; MED stays the default (owner, 2026-11-06).
 | LOW, cockpit | 60 locked (p95 17.0 ms) | 9.4 ms | 6.6 ms | 37k tris | the 60 fps stretch met |
 | HIGH, cockpit | 30 | | | | |
 
-X3c (1.2.1) works on the HUD's CPU time, logs the GPU clock and moves MED toward 60 fps.
+X3c (1.2.1) works on the HUD's CPU time (3.0× fewer instructions on the desktop, the same
+picture), logs the GPU clock and moves MED toward 60 fps (detail noise from a texture, the sky
+after the terrain). Its device timing run fills in the next table.
 
 ## 4. Decision log
 

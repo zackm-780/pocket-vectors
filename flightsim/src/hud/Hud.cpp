@@ -10,15 +10,15 @@ namespace fsim {
 namespace {
 
 constexpr float kCenterY = hudzones::kCenterY;
-constexpr float kTapeMarginPx = 16.0f;  // tape outer edge distance from the screen edge
-constexpr float kTapeWidthPx = 80.0f;
+constexpr float kTapeMarginPx = hudzones::kTapeMarginPx;
+constexpr float kTapeWidthPx = hudzones::kTapeWidthPx;
 constexpr float kBankArcRadiusPx = 150.0f;
-constexpr float kRowPanelTopPx = 430.0f;
+constexpr float kRowPanelTopPx = hudzones::kStatusPanelTopPx;
 constexpr float kRow1BaselinePx = 447.0f;
 constexpr float kRow2BaselinePx = 469.0f;
-constexpr float kWarningBaselinePx = 300.0f;
-constexpr float kMessageBaselinePx = 348.0f;
-constexpr float kMessageStepPx = 13.0f;
+constexpr float kWarningBaselinePx = hudzones::kWarningBaselinePx;
+constexpr float kMessageBaselinePx = hudzones::kMessageBaselinePx;
+constexpr float kMessageStepPx = hudzones::kMessageStepPx;
 constexpr double kBlinkHz = 2.0;
 constexpr float kPi_f = static_cast<float>(kPi);
 
@@ -223,6 +223,39 @@ void drawRadioAltLarge(const Ctx& k, const HudFpv& fpv) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Current-value boxes (the tapes' boxes; X3c: the chase readout draws the same ones)
+// ---------------------------------------------------------------------------------------------
+
+void drawSpeedValueBox(Renderer2D& r, const HudRect& b, const char* text, Color c) {
+    r.fillRect(b.x, b.y, b.w, b.h, colors::kBlack.withAlpha(0.8f), FillMode::Back);
+    r.setLineWidth(1.5f);
+    r.strokeRect(b.x, b.y, b.w, b.h, c);
+    r.text(b.x + b.w - 6, b.y + b.h * 0.5f + 8, text, TextSize::L, c, HAlign::Right,
+           VAlign::Baseline);
+}
+
+// Thousands large, the last three digits (20 ft steps) medium.
+void drawAltValueBox(Renderer2D& r, const HudRect& b, const char* thousands, const char* rest,
+                     Color c) {
+    r.fillRect(b.x, b.y, b.w, b.h, colors::kBlack.withAlpha(0.8f), FillMode::Back);
+    r.setLineWidth(1.5f);
+    r.strokeRect(b.x, b.y, b.w, b.h, c);
+    const float restRight = b.x + b.w - 5;
+    const float cy = b.y + b.h * 0.5f;
+    r.text(restRight, cy + 6, rest, TextSize::M, c, HAlign::Right, VAlign::Baseline);
+    r.text(restRight - StrokeFont::measure(rest, TextSize::M) - 1, cy + 8, thousands, TextSize::L,
+           c, HAlign::Right, VAlign::Baseline);
+}
+
+// Three digits, magnetic; cx is the canvas center (the text anchor).
+void drawHeadingValueBox(Renderer2D& r, const HudRect& b, float cx, const char* text, Color c) {
+    r.fillRect(b.x, b.y, b.w, b.h, colors::kBlack.withAlpha(0.7f), FillMode::Back);
+    r.setLineWidth(1.5f);
+    r.strokeRect(b.x, b.y, b.w, b.h, c);
+    r.text(cx, b.y + 14, text, TextSize::M, c, HAlign::Center, VAlign::Baseline);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Heading tape (magnetic)
 // ---------------------------------------------------------------------------------------------
 
@@ -261,10 +294,7 @@ void drawHeadingTape(const Ctx& k) {
     // Current heading box (3 digits) with a pointer into the tape.
     char box[16];
     formatHeadingBox(box, sizeof box, hdg);
-    r.fillRect(cx - 20, z.y - 2, 40, 18, colors::kBlack.withAlpha(0.7f), FillMode::Back);
-    r.setLineWidth(1.5f);
-    r.strokeRect(cx - 20, z.y - 2, 40, 18, k.base);
-    r.text(cx, z.y + 12, box, TextSize::M, k.base, HAlign::Center, VAlign::Baseline);
+    drawHeadingValueBox(r, headingValueBox(r.virtualWidth()), cx, box, k.base);
     r.fillTriangle({cx - 5, z.y + 17}, {cx + 5, z.y + 17}, {cx, z.y + 24}, k.base,
                    FillMode::FrontOutlined);
     r.setLineWidth(2.0f);
@@ -316,13 +346,11 @@ void drawSpeedTape(const Ctx& k, const SpeedTrend& trend) {
     // Current value box with a pointer.
     char v[16];
     std::snprintf(v, sizeof v, "%d", roundToStep(ias, 1));
-    const float bw = 66, bh = 26, bxl = x0 + 2;
-    r.fillRect(bxl, g.centerY - bh * 0.5f, bw, bh, colors::kBlack.withAlpha(0.8f), FillMode::Back);
-    r.setLineWidth(1.5f);
-    r.strokeRect(bxl, g.centerY - bh * 0.5f, bw, bh, k.base);
-    r.text(bxl + bw - 6, g.centerY + 8, v, TextSize::L, k.base, HAlign::Right, VAlign::Baseline);
-    r.fillTriangle({bxl + bw, g.centerY - 6}, {bxl + bw, g.centerY + 6}, {bxl + bw + 8, g.centerY},
-                   k.base, FillMode::FrontOutlined);
+    const HudRect vb = speedValueBox(r.virtualWidth());
+    drawSpeedValueBox(r, vb, v, k.base);
+    const float px = vb.x + vb.w;
+    r.fillTriangle({px, g.centerY - 6}, {px, g.centerY + 6}, {px + 8, g.centerY}, k.base,
+                   FillMode::FrontOutlined);
     // 10 s trend arrow just inside the tape edge.
     const float trendKt = trend.trend10sKt();
     if (std::fabs(trendKt) >= 2.0f) {
@@ -389,15 +417,9 @@ void drawAltTape(const Ctx& k) {
     char th[8], rest[8];
     formatAltBoxThousands(th, sizeof th, alt);
     formatAltBoxRest(rest, sizeof rest, alt);
-    const float bw = 70, bh = 28, bxl = x1 - bw - 2;
-    r.fillRect(bxl, g.centerY - bh * 0.5f, bw, bh, colors::kBlack.withAlpha(0.8f), FillMode::Back);
-    r.setLineWidth(1.5f);
-    r.strokeRect(bxl, g.centerY - bh * 0.5f, bw, bh, k.base);
-    const float restRight = bxl + bw - 5;
-    r.text(restRight, g.centerY + 6, rest, TextSize::M, k.base, HAlign::Right, VAlign::Baseline);
-    r.text(restRight - StrokeFont::measure(rest, TextSize::M) - 1, g.centerY + 8, th, TextSize::L,
-           k.base, HAlign::Right, VAlign::Baseline);
-    r.fillTriangle({bxl, g.centerY - 6}, {bxl, g.centerY + 6}, {bxl - 8, g.centerY}, k.base,
+    const HudRect vb = altValueBox(r.virtualWidth());
+    drawAltValueBox(r, vb, th, rest, k.base);
+    r.fillTriangle({vb.x, g.centerY - 6}, {vb.x, g.centerY + 6}, {vb.x - 8, g.centerY}, k.base,
                    FillMode::FrontOutlined);
     // VS and radio altitude below the tape.
     char t[16];
@@ -410,6 +432,23 @@ void drawAltTape(const Ctx& k) {
     // X1: altimeter setting, "STD", "29.92" or "1013".
     formatAltimeterSetting(t, sizeof t, k.s.altimeterSettingHpa, k.opt.baroInHg);
     r.text(x0, 420, t, TextSize::M, k.base, HAlign::Left, VAlign::Baseline);
+    r.setLineWidth(2.0f);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Chase view readout (X3c, HUD.md section 7a)
+// ---------------------------------------------------------------------------------------------
+
+void drawChaseReadout(const Ctx& k) {
+    Renderer2D& r = k.r;
+    const ChaseReadout c = buildChaseReadout(k.s, k.opt, k.vis, r.virtualWidth());
+    drawSpeedValueBox(r, c.speedBox, c.speed, k.base);
+    drawAltValueBox(r, c.altBox, c.altThousands, c.altRest, k.base);
+    if (c.headingShown) drawHeadingValueBox(r, c.headingBox, r.centerX(), c.heading, k.base);
+    for (const ChaseTextLine* line : {&c.gs, &c.mach, &c.vs, &c.baro})
+        if (line->text[0])
+            r.text(line->x, line->baselineY, line->text, TextSize::M, k.base, HAlign::Left,
+                   VAlign::Baseline);
     r.setLineWidth(2.0f);
 }
 
@@ -594,7 +633,12 @@ void Hud::draw(Renderer2D& r, const gfx::Camera& camera, const AircraftState& s,
 
     r.setLineWidth(2.0f);
 
-    if (options.externalView) {  // V1: status strip and messages only
+    if (options.externalView) {  // V1: no conformal symbology; X3c: the numbers and the FMA
+        drawChaseReadout(k);
+        if (overlay_) {  // NavHud draws only its FMA row in the chase view
+            const HudFrame frame{r, camera, proj, s, c, p, options, vis, base, hdgMag, nowS};
+            overlay_->draw(frame);
+        }
         drawStatusRows(k);
         drawWarnings(k, warnings_, mask);
         drawMessages(k, messages);
