@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <gameList>
   <game>
-    <path>./FlightSim.sh</path>
+    <path>./PocketVectors.sh</path>
     <name>Pocket Vectors</name>
     <desc>Retro flight sim with modern data: a full HUD over real terrain, real airports, flight plans and real instrument approaches. Fly aircraft from the Cessna 172 to the Boeing 747 on the JSBSim flight model.</desc>
     <releasedate>20261019T000000</releasedate>

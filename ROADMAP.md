@@ -17,16 +17,16 @@ The board was written before 1.2 took in all of Wave 6, so the cards that 1.2 fi
 | Release | State | What it brings |
 |---|---|---|
 | **1.1** | Tagged `v1.1.0`. The release build failed, so there is no GitHub Release yet; the release workflow can be re-run for the tag from the Actions tab | Buttons that match the printed labels, in-game Help, the mini nav inset, world overlays |
-| **1.2** | Tagged `v1.2.0` (PR #12) | The table below |
-| **1.2.1** | In review; needs the device timing run, then the owner tags `v1.2.1` | Device tuning (X3c): the HUD about three times faster on the CPU, the GPU clock in the log, MED's terrain detail from a texture and the sky after the terrain (toward 60 fps), and speed, altitude, VS, heading and the FMA in the chase view |
-| **After 1.2.1** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3), V-speed and flap bugs on the speed tape (H9, after F5), a flight log of past flights (U2) |
+| **1.2** | Released as `v1.2.0` (2026-11-08) | The table below |
+| **1.2.1** | Released as `v1.2.1` (2026-11-08), device-tested 2026-11-07 (MED 59 fps in the cockpit) | Device tuning (X3c): the HUD about three times faster on the CPU, the GPU clock in the log, MED's terrain detail from a texture and the sky after the terrain (toward 60 fps), and speed, altitude, VS, heading and the FMA in the chase view |
+| **1.2.2** | In review (#14); the owner tags `v1.2.2` after a quick device check | The launch script `PocketVectors.sh` with box art, so the Ports menu shows the name, and a one-zip install on the release |
+| **After 1.2.2** | Cards on the board | A `--bench` run (rest of X3a), probe prompts (P1b), live METAR at launch (X5), stall warnings by flap setting (F5), runways flush with the terrain (W1b), Quick Flight and landing scores (U1), airways in plans (N8), map terrain shading and holds (H8), more region packs (R3), V-speed and flap bugs on the speed tape (H9, after F5), a flight log of past flights (U2) |
 
 ## Known issues
 
-- Frame rate on the RG40XXH (2026-11-05, DEVICE.md §3): GRAPHICS QUALITY MED, the default, holds
-  30 fps in the cockpit and LOW 60; the chase view dips to 20 fps while orbiting the camera. The
-  HUD takes 8 ms of CPU per frame in the cockpit. 1.2.1 (X3c) works on both; its device timing run
-  says how far MED got.
+- Frame rate on the RG40XXH (1.2.1, 2026-11-07, DEVICE.md §3): GRAPHICS QUALITY MED, the default,
+  holds 59 fps in the cockpit and 60 inside a cloud, but drops to 30 under an overcast layer and
+  while orbiting the chase camera (the GPU, which also stays at its lowest clock).
 - X and Y on the RG40XXH match the printed labels in the PortMaster mapping. That still wants a
   confirmation in the game (A and B were checked on the device with the previous, swapped table).
 
@@ -45,7 +45,7 @@ a data pack with SIDs and STARs on the release; then the owner tags `v1.2.0`.
 | N8 | SIDs, STARs and approach transitions | SIDs and STARs need a data pack rebuilt with the new `cifp.py`; older packs still load. The card board calls this N9 |
 | S2 | GPWS voice callouts, audio buffer | Synthesized clips (Flite, PLAN D22); the tones stay as the fallback. 1.2.0: a 1024-sample buffer on the handheld (the board's S2 part A) |
 | F6 | Fuel load and planning | FUEL row on the new-flight screen, endurance on the HUD, LOW FUEL |
-| X3 | Device performance pass | Frame timing in the log, the on-screen FPS and a LOW / MED / HIGH graphics preset are in, and measured on the device (MED 30 fps, LOW 60). Tuning is X3c, in 1.2.1 |
+| X3 | Device performance pass | Done in 1.2.1: frame timing and the GPU clock in the log, the on-screen FPS, a LOW / MED / HIGH preset, and the tuning (X3c): MED 59 fps in the cockpit on the device (1.2.0: 30) |
 
 ## Later
 

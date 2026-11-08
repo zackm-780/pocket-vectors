@@ -14,12 +14,12 @@ Phase 1 · Effort: medium · Depends: none · Branch: `wp/P1b-probe-tools`
 
 - `tools/probe/README.md`; in the probe source, `grep -n -i 'prompt\|press' tools/probe/*.cpp` and
   read a window around the prompt loop
-- `port/FlightSim.sh` lines 1–110 (the launch-log block ends at the `exec >> "$LAUNCHLOG"` line)
+- `port/PocketVectors.sh` lines 1–110 (the launch-log block ends at the `exec >> "$LAUNCHLOG"` line)
 - `port/test_launch_scripts.sh` (how the device workflow exercises the script)
 
 ## Owns
 
-`tools/probe/`, `port/FlightSim.sh` (launch-log block only), `port/test_launch_scripts.sh`.
+`tools/probe/`, `port/PocketVectors.sh` (launch-log block only), `port/test_launch_scripts.sh`.
 
 ## Do
 

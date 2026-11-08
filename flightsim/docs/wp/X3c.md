@@ -1,4 +1,4 @@
-Status: done (needs device test: the DEVICE.md §6 1.2.1 run and the chase-view checks below; ships as 1.2.1)
+Status: done (#13, 1.2.1; device run 2026-11-07: MED cockpit 58.9 fps, inside OVC 59.8, HUD 3.2 ms, GPU at 420 MHz; DEVICE.md §3)
 # X3c: Device tuning: HUD CPU, GPU clock, MED toward 60, chase-view flight data
 
 Phase 2b · Effort: high · Depends: T2 (done) · Branch: `wp/X3c-device-tuning` · Release: **1.2.1**

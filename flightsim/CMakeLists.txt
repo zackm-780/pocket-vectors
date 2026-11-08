@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)  # 3.18 is JSBSim's own minimum
-project(flightsim VERSION 1.2.1 LANGUAGES C CXX)
+project(flightsim VERSION 1.2.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

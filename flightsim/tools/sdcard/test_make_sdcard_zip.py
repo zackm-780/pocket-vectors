@@ -20,8 +20,10 @@ def write(path, body):
         out.write(body if isinstance(body, bytes) else body.encode("utf-8"))
 
 
-def make_game(root, script=b"#!/bin/bash\necho hi\r\n"):
-    write(os.path.join(root, "FlightSim.sh"), script)
+def make_game(root, script=b"#!/bin/bash\necho hi\r\n", launcher="PocketVectors.sh", art=True):
+    write(os.path.join(root, launcher), script)
+    if art:
+        write(os.path.join(root, "flightsim", "PocketVectors.png"), b"png-stub")
     write(os.path.join(root, "flightsim", "flightsim.aarch64"), b"elf-stub")
     write(os.path.join(root, "flightsim", "libs.aarch64", "libJSBSim.so.1"), b"lib-stub")
     write(os.path.join(root, "flightsim", "port.json"), b"{}\n")
@@ -82,7 +84,9 @@ class MakeSdcardZipTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             with zipfile.ZipFile(out) as zf:
                 names = zf.namelist()
-                self.assertIn("FlightSim.sh", names)
+                self.assertIn("PocketVectors.sh", names)
+                self.assertNotIn("FlightSim.sh", names)
+                self.assertIn("Imgs/PocketVectors.png", names)  # stock OS box art
                 self.assertIn("flightsim/flightsim.aarch64", names)
                 self.assertIn("flightsim/libs.aarch64/libJSBSim.so.1", names)
                 self.assertIn("flightsim/data/terrain/pack.ini", names)
@@ -92,11 +96,27 @@ class MakeSdcardZipTest(unittest.TestCase):
                 self.assertNotIn("FlightSimProbe.sh", names)
                 self.assertTrue(all("/" not in n or not n.startswith("/") for n in names))
                 self.assertFalse(any(n.startswith("PocketVectors/") for n in names))
-                script = zf.read("FlightSim.sh")
+                script = zf.read("PocketVectors.sh")
                 self.assertNotIn(b"\r", script)
                 self.assertIn(b"pack B copernicus", zf.read("flightsim/data/ATTRIBUTION.txt"))
                 info = zf.getinfo("flightsim/libs.aarch64/libJSBSim.so.1")
                 self.assertFalse(stat.S_ISLNK(info.external_attr >> 16))
+
+    def test_older_game_zip_with_flightsim_sh_still_works(self):
+        # Game zips before 1.2.2 have FlightSim.sh and no box art.
+        with tempfile.TemporaryDirectory() as tmp:
+            game = os.path.join(tmp, "game")
+            pack = os.path.join(tmp, "pack")
+            make_game(game, launcher="FlightSim.sh", art=False)
+            make_pack(pack, b"attr\n")
+            out = os.path.join(tmp, "ports.zip")
+            result = self.run_script(["--game", game, "--data", pack, "--out", out])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with zipfile.ZipFile(out) as zf:
+                names = zf.namelist()
+                self.assertIn("FlightSim.sh", names)
+                self.assertNotIn("PocketVectors.sh", names)
+                self.assertFalse(any(n.startswith("Imgs/") for n in names))
 
     def test_symlink_library_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

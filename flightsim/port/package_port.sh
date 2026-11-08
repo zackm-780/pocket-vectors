@@ -152,7 +152,9 @@ mkdir -p "$DEST/licenses" "$DEST/libs.$ARCH"
 install -m 0755 "$SCRIPT" "$STAGE/$SCRIPT_NAME"
 install -m 0755 "$BINARY" "$DEST/$NAME.$ARCH"
 for f in port.json gameinfo.xml README.md; do install -m 0644 "$PORT_DIR/$f" "$DEST/$f"; done
-for img in screenshot.png screenshot.jpg cover.png cover.jpg; do
+# screenshot.png: gameinfo.xml / PortMaster. <script name>.png: the stock Anbernic OS box art, which the
+# launch script copies into the Ports menu's Imgs/ folder.
+for img in screenshot.png screenshot.jpg cover.png cover.jpg "${SCRIPT_NAME%.sh}.png"; do
   [ -f "$PORT_DIR/$img" ] && install -m 0644 "$PORT_DIR/$img" "$DEST/$img"
 done
 if [ ! -f "$DEST/screenshot.png" ] && [ ! -f "$DEST/screenshot.jpg" ]; then

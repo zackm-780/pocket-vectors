@@ -13,13 +13,13 @@ Download **`pocket-vectors-1.0.0-Roms-PORTS.zip`** from the GitHub release
 That zip is the game and the Pacific Northwest data pack (`pdx_oth`) together. It is about 125 MB.
 Unzip it **into** `Roms/PORTS`. The zip has no extra folder around the game: its contents are
 
-- `FlightSim.sh`
+- `FlightSim.sh` (`PocketVectors.sh` from 1.2.2)
 - `flightsim/` (the binary, libraries, and `flightsim/data/` with terrain and nav)
 
 so after a correct unzip you have `Roms/PORTS/FlightSim.sh` next to `Roms/PORTS/flightsim/`.
 
 Some unzip tools (Windows "Extract All", macOS Archive Utility) create a folder named after the
-zip. If that happens, open that folder and move `FlightSim.sh` and `flightsim/` into `Roms/PORTS`.
+zip. If that happens, open that folder and move the script and `flightsim/` into `Roms/PORTS`.
 Do not put them in a folder under `Roms/PORTS`.
 
 In Ports, launch **Pocket Vectors**. Exit with **Select + Start**.
@@ -30,7 +30,10 @@ The zip is built that way because FAT/exFAT cards cannot store symlinks.
 ## 2. Updating later
 
 **From 1.0 to 1.1 or later:** download `pocket-vectors-vX.Y.Z-game.zip` from the newest release,
-unzip it into `Roms/PORTS` and merge the folders (your `conf/` and `data/` stay). If you created
+unzip it into `Roms/PORTS` and merge the folders (your `conf/` and `data/` stay). **1.2.2 renames the
+launch script** to `PocketVectors.sh`, so the Ports menu shows "PocketVectors" with box art: delete the
+old `FlightSim.sh` from `Roms/PORTS` after that update, or the game is listed twice. On the stock OS
+the box art goes into `Roms/PORTS/Imgs/PocketVectors.png` the first time the game starts. If you created
 `flightsim/conf/controls.ini` for the 1.0 A/B workaround, delete it: from 1.1 the defaults match
 the printed labels. Changes per version are in [CHANGELOG.md](../CHANGELOG.md).
 
@@ -53,7 +56,7 @@ To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/s
 
 ## 3. Assembling a ports zip
 
-Tagged releases after 1.0 attach a **game-only** zip: `FlightSim.sh` and `flightsim/`, no probe
+Tagged releases after 1.0 attach a **game-only** zip: `PocketVectors.sh` and `flightsim/`, no probe
 and no terrain. `flightsim/tools/sdcard/make_sdcard_zip.py` (Python 3.8 or newer, standard
 library only) merges that zip with one or more data packs and optional `.fms` files:
 
@@ -98,7 +101,7 @@ WorldCover is CC BY 4.0.
 
 ## 6. If something goes wrong
 
-Read `flightsim_launch_log.txt` next to `FlightSim.sh`. Its `candidate` lines list every folder
+Read `flightsim_launch_log.txt` next to `PocketVectors.sh`. Its `candidate` lines list every folder
 the script checked for `flightsim.aarch64`, and `GAMEDIR=` shows the folder it used. The game
 also writes `flightsim/conf/log.txt`.
 
@@ -137,7 +140,7 @@ slow, try Settings → GRAPHICS QUALITY LOW (coarser terrain, no terrain detail 
 ## Linux / SD-card notes
 
 - The card is usually FAT32 or exFAT. The release zips contain only real files (no symlinks) and
-  `FlightSim.sh` uses LF line endings. Do not edit that script in Notepad (CRLF breaks
+  `PocketVectors.sh` uses LF line endings. Do not edit that script in Notepad (CRLF breaks
   `#!/bin/bash`).
 - FAT often drops the executable bit. The launcher starts the binary via
   `/lib/ld-linux-aarch64.so.1` when needed.

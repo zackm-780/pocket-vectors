@@ -40,7 +40,7 @@ check for any library it brings in (D17).
 
 | Block | How | Good for | Cost |
 |---|---|---|---|
-| A. Launcher fetch | `FlightSim.sh` runs the system `curl` (if present) before the game starts and writes files into `conf/` / `data/` | Weather at launch, data checks | Smallest: no new code in the binary. Data only as fresh as the launch. |
+| A. Launcher fetch | `PocketVectors.sh` runs the system `curl` (if present) before the game starts and writes files into `conf/` / `data/` | Weather at launch, data checks | Smallest: no new code in the binary. Data only as fresh as the launch. |
 | B. In-game HTTPS | A `net/` module: background thread, minimal HTTP/1.1 client, TLS through mbedTLS (decision needed) | Weather refresh in flight, traffic polling, AI ATC | New dependency and certificate bundle; about a week of work |
 | C. Plain UDP | Sockets only, no TLS | Multiplayer positions (LAN or a relay server) | Small; positions are not secret, but nothing is encrypted |
 

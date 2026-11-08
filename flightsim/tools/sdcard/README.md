@@ -11,8 +11,10 @@ python3 flightsim/tools/sdcard/make_sdcard_zip.py \
   --out pocket-vectors-ports.zip
 ```
 
-- `--game` is a release zip, a device-workflow zip, or a folder. It must contain `FlightSim.sh`
-  next to `flightsim/flightsim.aarch64`. A single wrapper folder is fine. The probe is not copied.
+- `--game` is a release zip, a device-workflow zip, or a folder. It must contain `PocketVectors.sh`
+  (`FlightSim.sh` in game zips before 1.2.2) next to `flightsim/flightsim.aarch64`. A single wrapper
+  folder is fine. The probe is not copied. When the game ships `flightsim/PocketVectors.png`, the zip
+  also gets `Imgs/PocketVectors.png`, the stock OS box art.
 - `--data` is a data-pack zip or folder (`data/terrain` and `data/nav`, or those two at the top).
   Repeat the flag to merge packs. Later packs replace files from earlier ones.
 - `--plan` copies a `.fms` file to `flightsim/data/plans/`. Repeat for more than one.

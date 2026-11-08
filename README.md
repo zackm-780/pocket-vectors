@@ -37,10 +37,12 @@ items into `Roms/PORTS`.
 `Roms/PORTS` and merge the folders, so `conf/` and `data/` stay
 ([updating](flightsim/INSTALL.md#2-updating-later), [changes](CHANGELOG.md)).
 
-The on-card folder stays `flightsim/`, the script stays `FlightSim.sh`, and the binary stays
-`flightsim.aarch64`, so an update keeps `flightsim/conf/` and `flightsim/data/`.
+The on-card folder stays `flightsim/` and the binary stays `flightsim.aarch64`, so an update keeps
+`flightsim/conf/` and `flightsim/data/`. From 1.2.2 the launch script is `PocketVectors.sh` (it was
+`FlightSim.sh`), so the Ports menu shows the game's name; after that update, delete the old
+`FlightSim.sh` from `Roms/PORTS`, or the game is listed twice.
 
-Later tagged releases attach a **game-only** zip (`FlightSim.sh` and `flightsim/`, no probe and
+Later tagged releases attach a **game-only** zip (`PocketVectors.sh` and `flightsim/`, no probe and
 no terrain). Combine that zip with a data pack, and any `.fms` plans, then unzip the result into
 `Roms/PORTS`:
 
@@ -91,9 +93,9 @@ holds the how-to pages. Full map: [flightsim/docs/CONTROLS.md](flightsim/docs/CO
 
 ## Troubleshooting
 
-If the port does not start, read `flightsim_launch_log.txt` next to `FlightSim.sh`. Its
+If the port does not start, read `flightsim_launch_log.txt` next to `PocketVectors.sh`. Its
 `candidate` lines list every folder the script checked for `flightsim.aarch64`, and `GAMEDIR=`
-is the folder it used. The game also writes `flightsim/conf/log.txt`. `FlightSim.sh` must stay
+is the folder it used. The game also writes `flightsim/conf/log.txt`. `PocketVectors.sh` must stay
 LF (editing it in Notepad can break `#!/bin/bash`). `libJSBSim.so.1` must stay a normal file,
 not a shortcut. More: [flightsim/INSTALL.md](flightsim/INSTALL.md).
 

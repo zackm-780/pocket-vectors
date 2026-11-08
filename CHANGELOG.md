@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.2
+
+- **Pocket Vectors in the Ports menu:** the launch script is now `PocketVectors.sh`, with box art
+  for the stock OS (copied to `Roms/PORTS/Imgs/` the first time the game starts) and a
+  `screenshot.png` for PortMaster. The `flightsim/` folder keeps its name, so `conf/` and `data/`
+  stay. **After updating, delete the old `FlightSim.sh`**, or the game is listed twice.
+- **One-zip install:** the release also carries `pocket-vectors-vX.Y.Z-Roms-PORTS.zip`, the game
+  and the Pacific Northwest pack together, to unzip straight into `Roms/PORTS`.
+- **1.2.1 measured on the RG40XXH (2026-11-07):** MED holds 59 fps in the cockpit (1.2.0: 30) and
+  60 inside a cloud; the HUD takes 3.2 ms of CPU (8.0). Under an overcast layer and while orbiting
+  the chase camera it still drops to 30.
+
 ## 1.2.1
 
 Device tuning from the 1.2 timing run on the RG40XXH (X3c), and the flight data in the chase view.

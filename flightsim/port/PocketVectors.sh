@@ -1,5 +1,8 @@
 #!/bin/bash
-# Pocket Vectors (flightsim) - launch script (aarch64).
+# Pocket Vectors - launch script (aarch64).
+#
+# The Ports menu lists this script by its file name, so it is PocketVectors.sh from 1.2.2 (FlightSim.sh
+# before). The port folder keeps its name, "flightsim", so an update keeps conf/ and data/.
 #
 # Works with PortMaster (official template: https://portmaster.games/packaging.html) and without it.
 # The port folder is the "flightsim" folder next to this script when it holds the binary, else
@@ -96,6 +99,16 @@ if ! cd "$GAMEDIR"; then
   exit 1
 fi
 mkdir -p "$CONFDIR"
+
+# Stock Anbernic OS box art: the Ports menu shows Imgs/<script name>.png from the folder that holds
+# the script. Copy ours there once, only where that Imgs folder already exists (other launchers do
+# not use it, and a new folder could show up as a menu entry there).
+SCRIPT_BASE="${0##*/}"; SCRIPT_BASE="${SCRIPT_BASE%.sh}"
+if [ -d "$SCRIPT_DIR/Imgs" ] && [ -f "$GAMEDIR/PocketVectors.png" ] && \
+   [ ! -f "$SCRIPT_DIR/Imgs/$SCRIPT_BASE.png" ]; then
+  cp "$GAMEDIR/PocketVectors.png" "$SCRIPT_DIR/Imgs/$SCRIPT_BASE.png" 2>/dev/null \
+    && echo "box art: installed $SCRIPT_DIR/Imgs/$SCRIPT_BASE.png" >> "$LAUNCHLOG"
+fi
 
 # From here on, all output (including the game's own) goes to the launch log next to the script.
 exec >> "$LAUNCHLOG" 2>&1

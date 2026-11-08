@@ -4,9 +4,11 @@ Thanks to the [JSBSim team](https://github.com/JSBSim-Team/jsbsim) for the open-
 model that flies every aircraft here, to the SDL project, and to the OurAirports, Copernicus DEM and FAA
 data providers behind the real-world scenery and airports.
 
-Flight Sim is an experimental port. It needs a **data pack** (terrain tiles, airports, navigation data)
-that you build on a PC with the project's offline tools. See `flightsim/docs/DATA.md` in the project.
-Copy the pack to `flightsim/data/`, or set `data_dir` in `flightsim/conf/settings.ini`.
+Pocket Vectors is an experimental port. It needs a **data pack** (terrain tiles, airports, navigation
+data): the GitHub releases carry a Pacific Northwest pack, and the project's offline tools build others
+(see `flightsim/docs/DATA.md`). Copy the pack to `flightsim/data/`, or set `data_dir` in
+`flightsim/conf/settings.ini`. The launch script is `PocketVectors.sh`; if an older `FlightSim.sh` is
+still next to it, delete that one.
 
 Run the **Flight Sim Probe** port first on a new device: it measures the device and writes
 `probe_report.txt`.

@@ -2,8 +2,9 @@
 
 This repo is **Pocket Vectors**, a first-person flight simulator for the **Anbernic RG40XXH**
 handheld running its **stock OS**, which runs it through **PortMaster**. The source and the
-on-device port live in **`flightsim/`** (that folder name, `FlightSim.sh` and `flightsim.aarch64`
-stay stable so a card update keeps `conf/` and `data/`). The game has a full HUD, real terrain,
+on-device port live in **`flightsim/`** (that folder name and `flightsim.aarch64` stay stable so a
+card update keeps `conf/` and `data/`; the launch script is `PocketVectors.sh` from 1.2.2, so the
+Ports menu shows the game's name). The game has a full HUD, real terrain,
 real airports, flight plans and instrument approaches, built on JSBSim.
 
 Several agents build it in parallel, one **work package (WP)** per agent. This file is the entry
