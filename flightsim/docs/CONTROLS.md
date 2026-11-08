@@ -102,6 +102,8 @@ Buttons pressed in a menu stay in the menu: the A that picks RESUME (or starts a
 also toggle the gear.
 
 ## 3. Menus
+FLIGHT LOG (main menu, U2) uses the standard list keys: D-pad up and down to move, A for a
+flight's details, B back. No new buttons.
 Help, on the main menu and the pause menu, lists the live bindings, tests a button, and holds the
 how-to pages. D-pad navigates, A accepts, B goes back, Start closes the pause menu, X and Y are context actions shown
 in the footer. The on-screen keyboard (airport/fix search) uses a character grid (D-pad + A, B =

@@ -74,10 +74,10 @@ private:
 
 class MainScreen : public Screen {
 public:
-    explicit MainScreen(MenuSystem& m) : nav_(5, 5) {
+    explicit MainScreen(MenuSystem& m) : nav_(6, 6) {
         std::string err;
         haveLast_ = m.lastFlightAvailable() && loadScenario(m.env().lastFlightPath, last_, err);
-        if (!haveLast_) nav_.setDisabled({1, 0, 0, 0, 0});
+        if (!haveLast_) nav_.setDisabled({1, 0, 0, 0, 0, 0});
     }
     ScreenId id() const override { return ScreenId::Main; }
 
@@ -93,9 +93,10 @@ public:
             break;
         }
         case 1: m.push(makeSetupScreen()); break;
-        case 2: m.push(makeSettingsScreen()); break;
-        case 3: m.push(makeHelpScreen(m, "")); break;
-        case 4:
+        case 2: m.push(makeFlightLogScreen(m)); break;  // U2
+        case 3: m.push(makeSettingsScreen()); break;
+        case 4: m.push(makeHelpScreen(m, "")); break;
+        case 5:
             m.confirm("QUIT THE GAME?", [](MenuSystem& mm) {
                 MenuResult res;
                 res.action = MenuAction::Quit;
@@ -110,16 +111,20 @@ public:
         r.text(cx, 118, "POCKET VECTORS", TextSize::L, t.accent, HAlign::Center);
         r.text(cx, 140, "RETRO FLIGHT SIM WITH MODERN DATA", TextSize::S, t.dim, HAlign::Center);
         r.line(cx - 150, 152, cx + 150, 152, t.accent.withAlpha(0.6f));
-        std::vector<ListRow> rows(5);
+        std::vector<ListRow> rows(6);
         rows[0].label = "RESUME LAST FLIGHT";
         rows[1].label = "NEW FLIGHT";
-        rows[2].label = "SETTINGS";
-        rows[3].label = "HELP";
-        rows[4].label = "QUIT";
+        rows[2].label = "FLIGHT LOG";
+        rows[3].label = "SETTINGS";
+        rows[4].label = "HELP";
+        rows[5].label = "QUIT";
         rows[0].enabled = haveLast_;
-        drawList(r, t, cx - 160, 172, 320, 30, nav_, rows);
+        const float top = 172, rowH = 30;
+        drawList(r, t, cx - 160, top, 320, rowH, nav_, rows);
+        // Below the list, wherever it ends (1.2.3: the plan screens' text sat on their rows).
         if (haveLast_ && nav_.selected() == 0)
-            r.text(cx, 360, lastFlightSummary(last_).c_str(), TextSize::S, t.dim, HAlign::Center);
+            r.text(cx, top + rows.size() * rowH + 24, lastFlightSummary(last_).c_str(), TextSize::S,
+                   t.dim, HAlign::Center);
         r.text(cx, 462, "A SELECT    SELECT+START QUIT", TextSize::S, t.text, HAlign::Center);
     }
 

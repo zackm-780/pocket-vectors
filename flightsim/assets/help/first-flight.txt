@@ -6,3 +6,6 @@ Rotate when the airspeed is alive, then climb away and raise the flaps with D-pa
 A toggles the gear. Y cycles the HUD. Start opens the pause menu.
 Select+Start quits. The Menu key also acts as Select.
 Hold L2 and use the right stick or the D-pad to look around. L2 + L3 switches to the chase view.
+
+FLIGHT LOG on the main menu lists every flight: when, the aircraft, where from and to,
+how long and how it ended. A shows the details. The log is conf/flightlog.csv.

@@ -79,6 +79,11 @@ TEST_CASE("ui: main menu without a last flight starts on New flight") {
     CHECK(m.top() == ScreenId::Setup);
     tap(m, &MenuInput::back);
     CHECK(m.top() == ScreenId::Main);
+    tap(m, &MenuInput::down);  // U2: Flight log
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::FlightLog);
+    tap(m, &MenuInput::back);
+    CHECK(m.top() == ScreenId::Main);
     tap(m, &MenuInput::down);  // Settings
     tap(m, &MenuInput::accept);
     CHECK(m.top() == ScreenId::Settings);
@@ -113,7 +118,7 @@ TEST_CASE("ui: quit asks for confirmation") {
     MenuFixture mf("quit");
     MenuSystem& m = *mf.menu;
     m.openMain();
-    tap(m, &MenuInput::down, 3);  // Quit (row 4; the cursor starts on row 1)
+    tap(m, &MenuInput::down, 4);  // Quit (row 5; the cursor starts on row 1)
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);
     CHECK(m.top() == ScreenId::Confirm);
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);  // the default answer is NO
@@ -467,6 +472,7 @@ TEST_CASE("ui: canned screens open and draw inside the canvas; bad specs are rej
                              "plan:XTST-pattern",
                              "approach:XTST-pattern",
                              "settings",
+                             "flightlog",
                              "pause",
                              "flightplan",
                              "confirm",
@@ -511,7 +517,7 @@ TEST_CASE("ui: help opens from the main menu and from a canned page") {
     MenuFixture mf("help_nav");
     MenuSystem& m = *mf.menu;
     m.openMain();
-    tap(m, &MenuInput::down, 2);  // Help (cursor starts on New flight)
+    tap(m, &MenuInput::down, 3);  // Help (cursor starts on New flight; U2 added Flight log)
     tap(m, &MenuInput::accept);
     CHECK(m.top() == ScreenId::Help);
     tap(m, &MenuInput::accept);  // Controls
