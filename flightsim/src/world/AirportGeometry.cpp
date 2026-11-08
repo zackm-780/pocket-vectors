@@ -6,6 +6,7 @@
 
 #include "core/Units.h"
 #include "hud/StrokeFont.h"
+#include "world/TaxiwayGeometry.h"
 
 namespace fsim::world {
 namespace {
@@ -518,6 +519,9 @@ std::vector<FlattenArea> airportFlattenAreas(const Airport& airport) {
         const RunwayInfo info = makeRunwayInfo(airport, rwy);
         if (info.primary) out.push_back(runwayFlattenArea(info));
     }
+    // W8b: OpenStreetMap taxiways (graded, priority -1) and aprons (flat, -2) below the runways.
+    const std::vector<FlattenArea> taxi = taxiwayFlattenAreas(airport);
+    out.insert(out.end(), taxi.begin(), taxi.end());
     return out;
 }
 
