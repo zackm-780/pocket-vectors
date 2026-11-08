@@ -17,6 +17,7 @@ namespace {
 constexpr double kMinGsForRatesKt = 1.0;
 constexpr double kAnticipationMinGsKt = 40.0;  // below this the anticipation uses 40 kt
 constexpr double kMaxTurnAnticipationDeg = 120.0;
+constexpr double kTurnAbandonNm = 1.0;  // N10: this far off the arc, the NAV intercept takes over
 constexpr double kHoldDirectRadiusNm = 3.0;  // beyond this a hold is flown as direct-to the fix
 constexpr double kVirtualLineNm = 300.0;     // length of the line used for CF / CA / VA legs
 constexpr double kDepartureRadiusNm = 5.0;
@@ -120,6 +121,8 @@ void Navigator::tuneVor(const Navaid& navaid, float obsMagDeg) {
 void Navigator::resetLatches() {
     locLatched_ = false;
     entryPending_ = true;
+    turn_ = FlyByTurn{};  // N10: a plan change ends any turn in progress
+    turnLeg_ = -1;
 }
 
 // ---- plan ----------------------------------------------------------------------------------------
@@ -581,15 +584,40 @@ bool Navigator::shouldSequence(const AircraftState& ac, const Guide& g, int legI
     const bool flyOver = cur.flyOver || isCourseLeg(next.type) || isHoldLeg(next.type);
     if (flyOver) return g.remNm <= 0;
 
+    // N10: a fly-by fix flown with an arc: sequence at its start (T1), half a roll-in early.
+    const FlyByTurn turn = sequenceTurn(ac, legIndex);
+    if (turn.valid) {
+        const double leadNm = std::max(static_cast<double>(ac.gsKt), kAnticipationMinGsKt) *
+                              kFlyByRollInLeadS / 3600.0;
+        return g.remNm <= turn.anticipationNm + leadNm;
+    }
+
     const double dtkDeg = radToDeg(g.dtkRad);
     const double dPsiDeg = std::min(std::fabs(wrap180(radToDeg(courseOutRad(legIndex)) - dtkDeg)),
                                     kMaxTurnAnticipationDeg);
-    const double vMps = ktToMps(std::max(static_cast<double>(ac.gsKt), kAnticipationMinGsKt));
-    const double bankRad = degToRad(std::max(static_cast<double>(bankDeg_), 5.0));
-    const double radiusM = vMps * vMps / (kStdGravityMps2 * std::tan(bankRad));
+    const double radiusM = nmToM(turnRadiusNm(ac.gsKt));
     double anticipationNm = mToNm(radiusM * std::tan(degToRad(dPsiDeg) * 0.5));
     anticipationNm = std::min(anticipationNm, std::max(0.5 * g.legLenNm, 0.1));
     return g.remNm <= anticipationNm;
+}
+
+double Navigator::turnRadiusNm(double gsKt) const {
+    return flyByRadiusNm(gsKt, flyByBankDeg(bankDeg_));
+}
+
+LatLon Navigator::legStart(int legIndex) const {
+    const Leg& l = plan_.legs[static_cast<size_t>(legIndex)];
+    LatLon start = entryPos_;
+    if (l.type != LegType::DF && prevFix(legIndex, start)) return start;
+    return entryPos_;
+}
+
+FlyByTurn Navigator::sequenceTurn(const AircraftState& ac, int fixLeg) const {
+    if (!flyByEligible(plan_, fixLeg)) return {};
+    const Leg& cur = plan_.legs[static_cast<size_t>(fixLeg)];
+    const Leg& next = plan_.legs[static_cast<size_t>(fixLeg + 1)];
+    return flyByTurn(legStart(fixLeg), {cur.to.latDeg, cur.to.lonDeg},
+                     {next.to.latDeg, next.to.lonDeg}, turnRadiusNm(ac.gsKt));
 }
 
 void Navigator::captureEntry(const AircraftState& ac) {
@@ -783,10 +811,20 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
     // Sequencing: at most a few legs per update (closely spaced fixes).
     Guide g = computeGuide(ac, plan_.activeLeg);
     for (int guard = 0; guard < 4 && shouldSequence(ac, g, plan_.activeLeg); ++guard) {
+        // N10: the turn at the fix being passed (invalid: not flown by with an arc). It is
+        // flown even when the aircraft is still intercepting the leg: the arc guidance pulls it
+        // in, where a plain intercept of the next leg would start ~R inside the corner.
+        const FlyByTurn turn = sequenceTurn(ac, plan_.activeLeg);
         ++plan_.activeLeg;
         captureEntry(ac);
         trackedLeg_ = plan_.activeLeg;
         g = computeGuide(ac, plan_.activeLeg);
+        turn_ = turn;
+        turnLeg_ = turn.valid ? plan_.activeLeg : -1;
+    }
+    if (turnLeg_ != plan_.activeLeg) {
+        turn_ = FlyByTurn{};
+        turnLeg_ = -1;
     }
     const int a = plan_.activeLeg;
     const Leg& leg = plan_.legs[static_cast<size_t>(a)];
@@ -913,11 +951,28 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
         s.source = NavSource::Gps;
         s.desiredTrackTrueDeg = static_cast<float>(radToDeg(g.dtkRad));
         s.crossTrackNm = static_cast<float>(g.xtkNm);
+        // N10: in a fly-by turn the guidance is the arc: its tangent and the distance from it.
+        if (turn_.valid) {
+            const ArcGuide arc = arcGuide(turn_, LatLon{ac.latDeg, ac.lonDeg});
+            if (arc.done || std::fabs(arc.xtkNm) > kTurnAbandonNm) {
+                turn_ = FlyByTurn{};  // past T2 (the leg takes over at XTK ~0), or far off it
+                turnLeg_ = -1;
+            } else {
+                s.desiredTrackTrueDeg = static_cast<float>(arc.dtkTrueDeg);
+                s.crossTrackNm = static_cast<float>(arc.xtkNm);
+                s.turnActive = true;
+                const double bank = flyByBankForRadiusDeg(ac.gsKt, turn_.radiusNm);
+                s.turnBankDeg = static_cast<float>(turn_.turnDeg > 0 ? bank : -bank);
+            }
+        }
         s.cdiFullScaleNm = scaleNm_;
         s.cdiDeflection = static_cast<float>(
-            clampd(-g.xtkNm / scaleNm_, -NavConstants::kCdiClamp, NavConstants::kCdiClamp));
+            clampd(-s.crossTrackNm / scaleNm_, -NavConstants::kCdiClamp, NavConstants::kCdiClamp));
         s.toFlag = g.altTerminated || g.remNm >= 0.0;
     }
+    s.legTrackTrueDeg =
+        s.source == NavSource::Gps ? static_cast<float>(radToDeg(g.dtkRad)) : s.desiredTrackTrueDeg;
+    s.turnRadiusNm = static_cast<float>(turnRadiusNm(ac.gsKt));
 
     computeVnav(ac, g, phase, s);
     state_ = s;

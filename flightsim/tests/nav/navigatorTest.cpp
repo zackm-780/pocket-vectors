@@ -373,45 +373,48 @@ TEST_CASE("nav: no LOC capture with a large intercept angle, outside full scale 
 
 // ---- sequencing ------------------------------------------------------------------------------
 
-TEST_CASE("nav: fly-by anticipation distance d = R tan(dPsi/2)") {
+TEST_CASE("nav: fly-by anticipation distance d = R tan(dPsi/2) plus half the roll-in") {
     SyntheticNavDb db;
     // A -> B east, B -> C north: a 90 degree turn at B.
     auto plan =
         makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0), makeLeg(LegType::TF, "B", 45.0, -99.0),
                   makeLeg(LegType::TF, "C", 46.0, -99.0)});
     const Waypoint a = plan.legs[0].to, b = plan.legs[1].to;
-    // Light aircraft: bank 20, V = 100 kt.
+    // N10: the fly-by bank is min(25, bank limit - 5): 15 degrees for a light aircraft (limit 20),
+    // and the turn starts half a roll-in (2.5 s) early. V = 100 kt.
     const double v = ktToMps(100.0);
-    const double r20 = v * v / (kStdGravityMps2 * std::tan(degToRad(20.0)));
-    const double d20Nm = mToNm(r20 * std::tan(degToRad(45.0)));
-    CHECK(d20Nm == doctest::Approx(0.40).epsilon(0.01));
+    const double leadNm = 100.0 * kFlyByRollInLeadS / 3600.0;
+    const double r15 = v * v / (kStdGravityMps2 * std::tan(degToRad(15.0)));
+    const double d15Nm = mToNm(r15 * std::tan(degToRad(45.0))) + leadNm;
+    CHECK(d15Nm == doctest::Approx(0.61).epsilon(0.02));
     {
         Navigator nav(db);
         nav.setPlan(plan);
         nav.update(onLeg(a, b, 5.0), 0.1);
-        nav.update(onLeg(a, b, d20Nm + 0.05), 0.1);
+        nav.update(onLeg(a, b, d15Nm + 0.05), 0.1);
         CHECK(nav.plan().activeLeg == 1);
-        nav.update(onLeg(a, b, d20Nm - 0.05), 0.1);
+        nav.update(onLeg(a, b, d15Nm - 0.05), 0.1);
         CHECK(nav.plan().activeLeg == 2);
         CHECK(std::strcmp(nav.state().activeWptIdent, "C") == 0);
+        CHECK(nav.state().turnActive);  // the arc into the leg to C
     }
-    {  // Jets turn tighter at 25 degrees bank: the anticipation is shorter.
-        const double r25 = v * v / (kStdGravityMps2 * std::tan(degToRad(25.0)));
-        const double d25Nm = mToNm(r25 * std::tan(degToRad(45.0)));
-        CHECK(d25Nm < d20Nm);
+    {  // Jets turn tighter at 20 degrees (limit 25): the anticipation is shorter.
+        const double r20 = v * v / (kStdGravityMps2 * std::tan(degToRad(20.0)));
+        const double d20Nm = mToNm(r20 * std::tan(degToRad(45.0))) + leadNm;
+        CHECK(d20Nm < d15Nm);
         Navigator nav(db);
         nav.setAircraftCategory(AircraftCategory::Jet);
         nav.setPlan(plan);
-        nav.update(onLeg(a, b, d20Nm - 0.05), 0.1);
-        CHECK(nav.plan().activeLeg == 1);  // would have sequenced with 20 degrees
-        nav.update(onLeg(a, b, d25Nm - 0.03), 0.1);
+        nav.update(onLeg(a, b, d15Nm - 0.05), 0.1);
+        CHECK(nav.plan().activeLeg == 1);  // would have sequenced with 15 degrees
+        nav.update(onLeg(a, b, d20Nm - 0.03), 0.1);
         CHECK(nav.plan().activeLeg == 2);
     }
-    {  // Anticipation grows with ground speed squared (200 kt: 4x).
+    {  // The radius grows with ground speed squared (200 kt: 4x); the lead doubles.
         Navigator nav(db);
         nav.setPlan(plan);
-        nav.update(onLeg(a, b, 2.0, 5000, 200), 0.1);
-        nav.update(onLeg(a, b, 4.0 * d20Nm - 0.1, 5000, 200), 0.1);
+        nav.update(onLeg(a, b, 3.0, 5000, 200), 0.1);
+        nav.update(onLeg(a, b, 4.0 * (d15Nm - leadNm) + 2.0 * leadNm - 0.1, 5000, 200), 0.1);
         CHECK(nav.plan().activeLeg == 2);
     }
 }
@@ -420,9 +423,10 @@ TEST_CASE(
     "nav: turn anticipation caps the course change at 120 degrees and small turns barely lead") {
     SyntheticNavDb db;
     const double v = ktToMps(100.0);
-    const double r = v * v / (kStdGravityMps2 * std::tan(degToRad(20.0)));
+    const double r = v * v / (kStdGravityMps2 * std::tan(degToRad(15.0)));  // N10: 15 deg bank
     {
-        // ~160 degree reversal at B: anticipation = R tan(60 deg).
+        // ~160 degree reversal at B (over the 135 degree arc limit): no arc, anticipation =
+        // R tan(60 deg).
         auto plan = makePlan({makeLeg(LegType::IF, "A", 45.0, -100.0),
                               makeLeg(LegType::TF, "B", 45.0, -99.0),
                               makeLeg(LegType::TF, "C", 44.9, -100.3)});

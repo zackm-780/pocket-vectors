@@ -24,8 +24,10 @@ public:
 
     // Rebuilds batches from the plan and the nearest airports, then draws. No-ops when the shader
     // failed to build. `radiusNm` is the airport / runway search radius.
+    // N10: turnRadiusNm > 0 draws the fly-by turns as arcs (NavState::turnRadiusNm).
     void render(const gfx::Camera& camera, const FlightPlan* plan, const NavDatabase* nav,
-                const TerrainQuery* terrain, const OverlayToggles& toggles, float radiusNm);
+                const TerrainQuery* terrain, const OverlayToggles& toggles, float radiusNm,
+                float turnRadiusNm = 0.0f);
     // Drops labels and the draw-call count when the overlay is not drawn this frame.
     void clearFrame();
 

@@ -72,7 +72,7 @@ void WorldOverlay::drawBatch(const std::vector<float>& verts, gfx::GLuint vbo,
 
 void WorldOverlay::render(const gfx::Camera& camera, const FlightPlan* plan, const NavDatabase* nav,
                           const TerrainQuery* terrain, const OverlayToggles& toggles,
-                          float radiusNm) {
+                          float radiusNm, float turnRadiusNm) {
     clearFrame();
     route_.clear();
     vpath_.clear();
@@ -115,7 +115,7 @@ void WorldOverlay::render(const gfx::Camera& camera, const FlightPlan* plan, con
     }
 
     buildWorldOverlay(toggles, plan, markerRefs, markerN, runwayRefs, runwayN, terrain, eye, route_,
-                      vpath_, airports_, runways_, labels_, 48, labelCount_);
+                      vpath_, airports_, runways_, labels_, 48, labelCount_, turnRadiusNm);
 
     const gfx::Mat4 mvp = camera.viewProjection(camera.eyeEcef());
     gl_.Enable(gfx::GL_DEPTH_TEST);

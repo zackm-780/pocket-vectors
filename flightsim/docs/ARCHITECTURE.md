@@ -366,6 +366,10 @@ struct NavState {
   float todDistNm = 0;      // distance to the top of descent along the route; 0 = at/past it
   int activeLegIndex = -1;  // FlightPlan::legs index of the active leg, -1 = none
   bool onFinal = false;     // active leg lies on the final approach course (non-missed)
+  bool turnActive = false;      // additive (N10): in a fly-by turn, guidance relative to the arc
+  float turnBankDeg = 0;        // additive (N10): feed-forward bank for the arc, + = right
+  float turnRadiusNm = 0;       // additive (N10): fly-by radius at the present GS (drawing)
+  float legTrackTrueDeg = 0;    // additive (N10): the active leg's own course
 };
 
 // ---------- core/AutopilotState.h ----------   produced by autopilot/ (N6), read by HUD

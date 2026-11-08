@@ -36,6 +36,12 @@ struct NavState {
     float todDistNm = 0;      // distance to the top of descent along the route; 0 = at/past it
     int activeLegIndex = -1;  // FlightPlan::legs index of the active leg, -1 = none
     bool onFinal = false;     // active leg lies on the final approach course (non-missed)
+    // Additive (N10): fly-by turns. In a turn the guidance (desiredTrackTrueDeg, crossTrackNm,
+    // cdiDeflection) is relative to the arc tangent to both legs.
+    bool turnActive = false;
+    float turnBankDeg = 0;      // feed-forward bank for the arc at the present GS, + = right
+    float turnRadiusNm = 0;     // radius of a fly-by turn at the present GS (for drawing the route)
+    float legTrackTrueDeg = 0;  // the active leg's own course (= desiredTrackTrueDeg out of a turn)
 };
 
 }  // namespace fsim

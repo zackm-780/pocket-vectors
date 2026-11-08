@@ -10,6 +10,7 @@
 
 #include "core/Geo.h"
 #include "core/Units.h"
+#include "nav/FlyBy.h"
 #include "world/WorldOverlayLogic.h"
 
 using namespace fsim;
@@ -538,4 +539,36 @@ TEST_CASE("overlay: missed approach legs show only once the missed approach is a
     p.activeLeg = 3;  // went around: the navigator is on the CA leg
     const OverlayEye climbing = eyeAt(45.18, -122.0, ftToM(900.0), 0.0f);
     CHECK(routeVerts(p, climbing).size() > routeVerts(noMissed, climbing).size());
+}
+
+TEST_CASE("overlay: N10 fly-by turns are drawn as arcs that cut the corner") {
+    // East 5 NM, then north 5 NM: a 90 degree left turn at B, seen from above and south of it.
+    FlightPlan plan;
+    plan.legs = {fixLeg("A", 45.0, -122.0), fixLeg("B", 45.0, -121.8823),
+                 fixLeg("C", 45.0833, -121.8823)};
+    plan.legs[0].type = LegType::IF;
+    plan.activeLeg = 1;
+    const OverlayEye eye = eyeAt(44.95, -121.95, 3000.0, 30.0f);
+    OverlayToggles t;
+    t.route = true;
+    auto build = [&](float radiusNm) {
+        std::vector<float> route, vpath, ap, rw;
+        int n = 0;
+        buildWorldOverlay(t, &plan, nullptr, 0, nullptr, 0, nullptr, eye, route, vpath, ap, rw,
+                          nullptr, 0, n, radiusNm);
+        return route;
+    };
+    const std::vector<float> sharp = build(0.0f), arcs = build(1.0f);
+    const FlyByTurn turn = planTurnAt(plan, 1, 1.0);
+    REQUIRE(turn.valid);
+    LatLon pts[16];
+    const int np = arcPoints(turn, pts, 16);
+    const LatLon mid = pts[np / 2];
+    CHECK(arcs.size() > sharp.size());  // the arc's pieces
+    // The straight leg now ends at T1, 1 NM before B, where the arc begins (vertices sit at the
+    // segment ends: the sharp ribbon has none there).
+    CHECK(maxAltNearM(arcs, eye, turn.start.latDeg, turn.start.lonDeg, 60.0) >= 0.0);
+    CHECK(maxAltNearM(sharp, eye, turn.start.latDeg, turn.start.lonDeg, 60.0) < 0.0);
+    CHECK(maxAltNearM(arcs, eye, mid.latDeg, mid.lonDeg, 150.0) >= 0.0);  // along the arc
+    CHECK(maxAltNearM(sharp, eye, mid.latDeg, mid.lonDeg, 150.0) < 0.0);
 }
