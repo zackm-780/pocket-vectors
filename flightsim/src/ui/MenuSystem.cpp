@@ -320,7 +320,8 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
         stack_.push_back(makeSetupScreen());
         stack_.push_back(makeStartTypeScreen(*this));
     } else if (name == "plan" || name == "approach") {
-        if (!planFile(arg)) {
+        // plan:none opens the screen without a plan (1.2.3: for its screenshot).
+        if (!(name == "plan" && arg == "none") && !planFile(arg)) {
             error = err;
             return false;
         }
@@ -352,10 +353,10 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
         stack_.push_back(makeMainScreen(*this));
         stack_.push_back(makeHelpScreen(*this, arg));
     } else {
-        error =
-            "unknown menu screen '" + name +
-            "' (main, setup, aircraft, airport[:TEXT], runway[:ICAO], start, plan[:FILE], "
-            "approach[:FILE], settings, flightlog[:N], pause, flightplan, confirm, help[:PAGE])";
+        error = "unknown menu screen '" + name +
+                "' (main, setup, aircraft, airport[:TEXT], runway[:ICAO], start, plan[:FILE], "
+                "approach[:FILE], settings, flightlog[:N], pause, flightplan, confirm, "
+                "help[:PAGE]; plan:none = no plan)";
         return false;
     }
     return true;

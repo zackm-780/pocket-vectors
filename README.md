@@ -15,8 +15,23 @@ Northwest: terrain streamed from Portland (KPDX) to the coast at North Bend (KOT
 - **FAA approaches, fixes and airways**, plus a synthesized ILS for any runway.
 - **Terrain streamed for the KPDX to KOTH region** in the release data pack (Copernicus DEM and
   ESA WorldCover).
-- Flight plans built in game or loaded from X-Plane `.fms` files, a moving map, autopilot and a
-  full HUD.
+- Flight plans built in game or loaded from X-Plane `.fms` files, with SIDs, STARs and approach
+  transitions, a moving map, an autopilot with flight director and a full HUD.
+- A chase view, cloud layers, night lighting, GPWS voice callouts, fuel planning and a flight log
+  of every flight you fly.
+
+## Screenshots
+
+All taken in the game at the RG40XXH's 640 × 480 (1.2.3, desktop build, the `pdx_oth` pack).
+
+| | |
+|---|---|
+| ![ILS 05 at North Bend with the flight director](screenshots/ils-koth.png) | ![Chase view on final to North Bend](screenshots/chase-final-koth.png) |
+| ILS 05 at North Bend (KOTH): localizer and glideslope captured, the flight director cue on the flight path marker | The chase view on final to KOTH, with the flight data kept on screen |
+| ![The moving map with the KPDX to KOTH plan](screenshots/map-kpdx-koth.png) | ![Night final to Portland](screenshots/night-final-kpdx.png) |
+| The moving map at 40 NM with the KPDX to KOTH plan | Night final to runway 28L at Portland, approach and runway lights |
+| ![The flight log](screenshots/flight-log.png) | ![On runway 28L at KPDX](screenshots/ground-kpdx.png) |
+| The flight log on the main menu (example flights) | The takeoff roll on runway 28L at Portland |
 
 ## Supported device
 
@@ -59,8 +74,6 @@ binary, that `libs.aarch64/libJSBSim.so.1` is a regular file, and that `data/ter
 `data/nav/nav.ini` are present. Details: [flightsim/INSTALL.md](flightsim/INSTALL.md) and
 [flightsim/tools/sdcard/README.md](flightsim/tools/sdcard/README.md).
 
-![On runway 28L at KPDX](screenshots/ground-kpdx.png)
-
 ## Flight plans
 
 Put X-Plane `.fms` files (version 1100) in `flightsim/data/plans/`. SimBrief and Little Navmap
@@ -73,8 +86,9 @@ game (`KPDX-KOTH.fms`, `KOTH-KPDX.fms`, `XTST-pattern.fms`). See
 
 ## More regions
 
-Tagged releases do not include a terrain pack. Build one and keep its `ATTRIBUTION.txt`
-(Copernicus DEM is free for worldwide use with that notice; ESA WorldCover is CC BY 4.0).
+From 1.2.0 a tagged release attaches the Pacific Northwest pack (`pdx_oth`). For any other region,
+build a pack and keep its `ATTRIBUTION.txt` (Copernicus DEM is free for worldwide use with that
+notice; ESA WorldCover is CC BY 4.0).
 
 - Actions tab, workflow **datapack**. Presets: `pdx_oth`, `bayarea`, `mthood`, `tam_diablo`.
   Or set **bbox** to `west,south,east,north`. Download the artifact (kept 30 days), unzip once,

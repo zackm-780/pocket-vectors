@@ -133,16 +133,18 @@ TEST_CASE("autopilot: pressing HDG again with HDG active returns to ROL") {
     CHECK(r.ap.state().latActive == LatMode::Roll);
 }
 
-TEST_CASE("autopilot: NAV arms off course and captures on a closing intercept") {
+TEST_CASE("autopilot: NAV arms over HDG off course and captures on a closing intercept") {
     Rig r;
     r.setHeadingDeg(0);
     r.nav.desiredTrackTrueDeg = 0;
     r.nav.crossTrackNm = 2.0f;  // 2 NM right of course
     r.engage();
+    r.ap.setHdgBugMagDeg(0);
+    r.ap.selectHdg(r.ac);  // the pilot's intercept heading
     r.ap.selectNav(r.nav);
     r.run(0.2);
     CHECK(r.ap.state().latArmed == LatMode::Nav);
-    CHECK(r.ap.state().latActive == LatMode::Roll);  // parallel to the course: stays armed
+    CHECK(r.ap.state().latActive == LatMode::Hdg);  // parallel to the course: stays armed
 
     r.ac.trackTrueRad = static_cast<float>(degToRad(30));  // diverging
     r.nav.crossTrackNm = 0.15f;
@@ -153,6 +155,57 @@ TEST_CASE("autopilot: NAV arms off course and captures on a closing intercept") 
     r.run(0.2);
     CHECK(r.ap.state().latActive == LatMode::Nav);
     CHECK(r.ap.state().latArmed == LatMode::Off);
+}
+
+// 1.2.3 (owner, 2026-11-08: "If I follow it, I get off the GPS track"): a mode button turns the
+// FD on in ROL, and ROL (NAV) used to hold the wings level until a closing intercept that never
+// came. NAV armed over ROL now captures at once and the NAV law flies the intercept.
+TEST_CASE("autopilot: NAV over ROL captures at once off course and turns toward the course") {
+    for (float xtkNm : {0.8f, -2.0f, 12.0f}) {
+        Rig r;
+        r.setHeadingDeg(60);  // diverging when right of course
+        r.nav.desiredTrackTrueDeg = 0;
+        r.nav.crossTrackNm = xtkNm;
+        r.ap.handleActions(press(Action::NavMode), r.ac, r.nav, kSimDtS);  // AP and FD off
+        REQUIRE(r.ap.state().fdOn);
+        r.run(0.2);
+        CAPTURE(xtkNm);
+        CHECK(r.ap.state().latActive == LatMode::Nav);
+        CHECK(r.ap.state().latArmed == LatMode::Off);
+        CHECK(r.ap.state().fdValid);
+        // right of course: turn left (and the reverse); the intercept is at most 45 degrees
+        if (xtkNm > 0)
+            CHECK(r.ap.state().fdRollCmdDeg < -10.f);
+        else
+            CHECK(r.ap.state().fdRollCmdDeg < 0.f);  // track 60, want <= 45: still left a bit
+    }
+    // Over HDG nothing changes: the pilot flies the heading until the closing intercept.
+    Rig h;
+    h.setHeadingDeg(60);
+    h.nav.desiredTrackTrueDeg = 0;
+    h.nav.crossTrackNm = 0.8f;
+    h.ap.handleActions(press(Action::HdgMode), h.ac, h.nav, kSimDtS);
+    h.ap.handleActions(press(Action::NavMode), h.ac, h.nav, kSimDtS);
+    h.run(0.2);
+    CHECK(h.ap.state().latActive == LatMode::Hdg);
+    CHECK(h.ap.state().latArmed == LatMode::Nav);
+}
+
+TEST_CASE("autopilot: NAV does not capture on the ground (FD on the takeoff roll)") {
+    Rig r;
+    r.ac.wowAny = true;
+    r.ac.altAglFt = 0;
+    r.nav.desiredTrackTrueDeg = 0;
+    r.nav.crossTrackNm = 0.02f;  // on course: would capture at once in the air
+    r.ap.handleActions(press(Action::NavMode), r.ac, r.nav, kSimDtS);
+    r.run(0.5);
+    CHECK(r.ap.state().latActive == LatMode::Roll);
+    CHECK(r.ap.state().latArmed == LatMode::Nav);
+    CHECK(std::fabs(r.ap.state().fdRollCmdDeg) < 0.5f);  // wings level on the roll
+    r.ac.wowAny = false;                                 // liftoff
+    r.ac.altAglFt = 30;
+    r.run(0.1);
+    CHECK(r.ap.state().latActive == LatMode::Nav);
 }
 
 TEST_CASE("autopilot: NAV on course captures at once, NAV without an active leg is ignored") {

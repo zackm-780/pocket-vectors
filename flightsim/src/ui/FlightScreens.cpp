@@ -5,9 +5,11 @@
 #include <cstdio>
 
 #include "core/Log.h"
+#include "hud/StrokeFont.h"
 #include "nav/FlightPlan.h"
 #include "sim/FuelPlan.h"  // F6
 #include "ui/MenuScreens.h"
+#include "ui/UiPainter.h"
 #include "world/WorldOverlayLogic.h"
 
 namespace fsim {
@@ -419,16 +421,29 @@ public:
             sub = b;
         }
         drawScreenFrame(r, t, "FLIGHT PLAN", sub, "A SELECT   B BACK   START RESUME");
-        if (fuelLine_[0]) r.text(r.centered(kContentX), 66, fuelLine_, TextSize::S, t.dim);
+        // 1.2.3: the F6 fuel line shares the subtitle's line, right aligned (at y 66 it was
+        // drawn over the subtitle); it drops above the footer when both do not fit.
+        if (fuelLine_[0]) {
+            const float x0 = r.centered(kContentX);
+            const float need = StrokeFont::measure(sub.c_str(), TextSize::S) +
+                               StrokeFont::measure(fuelLine_, TextSize::S) +
+                               3 * StrokeFont::advancePx(TextSize::S);
+            if (need <= kContentW)
+                r.text(x0 + kContentW, kSubtitleY, fuelLine_, TextSize::S, t.dim, HAlign::Right);
+            else
+                r.text(x0, kFooterRuleY - 10, fuelLine_, TextSize::S, t.dim);
+        }
         std::vector<ListRow> rows(static_cast<size_t>(nav_.count()));
         rows[0].label = "DIRECT TO IDENT...";
         rows[1].label = "CHANGE APPROACH...";
         rows[2] = {"ARRIVAL (STAR)...",
                    FlightSetup::procedureText(plan_.starId, plan_.starTransition)};
         rows[2].enabled = !legs_.empty();
+        rows[2].dimValue = legs_.empty();
         rows[3] = {"DEPARTURE (SID)...",
                    FlightSetup::procedureText(plan_.sidId, plan_.sidTransition)};
         rows[3].enabled = !legs_.empty();
+        rows[3].dimValue = legs_.empty();
         rows[4].label = "RE-ENTER APPROACH";
         rows[4].enabled = hasApproach_;
         for (size_t i = 0; i < legs_.size(); ++i) {
@@ -449,9 +464,10 @@ public:
         }
         const float x = r.centered(kContentX);
         drawList(r, t, x, kListTop, kContentW, kRowH, nav_, rows);
+        // 1.2.3: the hint goes below the action rows (it sat on DEPARTURE once N8 made them 5).
         if (legs_.empty())
-            r.text(x + 10, kListTop + 3 * kRowH + 20, "DIRECT TO CREATES A ONE-LEG PLAN",
-                   TextSize::S, t.dim);
+            r.text(x + 10, kListTop + static_cast<float>(kActionRows) * kRowH + 20,
+                   "DIRECT TO CREATES A ONE-LEG PLAN", TextSize::S, t.dim);
     }
 
 private:

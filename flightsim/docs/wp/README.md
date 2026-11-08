@@ -14,7 +14,9 @@ MED holds 30 fps in the cockpit, LOW 60 (DEVICE.md §3). The PR #11 checklist ru
 and takes **X3c next as 1.2.1** (HUD CPU, the GPU clock in the log, MED toward 60). **2026-11-08:**
 v1.2.0 and v1.2.1 are released. X3c (#13, 1.2.1) is device-tested: MED 59 fps in the cockpit,
 HUD 3.2 ms. A small packaging PR (#14, 1.2.2) renames the launch script to `PocketVectors.sh` and
-adds box art. The phases below are the original plan; take the open cards in that order.
+adds box art. **1.2.3** (2026-11-08, in review): the owner's flight director, plan-screen and
+runway-intersection bugs, with W1b (#15, extended to smooth crossings) and U2 (#16, the flight
+log) taken into it. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).
