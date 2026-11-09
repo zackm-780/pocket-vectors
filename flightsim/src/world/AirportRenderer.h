@@ -10,7 +10,9 @@
 // clears ALL flatten areas first, because the interface can only clear everything).
 //
 // Depth layers (the terrain must draw with polygon offset >= 0): pavement and apron
-// glPolygonOffset(-1,-1), markings (-2,-2), buildings none. Lights are depth-tested with a small
+// glPolygonOffset(-1,-1), markings (-2,-2), buildings none. W8c: OSM taxiways and aprons draw in
+// the same two layers (one pavement and one marking mesh per airport, within 5 NM); they never
+// overlap runway pavement, which is cut out of them. Lights are depth-tested with a small
 // clip-space bias and never write depth.
 
 #include <memory>
@@ -43,6 +45,7 @@ public:
         int lightsDrawn = 0;
         int refreshes = 0;
         int drawCalls = 0;  // X3c: surfaces, markings, buildings and light strips, last render()
+        int taxiwayTriangles = 0;  // W8c: taxiway pavement and markings drawn, last render()
     };
 
     AirportRenderer(const gfx::GlApi& gl, gfx::GlFlavor flavor) : gl_(gl), flavor_(flavor) {}
@@ -88,6 +91,11 @@ private:
         Ecef center;
         std::vector<RunwayGpu> runways;
         std::vector<GpuSurface> apronFlat, buildings;
+        // W8c: OSM taxiways and aprons, and their bounding circle for the 5 NM range.
+        std::vector<GpuSurface> taxiPavement, taxiMarkings;
+        Ecef taxiCenter;
+        double taxiRadiusM = 0;
+        int taxiPavementTriangles = 0, taxiMarkingTriangles = 0;
     };
 
     void selectActive(const gfx::Camera& camera);

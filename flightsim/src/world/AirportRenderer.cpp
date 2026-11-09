@@ -1,11 +1,13 @@
 #include "world/AirportRenderer.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <string>
 
 #include "core/Log.h"
 #include "core/Units.h"
+#include "world/TaxiwayGeometry.h"
 #include "world/terrain/FlattenSet.h"
 
 namespace fsim::world {
@@ -187,6 +189,8 @@ void AirportRenderer::destroy(AirportGpu& a) {
     }
     for (GpuSurface& s : a.apronFlat) destroy(s);
     for (GpuSurface& s : a.buildings) destroy(s);
+    for (GpuSurface& s : a.taxiPavement) destroy(s);
+    for (GpuSurface& s : a.taxiMarkings) destroy(s);
 }
 
 void AirportRenderer::buildAirport(const Airport& airport) {
@@ -230,6 +234,28 @@ void AirportRenderer::buildAirport(const Airport& airport) {
                 meshes.lights.verts.data(), GL_STATIC_DRAW);
         }
         gpu->runways.push_back(std::move(r));
+    }
+    // W8c: OSM taxiways and aprons on the same composed surface (inside their flatten areas it
+    // does not depend on the natural terrain either; outside, the taxiway field stands in).
+    if (!airport.taxiways.empty() || !airport.aprons.empty()) {
+        const auto t0 = std::chrono::steady_clock::now();
+        const TaxiwayField field(airport);
+        const SurfaceElevFn taxiSurface = [&surfaceSet, &field](double lat, double lon) {
+            return static_cast<double>(surfaceSet.elevationM(
+                lat, lon, [&] { return static_cast<float>(field.elevM(lat, lon)); }));
+        };
+        const TaxiwayMeshes tm = buildTaxiwayMeshes(airport, taxiSurface);
+        for (const SurfaceMesh& m : tm.pavement) gpu->taxiPavement.push_back(upload(m));
+        for (const SurfaceMesh& m : tm.markings) gpu->taxiMarkings.push_back(upload(m));
+        gpu->taxiCenter = tm.centerEcef;
+        gpu->taxiRadiusM = tm.radiusM;
+        gpu->taxiPavementTriangles = tm.pavementTriangles;
+        gpu->taxiMarkingTriangles = tm.markingTriangles;
+        LOG_INFO("airports: %s taxiways %d + %d triangles in %zu + %zu meshes, built in %.1f ms",
+                 airport.ident.c_str(), tm.pavementTriangles, tm.markingTriangles,
+                 tm.pavement.size(), tm.markings.size(),
+                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0)
+                     .count());
     }
     const AirportExtras extras = buildAirportExtras(airport);
     for (const SurfaceMesh& m : extras.flat) gpu->apronFlat.push_back(upload(m));
@@ -316,6 +342,7 @@ void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewpo
     stats_.runwaysDrawn = 0;
     stats_.lightsDrawn = 0;
     stats_.drawCalls = 0;
+    stats_.taxiwayTriangles = 0;
     if (!surfaceProgram_.valid() || !lightProgram_.valid()) return;
     update(camera);
     stats_.activeAirports = static_cast<int>(active_.size());
@@ -348,12 +375,20 @@ void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewpo
     };
 
     gl_.Enable(GL_POLYGON_OFFSET_FILL);
+    const Ecef eye = camera.eyeEcef();
+    auto taxiInRange = [&](const AirportGpu& a) {
+        return taxiwaysInRange(eye, a.taxiCenter, a.taxiRadiusM);
+    };
     gl_.PolygonOffset(-1.0f, -1.0f);  // layer 1: apron, taxiway stub and runway pavement
     for (const auto& a : active_) {
         if (!airportInRange(*a)) continue;
         drawSurfaces(camera, a->apronFlat);
         for (const RunwayGpu& r : a->runways)
             if (runwayInRange(r, kSurfaceRangeM)) drawSurfaces(camera, r.pavement);
+        if (!a->taxiPavement.empty() && taxiInRange(*a)) {  // W8c
+            drawSurfaces(camera, a->taxiPavement);
+            stats_.taxiwayTriangles += a->taxiPavementTriangles;
+        }
     }
     gl_.PolygonOffset(-2.0f, -2.0f);  // layer 2: markings on top of the pavement
     for (const auto& a : active_) {
@@ -362,6 +397,10 @@ void AirportRenderer::render(const Camera& camera, int /*viewportW*/, int viewpo
             if (!runwayInRange(r, kSurfaceRangeM)) continue;
             drawSurfaces(camera, r.markings);
             ++stats_.runwaysDrawn;
+        }
+        if (!a->taxiMarkings.empty() && taxiInRange(*a)) {  // W8c
+            drawSurfaces(camera, a->taxiMarkings);
+            stats_.taxiwayTriangles += a->taxiMarkingTriangles;
         }
     }
     gl_.Disable(GL_POLYGON_OFFSET_FILL);
