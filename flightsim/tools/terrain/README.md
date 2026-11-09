@@ -31,7 +31,7 @@ ini/bitmaps/presets, `build` planner and workers, `packread` runtime-style reade
 
 | Option | Meaning |
 |---|---|
-| `--preset NAME` | `pdx_oth` (primary, PLAN D19: -124.7,43.0,-121.4,46.3), `bayarea` (-123.2,36.9,-121.2,38.4), plus small test boxes `mthood`, `tam_diablo`. `--list-presets` prints them. |
+| `--preset NAME` | `pdx_oth` (primary, PLAN D19: -124.7,43.0,-121.4,46.3), `bayarea` (-123.2,36.9,-121.2,38.4), `sea_sfo` (-124.8,37.0,-120.8,48.2: Seattle to San Francisco along the coast and the Cascades, about four times `pdx_oth`), plus small test boxes `mthood`, `tam_diablo`. `--list-presets` prints them. |
 | `--bbox W,S,E,N` | any box in degrees. `W > E` crosses the antimeridian. |
 | `--world` | world coarse layer. Defaults: levels 0-6, GLO-90, heights only. Alone it means the whole globe. Together with `--bbox`/`--preset` it keeps those defaults but builds only tiles touching the box (cheap test of the world path). |
 | `--min-level`, `--max-level` | defaults 7 and 10 for a region, 0 and 6 for `--world` |

@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       preset:
-        description: "Region preset for terrain levels 7-10 (see build_terrain.py --list-presets)"
+        description: "Region preset for terrain levels 7-10: pdx_oth, sea_sfo, bayarea, mthood, tam_diablo (build_terrain.py --list-presets)"
         type: string
         default: pdx_oth
       include_world:
@@ -22,9 +22,13 @@ on:
         type: string
         default: ""
       osm_taxiways:
-        description: "Extract OpenStreetMap taxiways and aprons (Overpass API, one query per airport; ODbL)"
+        description: "Extract OpenStreetMap taxiways and aprons (Overpass API, one query per airport of the region; ODbL)"
         type: boolean
         default: true
+      coarse_bbox:
+        description: "Optional west,south,east,north box for the coarse far-view layer (levels 5-6), or none; empty: -128,40,-114,50 (sea_sfo wants -129,34,-114,51)"
+        type: string
+        default: ""
 
 jobs:
   datapack:
@@ -35,6 +39,7 @@ jobs:
       INCLUDE_WORLD: ${{ inputs.include_world }}
       BBOX: ${{ inputs.bbox }}
       OSM_TAXIWAYS: ${{ inputs.osm_taxiways }}
+      COARSE_BBOX: ${{ inputs.coarse_bbox }}
     steps:
       - uses: actions/checkout@v4
 
@@ -88,6 +93,7 @@ jobs:
           if [ -n "$BBOX" ]; then args+=(--bbox "$BBOX"); else args+=(--preset "$PRESET"); fi
           if [ "$INCLUDE_WORLD" = "true" ]; then args+=(--world); fi
           if [ "$OSM_TAXIWAYS" = "false" ]; then args+=(--no-osm-taxiways); fi
+          if [ -n "$COARSE_BBOX" ]; then args+=(--coarse-bbox "$COARSE_BBOX"); fi
           # world cache on the big temp disk when the workspace disk is small
           sudo mkdir -p /mnt/world-cache && sudo chown "$USER" /mnt/world-cache
           args+=(--world-cache /mnt/world-cache)

@@ -22,6 +22,7 @@ LC_CREDIT = ("© ESA WorldCover project 2021 / Contains modified Copernicus Sent
 PRESETS = {
     "pdx_oth": (-124.7, 43.0, -121.4, 46.3),      # Portland KPDX .. North Bend KOTH, Mt Hood
     "bayarea": (-123.2, 36.9, -121.2, 38.4),      # San Francisco Bay Area
+    "sea_sfo": (-124.8, 37.0, -120.8, 48.2),      # Seattle KSEA .. Portland .. Eugene .. North Bend .. San Francisco KSFO
     "mthood": (-121.85, 45.25, -121.55, 45.50),   # small Mt Hood test box
     "tam_diablo": (-122.65, 37.75, -121.85, 38.0),  # small Bay Area test box
 }

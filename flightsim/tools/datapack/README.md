@@ -21,9 +21,12 @@ tiles are skipped). At the end it prints pack size, file counts and the largest 
 
 ## GitHub Actions: workflow `datapack`
 
-Actions tab, "datapack", "Run workflow". Inputs: `preset` (default `pdx_oth`; also `bayarea`,
-`mthood`, `tam_diablo`), `include_world` (default off), `osm_taxiways` (default on: one Overpass
-query per airport, about 4 minutes for `pdx_oth`; the build fails if no airport answers), and
+Actions tab, "datapack", "Run workflow". Inputs: `preset` (default `pdx_oth`; also `sea_sfo`
+(Seattle to San Francisco along the coast and the Cascades, -124.8,37.0,-120.8,48.2, about four
+times `pdx_oth`), `bayarea`, `mthood`, `tam_diablo`), `include_world` (default off), `osm_taxiways` (default on: one Overpass
+query per airport with a hard runway in the region, 50 for `pdx_oth` and 267 for `sea_sfo`; the
+build fails if no airport answers), `coarse_bbox` (the far-view layer, levels 5-6; empty keeps
+-128,40,-114,50, which stops at 40 N: give `sea_sfo` -129,34,-114,51), and
 optional `bbox` (`west,south,east,north`). A non-empty bbox is used instead of the preset. It uploads the artifact
 `flightsim-data-<region>-<date>`, kept 30 days. The artifact holds one `data/` folder (`terrain/`,
 `nav/`, `ATTRIBUTION.txt`, `README.txt`), not a zip inside the download: unzip the download once
