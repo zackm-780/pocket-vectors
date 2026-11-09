@@ -59,6 +59,15 @@ bool parseScenario(const std::string& iniText, Scenario& out, std::string& error
     s.approachId = ini.getString("scenario", "approach");                     // N5
     s.approachTransition = ini.getString("scenario", "approach_transition");  // N8
     s.fuel = ini.getString("scenario", "fuel");                               // F6
+    if (ini.has("scenario", "lat_deg") && ini.has("scenario", "lon_deg")) {   // W8c
+        s.hasStartPosition = true;
+        s.startLatDeg = ini.getDouble("scenario", "lat_deg");
+        s.startLonDeg = ini.getDouble("scenario", "lon_deg");
+    }
+    if (ini.has("scenario", "heading_true_deg")) {
+        s.hasStartHeading = true;
+        s.startHeadingTrueDeg = ini.getFloat("scenario", "heading_true_deg");
+    }
     if (!s.fuel.empty()) {
         FuelSetting fs;
         if (!parseFuelSetting(s.fuel, fs)) {
@@ -237,6 +246,14 @@ bool resolveStart(const Scenario& sc, const NavDatabase& nav, const AircraftProf
         s.flightPathDeg = 0;
         s.flapDetent = 0;
         s.gearDown = !profile.hasRetractableGear;
+    }
+    // W8c: an explicit position and heading (runway and cruise starts only).
+    if (s.kind != StartCondition::Kind::Final) {
+        if (sc.hasStartPosition) {
+            s.latDeg = sc.startLatDeg;
+            s.lonDeg = sc.startLonDeg;
+        }
+        if (sc.hasStartHeading) s.headingTrueDeg = sc.startHeadingTrueDeg;
     }
     out = s;
     return true;

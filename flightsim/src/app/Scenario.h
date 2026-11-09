@@ -62,6 +62,11 @@ struct Scenario {
     std::string approachTransition;
     // F6: [scenario] fuel = default | full | auto | NN% | pounds (sim/FuelPlan.h).
     std::string fuel;
+    // W8c: [scenario] lat_deg / lon_deg (both) and heading_true_deg override the start position
+    // and heading of a runway (on the ground) or cruise start, e.g. on an apron.
+    bool hasStartPosition = false, hasStartHeading = false;
+    double startLatDeg = 0, startLonDeg = 0;
+    float startHeadingTrueDeg = 0;
 
     // [autopilot] section; applied by the autopilot once N6 lands. Kept so scenarios are final.
     std::vector<std::string> apEngage;

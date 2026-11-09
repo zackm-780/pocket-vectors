@@ -10,6 +10,7 @@
 #include <sstream>
 
 #include "core/Paths.h"
+#include "hud/StrokeFont.h"
 
 namespace fsim {
 namespace {
@@ -334,6 +335,9 @@ std::vector<std::string> helpAboutLines(const std::string& attributionPath) {
         std::string("COMMIT ") + FSIM_GIT_COMMIT,
         "",
         "JSBSIM  LGPL-2.1",
+        // W8c: OSM attribution (ODbL). Always shown: players who copy only the new data/nav/
+        // keep an older ATTRIBUTION.txt without the OpenStreetMap line.
+        "Taxiways " FSIM_SYM_COPYRIGHT " OpenStreetMap contributors (ODbL)",
         "",
     };
     if (attributionPath.empty() || !fileExists(attributionPath)) {

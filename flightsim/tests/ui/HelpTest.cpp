@@ -183,8 +183,12 @@ TEST_CASE("ui: how-to pages load from assets/help and about shows credits") {
     CHECK(joined.find("LGPL-2.1") != std::string::npos);
     CHECK(joined.find("Copernicus") != std::string::npos);
     CHECK(joined.find("VERSION ") != std::string::npos);
+    // W8c: the OpenStreetMap attribution for the taxiways, with or without a data pack.
+    const std::string osm = "Taxiways \xC2\xA9 OpenStreetMap contributors (ODbL)";
+    CHECK(joined.find(osm) != std::string::npos);
     const std::vector<std::string> bare = helpAboutLines("");
     std::string bareJoined;
     for (const std::string& line : bare) bareJoined += line;
     CHECK(bareJoined.find("NO DATA PACK") != std::string::npos);
+    CHECK(bareJoined.find(osm) != std::string::npos);
 }

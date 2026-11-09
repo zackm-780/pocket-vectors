@@ -17,8 +17,8 @@ HUD 3.2 ms. A small packaging PR (#14, 1.2.2) renames the launch script to `Pock
 adds box art. **1.3** (2026-11-08, on `main`, the owner tags `v1.3.0` once `main` is stable): the
 owner's flight director, plan-screen and runway-intersection bugs, W1b (#15, extended to smooth
 crossings), U2 (#16, the flight log) and N10 (#19, fly-by arcs); planned as 1.2.3 and 1.2.4.
-**Taxiways** (W8a, W8b, W8c; owner, 2026-11-08) go into **1.3.0** too, one card after another, before
-the owner tags it. The phases below are the original plan; take the open cards in that order.
+**Taxiways** (W8a #23, W8b #24, W8c #25; owner, 2026-11-08) are in **1.3.0** too, with a data
+pack that carries them on the release; the owner device-checks `main` and tags it. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).

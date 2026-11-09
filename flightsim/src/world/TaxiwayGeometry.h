@@ -95,4 +95,47 @@ private:
 // height of the ring, priority -2). Empty without taxiways and aprons.
 std::vector<FlattenArea> taxiwayFlattenAreas(const Airport& airport);
 
+// ---- meshes (W8c) ------------------------------------------------------------------------------
+constexpr double kTaxiwayRenderSimplifyM = 0.5;  // Douglas-Peucker for the drawn lines
+constexpr double kTaxiwayMaxQuadM = 40.0;        // pavement quads follow the surface this often
+constexpr double kMitreMaxBendDeg = 30.0;        // sharper bends get a round fillet
+constexpr int kFilletSegments = 8;
+constexpr double kApronGridM = 40.0;  // apron triangles are cut on this grid
+constexpr double kCenterlineHalfWidthM = 0.20;
+constexpr double kEdgeLineWidthM = 0.45;
+constexpr double kEdgeSampleM = 5.0;
+constexpr double kTaxiwayPavementLiftM = 0.08;
+constexpr double kTaxiwayMarkingLiftM = 0.10;
+constexpr double kTaxiwayRangeM = 9260.0;  // 5 NM: nothing is drawn beyond
+
+struct TaxiwayMeshes {
+    std::vector<SurfaceMesh> pavement;  // taxiways and aprons: polygon-offset layer 1
+    std::vector<SurfaceMesh> markings;  // centerlines and edge lines: layer 2
+    Ecef centerEcef;                    // culling: the bounding circle of the pavement
+    double radiusM = 0;
+    int pavementTriangles = 0, markingTriangles = 0;
+    bool empty() const { return pavement.empty() && markings.empty(); }
+};
+// Taxiway ribbons (mitre joins at gentle bends, round fillets at shared nodes and sharp bends),
+// apron polygons and the yellow markings, on `surface` (the airport's composed surface: heights
+// in metres MSL). Pavement and markings never overlap a hard runway's pavement: the parts inside a
+// runway rectangle are cut away. Empty without taxiways and aprons.
+TaxiwayMeshes buildTaxiwayMeshes(const Airport& airport, const SurfaceElevFn& surface);
+// True while the eye is within 5 NM of the taxiway bounding circle.
+bool taxiwaysInRange(const Ecef& eye, const Ecef& centerEcef, double radiusM);
+
+// 2D helpers (local frame), exposed for tests.
+using ConvexPoly = std::vector<Pt2>;
+// The parts of a convex polygon outside a convex quad (counter-clockwise), as up to 4 convex
+// pieces appended to `out` (clipped successively against the quad's edge half-planes).
+void subtractQuad(const ConvexPoly& poly, const std::array<Pt2, 4>& quad,
+                  std::vector<ConvexPoly>& out);
+// Hard runway pavement rectangles in the frame, counter-clockwise (one per runway pair).
+std::vector<std::array<Pt2, 4>> runwayRectsLocal(const Airport& airport, const LocalFrame& frame);
+bool pointInRing(const std::vector<Pt2>& ring, const Pt2& p);
+bool pointInQuad(const std::array<Pt2, 4>& quad, const Pt2& p);
+// A building footprint (corners in lat/lon) is clear of the OSM pavement: no corner inside an
+// apron or within marginM of a taxiway centerline.
+bool clearOfTaxiways(const Airport& airport, const LatLon* corners, int n, double marginM);
+
 }  // namespace fsim::world
