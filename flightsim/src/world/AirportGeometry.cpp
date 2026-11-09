@@ -693,6 +693,39 @@ void SurfaceMeshBuilder::addBox(const RunwayFrame& frame, double a0, double a1, 
          nRneg, wallRgb);  // left wall
 }
 
+void SurfaceMeshBuilder::addConvex(const Ecef* pts, int n, const float rgb[3]) {
+    if (n < 3) return;
+    SurfaceMesh& mesh = current(n);
+    const uint16_t base = static_cast<uint16_t>(mesh.verts.size());
+    for (int i = 0; i < n; ++i) pushVertex(pts[i], up_, rgb);
+    for (int i = 1; i + 1 < n; ++i) {
+        mesh.indices.push_back(base);
+        mesh.indices.push_back(static_cast<uint16_t>(base + i));
+        mesh.indices.push_back(static_cast<uint16_t>(base + i + 1));
+    }
+}
+
+void SurfaceMeshBuilder::addRibbon(const Ecef* left, const Ecef* right, int n, const float rgb[3]) {
+    int k = 0;
+    while (k + 1 < n) {
+        const int count = std::min(n - k, 30000);  // samples in this piece (16-bit indices)
+        SurfaceMesh& mesh = current(2 * count);
+        const uint16_t base = static_cast<uint16_t>(mesh.verts.size());
+        for (int i = 0; i < count; ++i) {
+            pushVertex(left[k + i], up_, rgb);
+            pushVertex(right[k + i], up_, rgb);
+        }
+        for (int i = 0; i + 1 < count; ++i) {
+            const uint16_t l0 = static_cast<uint16_t>(base + 2 * i),
+                           r0 = static_cast<uint16_t>(l0 + 1);
+            const uint16_t l1 = static_cast<uint16_t>(l0 + 2), r1 = static_cast<uint16_t>(l0 + 3);
+            const uint16_t idx[6] = {l0, r0, l1, l1, r0, r1};
+            mesh.indices.insert(mesh.indices.end(), idx, idx + 6);
+        }
+        k += count - 1;  // the last sample starts the next piece
+    }
+}
+
 std::vector<SurfaceMesh> SurfaceMeshBuilder::finish() {
     std::vector<SurfaceMesh> out;
     for (SurfaceMesh& m : meshes_)
@@ -796,6 +829,9 @@ bool quadsOverlap(const Pt a[4], const Pt b[4]) {
 
 AirportExtras buildAirportExtras(const Airport& airport) {
     AirportExtras out;
+    // W8c: with OSM taxiways or aprons the real pavement is drawn instead of the generic apron and
+    // stub; a building stays only where it is clear of that pavement.
+    const bool osm = !airport.taxiways.empty() || !airport.aprons.empty();
     // The longest primary hard runway carries the apron.
     const Runway* best = nullptr;
     double bestLen = 0;
@@ -852,13 +888,24 @@ AirportExtras buildAirportExtras(const Airport& airport) {
             auto span = [&](double a, double b) {
                 return side > 0 ? std::make_pair(a, b) : std::make_pair(-b, -a);
             };
-            const auto stub = span(sNear, sApronNear);
-            flat.addStrip(frame, ac - 8.0, ac + 8.0, stub.first, stub.second, 0.08, kApronRgb,
-                          60.0);
-            const auto apron = span(sApronNear, sApronFar);
-            flat.addStrip(frame, ac - kApronLen * 0.5, ac + kApronLen * 0.5, apron.first,
-                          apron.second, 0.08, kApronRgb, 60.0);
-            out.flat = flat.finish();
+            if (!osm) {
+                const auto stub = span(sNear, sApronNear);
+                flat.addStrip(frame, ac - 8.0, ac + 8.0, stub.first, stub.second, 0.08, kApronRgb,
+                              60.0);
+                const auto apron = span(sApronNear, sApronFar);
+                flat.addStrip(frame, ac - kApronLen * 0.5, ac + kApronLen * 0.5, apron.first,
+                              apron.second, 0.08, kApronRgb, 60.0);
+                out.flat = flat.finish();
+            }
+            auto box = [&](double a0, double a1, std::pair<double, double> l, double heightM,
+                           const float wall[3], const float roof[3]) {
+                if (osm) {
+                    const LatLon c[4] = {frame.latLon(a0, l.first), frame.latLon(a1, l.first),
+                                         frame.latLon(a1, l.second), frame.latLon(a0, l.second)};
+                    if (!clearOfTaxiways(airport, c, 4, 30.0)) return;
+                }
+                solid.addBox(frame, a0, a1, l.first, l.second, -2.0, heightM, wall, roof);
+            };
 
             // Buildings in the row behind the apron.
             const float wallA[3] = {0.74f, 0.72f, 0.68f}, roofA[3] = {0.40f, 0.18f, 0.16f};
@@ -867,20 +914,13 @@ AirportExtras buildAirportExtras(const Airport& airport) {
             const bool big =
                 airport.type == AirportType::Large || airport.type == AirportType::Medium;
             if (big) {
-                const auto t = span(rowNear, rowNear + 24.0);
-                solid.addBox(frame, ac - 45.0, ac + 25.0, t.first, t.second, -2.0, 13.0, wallB,
-                             roofB);
-                const auto h = span(rowNear, rowNear + 20.0);
-                solid.addBox(frame, ac + 40.0, ac + 60.0, h.first, h.second, -2.0, 9.0, wallA,
-                             roofA);
+                box(ac - 45.0, ac + 25.0, span(rowNear, rowNear + 24.0), 13.0, wallB, roofB);
+                box(ac + 40.0, ac + 60.0, span(rowNear, rowNear + 20.0), 9.0, wallA, roofA);
             } else {
                 const auto h1 = span(rowNear, rowNear + 18.0);
-                solid.addBox(frame, ac - 40.0, ac - 16.0, h1.first, h1.second, -2.0, 7.0, wallA,
-                             roofA);
-                solid.addBox(frame, ac - 8.0, ac + 16.0, h1.first, h1.second, -2.0, 7.0, wallB,
-                             roofA);
-                solid.addBox(frame, ac + 24.0, ac + 44.0, h1.first, h1.second, -2.0, 6.0, wallA,
-                             roofB);
+                box(ac - 40.0, ac - 16.0, h1, 7.0, wallA, roofA);
+                box(ac - 8.0, ac + 16.0, h1, 7.0, wallB, roofA);
+                box(ac + 24.0, ac + 44.0, h1, 6.0, wallA, roofB);
             }
             out.solid = solid.finish();
             return out;

@@ -248,6 +248,11 @@ public:
     // Axis-aligned (in runway coordinates) box from the ground to heightM, with shaded walls.
     void addBox(const RunwayFrame& frame, double a0, double a1, double l0, double l1,
                 double bottomM, double heightM, const float wallRgb[3], const float roofRgb[3]);
+    // W8c: a convex polygon (n >= 3 ECEF points) as a fan, with the up normal at the anchor.
+    void addConvex(const Ecef* pts, int n, const float rgb[3]);
+    // W8c: a ribbon between two rows of n >= 2 ECEF points (left[i], right[i]); consecutive quads
+    // share their vertices.
+    void addRibbon(const Ecef* left, const Ecef* right, int n, const float rgb[3]);
     std::vector<SurfaceMesh> finish();
 
 private:
@@ -269,7 +274,9 @@ struct RunwayMeshes {
 RunwayMeshes buildRunwayMeshes(const RunwayInfo& runway, const SurfaceElevFn* surface = nullptr);
 
 // Generic apron, taxiway stub and a few box buildings beside the primary runway of an airport
-// (placed clear of every runway). Empty for airports without a hard runway.
+// (placed clear of every runway). Empty for airports without a hard runway. W8c: at an airport
+// with OSM taxiways or aprons there is no generic apron or stub, and a building only where it is
+// clear of the OSM pavement (world/TaxiwayGeometry.h clearOfTaxiways).
 struct AirportExtras {
     std::vector<SurfaceMesh> flat;   // apron and taxiway stub (polygon-offset layer)
     std::vector<SurfaceMesh> solid;  // building boxes
