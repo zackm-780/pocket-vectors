@@ -243,6 +243,22 @@ class AttributionAndFetchTests(NavDirCase):
         self.assertLess(koth.south, 43.4093 - 0.013)
         self.assertGreater(koth.east, -124.2380 + 0.018)
 
+    def test_stops_early_when_overpass_is_down(self):
+        # Seven airports, every request fails: it gives up after the first five.
+        rows = "\n".join(f"XA{i:02d},small,A{i},{10 + i},20,100,ZZ,ZZ-1,X,,0" for i in range(7))
+        rwys = "\n".join(f"XA{i:02d},09,27,{10 + i},19.995,100,{10 + i},19.995,{10 + i},20.005,100,"
+                         f"90,3600,100,0,asphalt,1,1,0" for i in range(7))
+        (self.nav / "airports.csv").write_text(AIRPORTS.splitlines()[0] + "\n" + rows + "\n")
+        (self.nav / "runways.csv").write_text(RUNWAYS.splitlines()[0] + "\n" + rwys + "\n")
+        err = ot.urllib.error.URLError("unreachable")
+        with mock.patch.object(ot.urllib.request, "urlopen", side_effect=err) as op, \
+                mock.patch.object(ot.time, "sleep"):
+            code, log = self.run_tool("--bbox=19,9,21,17", "--cache-dir", str(self.nav / "c"),
+                                      "--sleep", "0")
+        self.assertEqual(code, 1)
+        self.assertIn("the first 5 airports all failed; stopping", log)
+        self.assertEqual(op.call_count, 5 * (len(ot.RETRY_DELAYS_S) + 1))
+
     def test_overpass_answer_is_cached(self):
         cache = self.nav / "cache"
         answer = (FIX / "edge_cases.osm").read_bytes()
