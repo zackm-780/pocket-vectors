@@ -11,7 +11,8 @@ Northwest: terrain streamed from Portland (KPDX) to the coast at North Bend (KOT
 ## Features
 
 - **JSBSim flight model**, using stock aircraft from the Cessna 172 up through airliners.
-- **Worldwide airports** and runways, with markings, lights and PAPI.
+- **Worldwide airports** and runways, with markings, lights and PAPI, and **taxiways and aprons
+  from OpenStreetMap** with yellow centerlines and edge lines.
 - **FAA approaches, fixes and airways**, plus a synthesized ILS for any runway.
 - **Terrain streamed for the KPDX to KOTH region** in the release data pack (Copernicus DEM and
   ESA WorldCover).
@@ -23,6 +24,7 @@ Northwest: terrain streamed from Portland (KPDX) to the coast at North Bend (KOT
 ## Screenshots
 
 All taken in the game at the RG40XXH's 640 × 480 (1.3, desktop build, the `pdx_oth` pack).
+Taxiway data © OpenStreetMap contributors.
 
 | | |
 |---|---|
@@ -32,6 +34,8 @@ All taken in the game at the RG40XXH's 640 × 480 (1.3, desktop build, the `pdx_
 | The moving map at 40 NM with the KPDX to KOTH plan | Night final to runway 28L at Portland, approach and runway lights |
 | ![The flight log](screenshots/flight-log.png) | ![On runway 28L at KPDX](screenshots/ground-kpdx.png) |
 | The flight log on the main menu (example flights) | The takeoff roll on runway 28L at Portland |
+| ![Taxiways around the KPDX terminal](screenshots/taxiways-kpdx.png) | ![Taxiways at North Bend](screenshots/taxiways-koth.png) |
+| The taxiways and the terminal ramp at Portland from the chase view (OpenStreetMap data) | Taxiways, aprons and their markings at North Bend (KOTH) |
 
 ## Supported device
 

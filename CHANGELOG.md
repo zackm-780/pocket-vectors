@@ -2,9 +2,28 @@
 
 ## 1.3.0
 
-Fly-by turns flown as arcs, fixes from the owner's 2026-11-08 flights, runways that meet the
-terrain and each other smoothly, and a flight log. (Planned as 1.2.3 and 1.2.4; shipped together
-as 1.3, owner 2026-11-08.)
+Taxiways, fly-by turns flown as arcs, fixes from the owner's 2026-11-08 flights, runways that
+meet the terrain and each other smoothly, and a flight log. (Planned as 1.2.3 and 1.2.4; shipped
+together as 1.3, owner 2026-11-08.)
+
+- **Taxiways and aprons** (W8a, W8b, W8c), so you can taxi to the runway instead of back-taxiing
+  on it.
+  - **What you see:** real taxiways from OpenStreetMap, drawn as pavement ribbons with round
+    fillets where they meet, and the aprons around the terminals. They carry yellow centerlines,
+    and edge lines that break at junctions and on the ramps.
+  - **Where:** every airport in the `pdx_oth` pack that has them mapped. KPDX has its whole
+    network (553 segments, 15 aprons), KOTH has its taxiways and ramps.
+  - **The ground:** taxiways sit on ground as smooth as the runways and meet them without a step
+    (no slope steeper than about 1:110 at KPDX). Their heights come from the runways, so loading
+    terrain never moves them.
+  - **Drawing:** they are drawn out to 5 NM, in two more draws per airport (one at KPDX, where the
+    generic apron goes away). Airports without OpenStreetMap taxiways keep the generic apron and
+    stub.
+  - **Licence:** taxiway data © OpenStreetMap contributors. The pack's `nav/taxiways.csv` and
+    `nav/aprons.csv` are shared under the Open Database License (`nav/TAXIWAYS-ODbL.txt`), and
+    the About page carries the credit.
+  - **Adding them to an existing install:** copy `data/nav/` from the 1.3 data pack over
+    `flightsim/data/nav/` on the SD card. Older packs still work, with generic aprons.
 
 - **GPS turns are arcs** (N10). At each fly-by waypoint the route turns along an arc tangent to
   both legs, flown at a constant bank: 15 degrees in the light aircraft, 20 in the jets (the

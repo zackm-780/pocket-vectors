@@ -118,11 +118,15 @@ runway areas. `FlattenSet::elevationM` loops
 
 ## 4. Device budget
 
-- One or two more draws per airport (taxiway pavement, then markings), like a runway's. KPDX's
-  2,978 points make roughly 6,000 pavement triangles plus fillets and markings (an estimate; W8c
-  measures it). Taxiways beyond 5 NM are not drawn (they are subpixel).
-- Mesh build at airport load, when an airport enters the active set: W8c measures it on the
-  desktop and the device check covers the handheld.
+- One or two more draws per airport (taxiway pavement, then markings), like a runway's. Taxiways
+  beyond 5 NM are not drawn (they are subpixel).
+- **Measured (W8c, desktop, 2026-11-09):** KPDX 13,266 pavement and 6,948 marking triangles in
+  one mesh each (2 draws). The generic apron and buildings go away there, so the KPDX ramp scene
+  keeps its 101 draws. KOTH has 937 + 3,798. The edge lines are tested every 5 m but keep a
+  vertex only at the section points, which took the KPDX markings from 17,704 triangles to 6,948.
+- **Mesh build** when an airport enters the active set: KPDX 34–47 ms on the desktop (KOTH 3
+  ms), so expect a few hundred ms on the handheld, once, when KPDX comes within 60 km. The device
+  check covers it.
 
 ## 5. Cards
 

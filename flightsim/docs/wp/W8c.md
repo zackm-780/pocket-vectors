@@ -1,4 +1,4 @@
-Status: ready
+Status: done (needs device test)
 # W8c: Draw taxiways and aprons
 
 Phase 4 · Effort: high · Depends: W8a (data), W8b (the composed surface, `world/TaxiwayGeometry`) · Branch: `wp/W8c-taxiway-drawing`
