@@ -397,17 +397,25 @@ TEST_CASE("terrain: the grid index gives the same surface as walking every area"
     CHECK(set.elevationM(lat, lon, [] { return 50.0f; }) == doctest::Approx(50.0f));
 }
 
-TEST_CASE("terrain: areas below the runways cap their pavement blend at 120 m") {
+TEST_CASE("terrain: areas below the runways blend at 1:200 and stop at 150 m over pavement") {
     FlattenSet set;
-    FlattenArea low = gradedRunway(-500, 0, 500, 0, 100.0f, 100.0f, 11.5, 60.0f);
+    // A wide strip (core to n = +-110) and a narrow one 3 m higher (core from n = 238.5).
+    FlattenArea low = gradedRunway(-500, 0, 500, 0, 100.0f, 100.0f, 60.0, 60.0f);
     low.priority = -1;
-    FlattenArea low2 = gradedRunway(-500, 300, 500, 300, 103.0f, 103.0f, 11.5, 60.0f);
+    // The narrow one has the longer grade, so it applies after the wide one and blends over it.
+    FlattenArea low2 = gradedRunway(-600, 300, 600, 300, 103.0f, 103.0f, 11.5, 60.0f);
     low2.priority = -1;
     set.add(low);
     set.add(low2);
-    // 3 m apart: a runway would blend over 600 m; these stop at 120 m from the second area's edge,
-    // so the first one's centerline (300 m away, 238.5 m from that edge) keeps its height.
-    CHECK(surfaceAt(set, 0, 0) == doctest::Approx(100.0).epsilon(1e-6));
+    // 3 m apart, low2's core edge at n = 238.5. A runway would blend over min(600, 200 x 3) =
+    // 600 m; these want 300 x 3 = 900 m but stop at 150 m (kMaxLowPaveBlendM).
+    CHECK(surfaceAt(set, 0, 0) == doctest::Approx(100.0).epsilon(1e-6));   // 238.5 m away
+    CHECK(surfaceAt(set, 0, 50) == doctest::Approx(100.0).epsilon(1e-6));  // 188.5 m: > 150
+    const double in = surfaceAt(set, 0, 100);  // on the wide strip, 138.5 m: inside the ring
+    const double t = 138.5 / 150.0, sm = t * t * (3.0 - 2.0 * t);
+    CHECK(in == doctest::Approx(103.0 + (100.0 - 103.0) * sm).epsilon(1e-5));
+    CHECK(FlattenSet::kMaxLowPaveBlendM == 150.0f);
+    CHECK(FlattenSet::kLowPaveBlendPerM == 300.0f);  // 1.5 / 300 = 1:200 at the steepest
     CHECK(set.candidateCount(kLat0, kLon0) == 2);
     double lat, lon;
     at(0, -2000, lat, lon);

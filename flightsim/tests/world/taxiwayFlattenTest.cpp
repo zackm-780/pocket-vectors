@@ -157,8 +157,8 @@ TEST_CASE("world: taxiways meet runways without a step and no slope over 1:100 (
             }) - runwaysOnly.elevationM(ll.latDeg, ll.lonDeg, [] { return 95.0f; }))));
     }
     CHECK(worstRunway < 0.001);
-    // The apron is flat away from the taxilane (its 43.75 m core and 60 m blend) and the runways'
-    // pavement rings.
+    // The apron is flat (within 0.01 m) away from the taxilane (its 43.75 m core and 60 m blend)
+    // and the runways' pavement rings.
     float apronElev = 0;
     for (const FlattenArea& ar : areas)
         if (ar.priority == kApronPriority) apronElev = ar.elevM;
@@ -166,7 +166,7 @@ TEST_CASE("world: taxiways meet runways without a step and no slope over 1:100 (
     for (const Pt2 p : {Pt2{-930, 740}, Pt2{-930, 520}, Pt2{-520, 520}, Pt2{-600, 600}}) {
         const LatLon ll = f.toLatLon(p);
         CHECK(set.elevationM(ll.latDeg, ll.lonDeg, [] { return 99.0f; }) ==
-              doctest::Approx(apronElev).epsilon(2e-4));  // 0.02 m at 100 m
+              doctest::Approx(apronElev).epsilon(1e-4));  // 0.01 m at 100 m
         ++samples;
     }
     CHECK(samples == 4);
