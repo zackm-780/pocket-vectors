@@ -78,7 +78,7 @@ session can be thrown away and a fresh one picks up from the board.
 | [N10](N10.md) | Fly-by turn arcs between GPS legs | 2c | the 1.3 fixes (#17) | high | builder | `src/nav/Navigator*`, `core/NavState.h`, `Autopilot.cpp`, `MapPage*`, `MiniNav*`, `WorldOverlayLogic*` |
 | [H8](H8.md) | Map page terrain shading and holds (outline) | 3 | X3c | medium | planner refines, then builder | `src/ui/MapPage*` |
 | [W7](W7.md) | Cloud layers (outline) | 3 | X3c, X5 | high | planner refines, then builder | `src/world/Sky*`, `App.cpp` |
-| [R3](R3.md) | More region packs on releases | 3 | OD2 | medium | builder | `release.yml`, `README.md` |
+| [R3](R3.md) | More region packs on releases (done in 1.3: `sea_sfo`) | 3 | OD2 | medium | builder | `release.yml`, `README.md` |
 | [H9](H9.md) | V-speed and flap bugs on the speed tape | 3 | X3c, F5 | high | builder | `Hud.cpp`, `HudLogic.*`, `core/AircraftProfile.h`, `core/AircraftState.h`, `assets/aircraft/*.ini` |
 | [U2](U2.md) | Flight log | 3 | none | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T3](T3.md) | Device session 3: phase-3 build | 3 | phase 3 merged | | owner | `docs/DEVICE.md` |
@@ -105,7 +105,7 @@ exists. The builder sets `done` in its own pull request, so the merge marks it d
 | # | Decision | Blocks | Default if you say nothing |
 |---|---|---|---|
 | OD1 | Where the voice callout clips come from: your own recordings, a CC0 clip set, or offline text-to-speech whose output licence allows redistribution | S2 part B | Tones stay; S2 ships the clip player with a tone fallback |
-| OD2 | Attach more prebuilt region packs (bayarea, mthood, tam_diablo) to releases | R3 | From 1.2.0 a release attaches a `pdx_oth` pack with SIDs and STARs (from a datapack run); no other regions |
+| OD2 | Attach more prebuilt region packs (bayarea, mthood, tam_diablo) to releases | R3 | **Answered 2026-11-09:** the release also attaches the `sea_sfo` pack (Seattle to San Francisco, which holds `pdx_oth` and most of `bayarea`) |
 | OD3 | Add Quick Flight and landing scores (a suggestion, not in PLAN.md) | U1 | U1 waits |
 | OD4 | Fetch METARs over Wi-Fi at launch | X5 | Off by default, a setting turns it on |
 | OD5 | Pin the GPU clock: the 1.2.1 device run read 420 MHz all session (the lowest of 420–648 MHz, `simple_ondemand` governor). The launch script runs as root and could set the devfreq governor to `performance` (or raise `min_freq`) while the game runs, at a battery and heat cost; it would likely lift the 30 fps cases under an overcast layer and in the chase orbit | a launch-script card, not yet written | Leave the governor alone |

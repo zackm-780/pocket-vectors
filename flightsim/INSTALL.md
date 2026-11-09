@@ -51,6 +51,12 @@ From 1.2 the release also attaches `pocket-vectors-vX.Y.Z-data-pdx_oth.zip`, a p
 SIDs and STARs. To get them on an existing install, copy its `data/nav/` folder over
 `flightsim/data/nav/` (the SIDs and STARs are there), or replace the whole `data/` folder.
 
+From 1.3 the release also attaches the **Seattle to San Francisco** pack: `pocket-vectors-vX.Y.Z-data-sea_sfo.zip`
+(about 1.3 GB unpacked) and `pocket-vectors-vX.Y.Z-Roms-PORTS-sea_sfo.zip` (the game with that pack, for a new
+install). It covers KSEA, KPDX, KEUG, KOTH, KSFO and the fields between, including all of the Pacific Northwest
+pack, so put one or the other in `flightsim/data/` (or keep both and switch with `data_dir`). Each pack's
+`REGION.txt` names its box and main airports.
+
 To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/settings.ini`
 (created on first launch).
 
