@@ -25,9 +25,13 @@ together as 1.3, owner 2026-11-08.)
     the About page carries the credit.
   - **Adding them to an existing install:** copy `data/nav/` from the 1.3 data pack over
     `flightsim/data/nav/` on the SD card. Older packs still work, with generic aprons.
-  - **More regions:** the `datapack` workflow builds taxiways for any region (on by default). A new
-    `sea_sfo` preset covers Seattle to San Francisco, with KSEA, KPDX, KEUG, KOTH and KSFO in one
-    pack.
+  - **More regions:** the `datapack` workflow builds taxiways for any region (on by default).
+- **Seattle to San Francisco pack on the release** (owner, 2026-11-09; R3). A new `sea_sfo` preset
+  covers the coast and the Cascades from Everett to San Jose: KSEA, KPDX, KEUG, KOTH, KSFO and the
+  fields between in one pack (about 1.3 GB, taxiways at 211 airports), so you can fly between them
+  without swapping packs. The release attaches it as `pocket-vectors-v1.3.0-data-sea_sfo.zip` and as a
+  one-zip install with the game (`pocket-vectors-v1.3.0-Roms-PORTS-sea_sfo.zip`). It holds all of the
+  Pacific Northwest pack, so use one or the other. Each pack now carries a `REGION.txt`.
 
 - **GPS turns are arcs** (N10). At each fly-by waypoint the route turns along an arc tangent to
   both legs, flown at a constant bank: 15 degrees in the light aircraft, 20 in the jets (the
