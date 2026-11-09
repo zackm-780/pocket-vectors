@@ -18,7 +18,10 @@ adds box art. **1.3** (2026-11-08, on `main`, the owner tags `v1.3.0` once `main
 owner's flight director, plan-screen and runway-intersection bugs, W1b (#15, extended to smooth
 crossings), U2 (#16, the flight log) and N10 (#19, fly-by arcs); planned as 1.2.3 and 1.2.4.
 **Taxiways** (W8a #23, W8b #24, W8c #25; owner, 2026-11-08) are in **1.3.0** too, with a data
-pack that carries them on the release; the owner device-checks `main` and tags it. The phases below are the original plan; take the open cards in that order.
+pack that carries them on the release; the owner device-checks `main` and tags it. **v1.3.0** is
+released and device-checked (2026-11-09). **1.4** (2026-11-09) is the owner's handling, HUD and
+flight-plan list: F5, H9, F8, F9, H10, F10, N11a and N11b (phase 1.4 below); N8 and H8 stay in
+phase 3 until the owner adds them. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
 - **The orchestrator** runs `/wp-orchestrate` ([../../../.claude/skills/wp-orchestrate/SKILL.md](../../../.claude/skills/wp-orchestrate/SKILL.md)).
@@ -53,7 +56,8 @@ session can be thrown away and a fresh one picks up from the board.
 | 2 | X3b, N7, S2, X5, F5, W1b, U1 | At most 3 builders; never two cards that share a hot file (below) | Every phase-2 card merged | none |
 | 2b | T2 (owner, done 2026-11-05), then X3c (refined 2026-11-07: parts A–E, one pull request) | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor, moves MED toward 60 and shows the flight data in the chase view | owner tags **v1.2.0**, then **v1.2.1** for X3c |
 | 2c | N10 (owner, 2026-11-08: arcs between GPS legs) | alone: it shares `Autopilot.cpp` and the navigator with the 1.3 fixes | N10 merged | in **v1.3.0** |
-| 3 | N8, N9, H8, W7, R3, H9, U2, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first. H9 waits for F5 and X3c | T3 done | owner tags **v1.4.0** (1.3 went out early, 2026-11-08) |
+| 3 | N8, N9, H8, W7, R3, U2, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first. (H9 moved to 1.4) | T3 done | after 1.4 (1.3 went out early, 2026-11-08; 1.4 is the owner's list) |
+| 1.4 | F5, then H9; F8, F9, H10, F10, N11a, N11b (owner's list, 2026-11-09) | F5 first, H9 after it. H10 and N11a can run beside F5 or H9. F8 waits for F5 (profiles, fleet tests), F9 for F8 (profiles), F10 for H9 and F9 (`HudLogic.*`, `PilotControls.*`), N11b for N11a and H10 (settings rows in `FlightScreens.cpp`, `App.cpp`). Never N11a or N11b beside N8 or N10 | every 1.4 card merged, then the 1.4.0 release-prep PR | owner tags **v1.4.0** after device-checking `main` |
 | 4 | W8a, W8b, W8c (owner, 2026-11-08: taxiways; [../TAXIWAYS.md](../TAXIWAYS.md)) | one at a time: each needs the one before | W8c merged and device-checked | in **v1.3.0** (owner, 2026-11-08) |
 
 ## Cards
@@ -68,7 +72,7 @@ session can be thrown away and a fresh one picks up from the board.
 | [N7](N7.md) | Go-around (TOGA) and FLC | 2 | none | high | builder | `core/AutopilotState.h`, `core/Actions.h`, `controls_default.ini` |
 | [S2](S2.md) | Audio: no crackle, voice callouts | 2 | none (part B: OD1) | medium | builder | `App.cpp`, `Settings.*`, `FlightScreens.cpp` |
 | [X5](X5.md) | Live METAR at launch | 2 | P1b + one device launch log, OD4 | medium | builder | `port/PocketVectors.sh`, `Settings.*`, `FlightScreens.cpp` |
-| [F5](F5.md) | Stall warning by flap setting | 2 | none | medium | builder | `core/AircraftProfile.h` |
+| [F5](F5.md) | Stall warning by flap setting | 1.4 | none | medium | builder | `core/AircraftProfile.h`, `assets/aircraft/*.ini`, `tests/fleet/`, `HudLogic.*` |
 | [W1b](W1b.md) | Runways flush with the terrain at KPDX | 2 | none | high | builder | `src/world/terrain/` |
 | [U1](U1.md) | Quick flight and landing score | 2 | OD3 | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T2](T2.md) | Device session 2: phase-2 build and frame numbers | 2b | phase 2 merged | | owner, then builder writes up | `docs/DEVICE.md` |
@@ -79,7 +83,13 @@ session can be thrown away and a fresh one picks up from the board.
 | [H8](H8.md) | Map page terrain shading and holds (outline) | 3 | X3c | medium | planner refines, then builder | `src/ui/MapPage*` |
 | [W7](W7.md) | Cloud layers (outline) | 3 | X3c, X5 | high | planner refines, then builder | `src/world/Sky*`, `App.cpp` |
 | [R3](R3.md) | More region packs on releases (done in 1.3: `sea_sfo`) | 3 | OD2 | medium | builder | `release.yml`, `README.md` |
-| [H9](H9.md) | V-speed and flap bugs on the speed tape | 3 | X3c, F5 | high | builder | `Hud.cpp`, `HudLogic.*`, `core/AircraftProfile.h`, `core/AircraftState.h`, `assets/aircraft/*.ini` |
+| [H9](H9.md) | V-speed and flap bugs on the speed tape | 1.4 | X3c, F5 | high | builder | `Hud.cpp`, `HudLogic.*`, `core/AircraftProfile.h`, `core/AircraftState.h`, `assets/aircraft/*.ini` |
+| [F8](F8.md) | PA28 balked landing with full flaps | 1.4 | F5 | medium | builder | `assets/aircraft/*.ini`, `tests/fleet/`, `assets/jsbsim-overlay/`, `assets/help/first-flight.txt` |
+| [F9](F9.md) | Pitch handling: stick shaping, trim step and rate, optional aids | 1.4 | F5, F8 | high | builder | `PilotControls.*`, `InputCurves.h`, `ControlsConfig.*`, `controls_default.ini`, `core/AircraftProfile.h`, `assets/aircraft/*.ini`, `tests/fleet/`, `Settings.*`, `FlightScreens.cpp` |
+| [H10](H10.md) | Route and path overlays follow the declutter level | 1.4 | none | medium | builder | `WorldOverlayLogic.*`, `Settings.*`, `FlightScreens.cpp`, `App.cpp`, `assets/help/flight-plan.txt` |
+| [F10](F10.md) | Armed speed brakes (auto deploy on touchdown) | 1.4 | none (board: after H9, F9) | medium | builder | `core/ControlInputs.h`, `PilotControls.*`, `Simulation.*`, `Scenario.*`, `HudLogic.*`, `App.cpp` |
+| [N11a](N11a.md) | Plan edits: the navigator rules and their tests | 1.4 | none | high | builder | `src/nav/FlightPlan*`, `src/nav/Navigator*`, `src/nav/PlanEdit*`, `docs/NAVIGATION.md` |
+| [N11b](N11b.md) | Plan edits on the screens: Direct-To, new destination, prompts, messages and undo | 1.4 | N11a | high | builder | `PlanScreens.cpp`, `FlightScreens.cpp`, `SetupScreens.cpp`, `FlightSetup.*`, `App.cpp`, `core/Actions.h`, `controls_default.ini`, `assets/help/flight-plan.txt` |
 | [U2](U2.md) | Flight log | 3 | none | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T3](T3.md) | Device session 3: phase-3 build | 3 | phase 3 merged | | owner | `docs/DEVICE.md` |
 | [W8a](W8a.md) | Taxiways from OpenStreetMap: extraction, pack format, loader | 4 | OD6 | high | builder | `tools/nav/`, `tools/datapack/`, `datapack.yml`, `src/nav/NavDb*`, `core/NavTypes.h` |
@@ -94,7 +104,11 @@ it anyway) and `Hud.cpp` / `HudLogic.*` with X3c; U2 shares `App.cpp` and `Setup
 U1, so those two never run together. Added 2026-11-08: N10 shares `MapPage*` with H8, and the navigator and
 `core/NavState.h` with any nav card. W8a, W8b and W8c run one at a time; W8b shares
 `src/world/terrain/` with W1b (done) and `TerrainRendererLod.cpp` with X3c (done), W8c shares
-`AirportGeometry.*` with W8b, and W8a shares `core/NavTypes.h` and `src/nav/NavDb*` with N8 and N9.
+`AirportGeometry.*` with W8b, and W8a shares `core/NavTypes.h` and `src/nav/NavDb*` with N8 and N9. Added
+2026-11-09 (1.4): F5, H9, F8 and F9 share `assets/aircraft/*.ini` (and F5, F8, F9 `tests/fleet/`),
+so they run in that order; F9 and F10 share `PilotControls.*`; H9, F5 and F10 share `HudLogic.*`;
+H10, F9 and N11b share the settings rows (`FlightScreens.cpp`) and `App.cpp` with F10; N11a and
+N11b share the navigator with N8 and N10 and the plan screens with each other.
 
 **Status values** (first line of each card): `ready`, `owner`, `blocked (<on what>)`,
 `outline (planner refines)`, `done (<PR>)`. A card is taken when an `origin/wp/<ID>-*` branch
