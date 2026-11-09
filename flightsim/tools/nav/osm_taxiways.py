@@ -43,6 +43,8 @@ DEFAULT_CACHE = HERE / "cache" / "osm"
 DEFAULT_OVERPASS = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "pocket-vectors-datapack/1.3 (+https://github.com/zackm-780/pocket-vectors)"
 RETRY_DELAYS_S = (5, 10, 20, 40)
+REQUEST_TIMEOUT_S = 100  # the query asks the server for at most 90 s
+FAIL_FAST_AIRPORTS = 5   # the first this many all failing: Overpass is down, stop
 M_PER_DEG_LAT = 111320.0
 
 TAXIWAY_COLS = ["airport_ident", "osm_way_id", "kind", "ref", "width_m", "surface", "points"]
@@ -203,7 +205,7 @@ def fetch_airport(box: AirportBox, cache_dir: Path, url: str, offline: bool, tod
         state["last"] = time.monotonic()
         req = urllib.request.Request(url, data=body, headers={"User-Agent": USER_AGENT})
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as resp:
                 data = resp.read()
             if b"<osm" not in data[:2000]:
                 raise ValueError("not an OSM XML answer")
@@ -213,6 +215,12 @@ def fetch_airport(box: AirportBox, cache_dir: Path, url: str, offline: bool, tod
         except urllib.error.HTTPError as e:
             retry = e.code == 429 or e.code >= 500
             err = f"HTTP {e.code}"
+            # Overpass names its own wait on 429 (rate limit per IP; runners share IPs).
+            after = _float(e.headers.get("Retry-After") if e.headers else None)
+            if e.code == 429 and after and attempt < len(RETRY_DELAYS_S):
+                print(f"osm: {box.ident}: {err}; Overpass asks for {after:.0f} s", flush=True)
+                time.sleep(min(after, 120.0))
+                continue
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
             retry = True
             err = str(e)
@@ -527,6 +535,10 @@ def run(argv: list[str] | None = None) -> int:
                     answered += 1
                 except ET.ParseError as e:
                     print(f"osm: {box.ident}: bad XML ({e}); skipped", flush=True)
+            if answered == 0 and tried >= FAIL_FAST_AIRPORTS and tried < len(boxes):
+                print(f"osm: the first {tried} airports all failed; stopping (Overpass down?)",
+                      flush=True)
+                break
             if (i + 1) % 20 == 0:
                 print(f"osm: {i + 1}/{len(boxes)} airports, {answered} answered "
                       f"({time.monotonic() - t0:.0f} s)", flush=True)
