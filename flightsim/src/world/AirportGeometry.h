@@ -198,7 +198,8 @@ int flasherActiveIndex(double timeS);
 // 60 m blend, a visible step where the DEM differs from the published elevations).
 FlattenArea runwayFlattenArea(const RunwayInfo& runway, double lateralMarginM = 50.0,
                               double endMarginM = 100.0, float blendM = 150.0f);
-// One flatten area per runway pair of the airport (primary directions only).
+// One flatten area per runway pair of the airport (primary directions only), then, with OSM data,
+// the taxiway and apron areas (W8b, world/TaxiwayGeometry.h).
 std::vector<FlattenArea> airportFlattenAreas(const Airport& airport);
 // Registers airportFlattenAreas() with the terrain.
 void registerAirportFlatten(const Airport& airport, TerrainQuery& terrain);

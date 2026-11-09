@@ -346,3 +346,79 @@ TEST_CASE("terrain: W1b synthetic pack: a 4 m DEM step under a runway end, grade
     CHECK(endSlope <= 1.0 / 20);
     CHECK(sideSlope <= 1.0 / 20);
 }
+
+// W8b: the grid index walks only the areas near a point; the result must equal the full loop.
+TEST_CASE("terrain: the grid index gives the same surface as walking every area") {
+    FlattenSet set;
+    const double c = std::cos(degToRad(60.0)), s = std::sin(degToRad(60.0));
+    set.add(gradedRunway(-900 * c, -900 * s, 900 * c, 900 * s, 97.0f, 98.0f));
+    set.add(gradedRunway(-1700, 0, 1700, 0, 100.0f, 100.4f));
+    set.add(rect(99.0f, 60.0f));
+    // A few low-priority (taxiway-like) graded strips across both runways.
+    for (int k = 0; k < 40; ++k) {
+        const double e0 = -1600 + 80.0 * k, n0 = (k % 2 ? 1 : -1) * (120.0 + 7.0 * k);
+        FlattenArea a = gradedRunway(e0, n0, e0 + 60.0, -n0, 99.5f, 100.1f, 11.5, 60.0f);
+        a.priority = -1 - (k % 2);
+        set.add(a);
+    }
+    unsigned seed = 12345;
+    auto rnd = [&seed](double lo, double hi) {
+        seed = seed * 1664525u + 1013904223u;
+        return lo + (hi - lo) * static_cast<double>(seed >> 8) / static_cast<double>(1u << 24);
+    };
+    double worst = 0;
+    size_t maxCandidates = 0;
+    for (int i = 0; i < 10000; ++i) {
+        double lat, lon;
+        at(rnd(-2500, 2500), rnd(-2000, 2000), lat, lon);
+        const float natural = 95.0f + static_cast<float>(i % 7);
+        set.setUseGridForTest(true);
+        const float grid = set.elevationM(lat, lon, [natural] { return natural; });
+        maxCandidates = std::max(maxCandidates, set.candidateCount(lat, lon));
+        set.setUseGridForTest(false);
+        const float all = set.elevationM(lat, lon, [natural] { return natural; });
+        worst = std::max(worst, static_cast<double>(std::fabs(grid - all)));
+    }
+    set.setUseGridForTest(true);
+    CHECK(worst <= 1e-4);
+    CHECK(maxCandidates < set.size());
+    // Areas added after a query are picked up (the index rebuilds lazily).
+    double lat, lon;
+    at(3000, 3000, lat, lon);
+    CHECK(set.elevationM(lat, lon, [] { return 50.0f; }) == doctest::Approx(50.0f));
+    FlattenArea far = rect(42.0f, 60.0f);
+    for (int i = 0; i < 4; ++i) {
+        far.latDeg[i] += 3000.0 / kMPerDegLat;
+        far.lonDeg[i] += 3000.0 / kMPerDegLon;
+    }
+    set.add(far);
+    CHECK(set.elevationM(lat, lon, [] { return 50.0f; }) == doctest::Approx(42.0f));
+    set.clear();
+    CHECK(set.elevationM(lat, lon, [] { return 50.0f; }) == doctest::Approx(50.0f));
+}
+
+TEST_CASE("terrain: areas below the runways blend at 1:200 and stop at 150 m over pavement") {
+    FlattenSet set;
+    // A wide strip (core to n = +-110) and a narrow one 3 m higher (core from n = 238.5).
+    FlattenArea low = gradedRunway(-500, 0, 500, 0, 100.0f, 100.0f, 60.0, 60.0f);
+    low.priority = -1;
+    // The narrow one has the longer grade, so it applies after the wide one and blends over it.
+    FlattenArea low2 = gradedRunway(-600, 300, 600, 300, 103.0f, 103.0f, 11.5, 60.0f);
+    low2.priority = -1;
+    set.add(low);
+    set.add(low2);
+    // 3 m apart, low2's core edge at n = 238.5. A runway would blend over min(600, 200 x 3) =
+    // 600 m; these want 300 x 3 = 900 m but stop at 150 m (kMaxLowPaveBlendM).
+    CHECK(surfaceAt(set, 0, 0) == doctest::Approx(100.0).epsilon(1e-6));   // 238.5 m away
+    CHECK(surfaceAt(set, 0, 50) == doctest::Approx(100.0).epsilon(1e-6));  // 188.5 m: > 150
+    const double in = surfaceAt(set, 0, 100);  // on the wide strip, 138.5 m: inside the ring
+    const double t = 138.5 / 150.0, sm = t * t * (3.0 - 2.0 * t);
+    CHECK(in == doctest::Approx(103.0 + (100.0 - 103.0) * sm).epsilon(1e-5));
+    CHECK(FlattenSet::kMaxLowPaveBlendM == 150.0f);
+    CHECK(FlattenSet::kLowPaveBlendPerM == 300.0f);  // 1.5 / 300 = 1:200 at the steepest
+    CHECK(set.candidateCount(kLat0, kLon0) == 2);
+    double lat, lon;
+    at(0, -2000, lat, lon);
+    CHECK(set.candidateCount(lat, lon) == 0);  // far from both: no list, natural terrain
+    CHECK(set.elevationM(lat, lon, [] { return 77.0f; }) == doctest::Approx(77.0f));
+}
