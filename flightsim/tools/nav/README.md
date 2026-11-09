@@ -156,7 +156,7 @@ KSFO, KPDX and KOTH runways/headings/ILS records looked up in the data.
 
 ```bash
 cd flightsim/tools/nav
-python3 osm_taxiways.py --nav-dir ../../data/nav                        # every airport with a hard runway
+python3 osm_taxiways.py --nav-dir ../../data/nav --bbox=-124.7,43.0,-121.4,46.3  # a region (pdx_oth)
 python3 osm_taxiways.py --nav-dir ../../data/nav --airports KPDX,KOTH   # a subset
 python3 osm_taxiways.py --nav-dir ../../data/nav --osm-file kpdx.osm    # saved OSM XML, no network
 python3 osm_taxiways.py --nav-dir ../../data/nav --offline              # cached answers only
@@ -167,8 +167,11 @@ Reads `airports.csv` and `runways.csv` in `--nav-dir`, and writes `taxiways.csv`
 `TAXIWAYS-ODbL.txt` there (DATA.md 5.8-5.10). It also adds `osm_taxiways = <date>` to `nav.ini`, and
 with `--attribution FILE` it appends the ODbL line to an existing `ATTRIBUTION.txt`.
 
+- **Region:** `airports.csv` is worldwide (about 12,700 airports with a hard runway), so querying
+  Overpass needs `--bbox` (the pack's region; `build_datapack.sh` passes the preset's box) or
+  `--airports`; without either the tool refuses (exit 2).
 - **Source:** the Overpass API, `https://overpass-api.de/api/interpreter` (`--overpass-url`). It
-  sends one POST per airport with a hard runway, covering the runways' box plus 1.5 km
+  sends one POST per airport with a hard runway in the region, covering the runways' box plus 1.5 km
   (`--margin-m`), and asks for `way["aeroway"~"^(taxiway|taxilane|apron)$"]`. Fair use: at least 1 s
   between queries (`--sleep`). HTTP 429, 5xx and timeouts retry after 5, 10, 20 and 40 s. An
   airport that still fails is skipped, and the tool exits 1 only when no airport answered.

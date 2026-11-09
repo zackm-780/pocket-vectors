@@ -93,7 +93,8 @@ A tagged release does not include terrain or the nav database. Build a pack and 
 WorldCover is CC BY 4.0.
 
 - From the Actions tab, run the **datapack** workflow. Presets: `pdx_oth` (Portland to the
-  coast), `bayarea`, `mthood`, `tam_diablo`. Set **bbox** to `west,south,east,north` for a
+  coast), `sea_sfo` (Seattle to San Francisco; set **coarse_bbox** to `-129,34,-114,51`),
+  `bayarea`, `mthood`, `tam_diablo`. Set **bbox** to `west,south,east,north` for a
   custom box (that replaces the preset). The artifact is kept 30 days. Unzip it once and pass
   the folder, or a zip of it, to `--data`.
 - Locally: `tools/datapack/build_datapack.sh --out /path/to/pack --preset bayarea`, or

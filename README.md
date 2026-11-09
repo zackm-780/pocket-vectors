@@ -94,7 +94,8 @@ From 1.2.0 a tagged release attaches the Pacific Northwest pack (`pdx_oth`). For
 build a pack and keep its `ATTRIBUTION.txt` (Copernicus DEM is free for worldwide use with that
 notice; ESA WorldCover is CC BY 4.0).
 
-- Actions tab, workflow **datapack**. Presets: `pdx_oth`, `bayarea`, `mthood`, `tam_diablo`.
+- Actions tab, workflow **datapack**. Presets: `pdx_oth`, `sea_sfo` (Seattle to San Francisco, with
+  KSEA, KPDX, KEUG, KOTH and KSFO in one pack), `bayarea`, `mthood`, `tam_diablo`.
   Or set **bbox** to `west,south,east,north`. Download the artifact (kept 30 days), unzip once,
   and pass that folder or zip to `--data`.
 - Or locally: `flightsim/tools/datapack/build_datapack.sh --out /path/to/pack --preset bayarea`

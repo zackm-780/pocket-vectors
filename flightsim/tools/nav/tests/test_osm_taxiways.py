@@ -219,6 +219,23 @@ class AttributionAndFetchTests(NavDirCase):
         self.assertEqual(code, 0)
         self.assertIn("1/1 airports answered, 0 failed; 10 taxiway rows", log)
 
+    def test_region_filter_and_refusal(self):
+        boxes = ot.read_airports(self.nav, None, 1500.0, ot.parse_bbox("19,9,21,11"))
+        self.assertEqual([b.ident for b in boxes], ["XEDG"])  # KOTH is outside the region
+        with self.assertRaises(ValueError):
+            ot.parse_bbox("21,9,19,11")
+        # Querying Overpass needs a region or a subset: airports.csv is worldwide.
+        with mock.patch.object(ot.urllib.request, "urlopen") as op:
+            code, _ = self.run_tool("--cache-dir", str(self.nav / "cache"))
+            self.assertEqual(code, 2)
+            self.assertEqual(op.call_count, 0)
+        cache = self.nav / "cache"
+        cache.mkdir()
+        (cache / "XEDG-20261101.osm").write_bytes((FIX / "edge_cases.osm").read_bytes())
+        code, log = self.run_tool("--bbox=19,9,21,11", "--offline", "--cache-dir", str(cache))
+        self.assertEqual(code, 0)
+        self.assertIn("1/1 airports answered, 0 failed (region 19,9,21,11); 10 taxiway rows", log)
+
     def test_only_airports_with_a_hard_runway(self):
         boxes = ot.read_airports(self.nav, None, 1500.0)
         self.assertEqual([b.ident for b in boxes], ["KOTH", "XEDG"])  # XGRS is grass only

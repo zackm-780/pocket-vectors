@@ -130,7 +130,18 @@ step "nav: validate"
 OSM_ATTR=""
 if [ "$OSM_TAXIWAYS" -eq 1 ]; then
   step "nav: OSM taxiways (Overpass, about one query a second)"
-  "$PY" "$TOOLS/nav/osm_taxiways.py" --nav-dir "$OUT/nav" 2>&1 | tail -n 15
+  # Only the airports of the pack's region: airports.csv is worldwide (about 12,700 airports with
+  # a hard runway), the region holds tens to a few hundred.
+  if [ -n "$BBOX" ]; then
+    OSM_BBOX="$BBOX"
+  else
+    OSM_BBOX="$("$PY" "$TOOLS/terrain/build_terrain.py" --list-presets | awk -v p="$PRESET" '$1 == p {print $3}')"
+  fi
+  if [ -z "$OSM_BBOX" ]; then
+    echo "no box for preset $PRESET" >&2
+    exit 1
+  fi
+  "$PY" "$TOOLS/nav/osm_taxiways.py" --nav-dir "$OUT/nav" "--bbox=$OSM_BBOX" 2>&1 | tail -n 15
   if [ "$(wc -l < "$OUT/nav/taxiways.csv")" -gt 1 ]; then
     # The same line as osm_taxiways.py ATTRIBUTION_LINE (the About page prints ATTRIBUTION.txt).
     OSM_ATTR="

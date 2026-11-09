@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """OpenStreetMap taxiways and aprons for the nav pack (WP W8a; DATA.md 5.8-5.10; PLAN D23).
 
-Reads airports.csv and runways.csv from --nav-dir, takes every airport with at least one hard
-runway, fetches its aeroway=taxiway / taxilane / apron ways from the Overpass API (one query per
-airport box, cached under cache/osm/), and writes next to them:
+Reads airports.csv and runways.csv from --nav-dir, takes the airports with at least one hard
+runway inside the pack's region (--bbox; airports.csv is worldwide, about 12,700 such airports),
+fetches their aeroway=taxiway / taxilane / apron ways from the Overpass API (one query per airport
+box, cached under cache/osm/), and writes next to them:
 
     taxiways.csv      one row per segment: an OSM way split at nodes it shares with other taxiways
     aprons.csv        one row per apron (outer ring, not closed)
@@ -13,8 +14,8 @@ Standard library only. The taxiway files are ODbL 1.0 (c) OpenStreetMap contribu
 the pack keeps its own terms.
 
 Examples:
-    osm_taxiways.py --nav-dir ../../data/nav                        # every airport, Overpass
-    osm_taxiways.py --nav-dir ../../data/nav --airports KPDX,KOTH   # a subset
+    osm_taxiways.py --nav-dir ../../data/nav --bbox=-124.7,43.0,-121.4,46.3   # a region, Overpass
+    osm_taxiways.py --nav-dir ../../data/nav --airports KPDX,KOTH             # a subset
     osm_taxiways.py --nav-dir ../../data/nav --osm-file kpdx.osm --osm-file koth.osm  # saved XML
     osm_taxiways.py --nav-dir ../../data/nav --offline              # cached answers only
 """
@@ -85,8 +86,18 @@ def _float(s: str) -> float | None:
     return v if math.isfinite(v) else None
 
 
-def read_airports(nav_dir: Path, subset: set[str] | None, margin_m: float) -> list[AirportBox]:
-    """Airports of airports.csv with at least one hard runway, boxed by their runways + margin."""
+def parse_bbox(text: str) -> tuple[float, float, float, float]:
+    """'W,S,E,N' in degrees."""
+    parts = [float(v) for v in text.split(",")]
+    if len(parts) != 4 or not (parts[0] < parts[2] and parts[1] < parts[3]):
+        raise ValueError(f"bad --bbox {text!r}: want west,south,east,north")
+    return parts[0], parts[1], parts[2], parts[3]
+
+
+def read_airports(nav_dir: Path, subset: set[str] | None, margin_m: float,
+                  region: tuple[float, float, float, float] | None = None) -> list[AirportBox]:
+    """Airports of airports.csv with at least one hard runway (and their reference point inside
+    `region` when given), boxed by their runways + margin."""
     with open(nav_dir / "airports.csv", encoding="utf-8-sig", newline="") as f:
         apts = {r["ident"].upper(): r for r in csv.DictReader(f)}
     runways: dict[str, list[dict]] = {}
@@ -103,6 +114,8 @@ def read_airports(nav_dir: Path, subset: set[str] | None, margin_m: float) -> li
             continue
         lat, lon = _float(a.get("lat_deg")), _float(a.get("lon_deg"))
         if lat is None or lon is None:
+            continue
+        if region and not (region[0] <= lon <= region[2] and region[1] <= lat <= region[3]):
             continue
         box = AirportBox(ident, (a.get("type") or "").lower(), lat, lon, "other")
         best_len = -1.0
@@ -458,6 +471,9 @@ def run(argv: list[str] | None = None) -> int:
     ap.add_argument("--nav-dir", required=True, type=Path,
                     help="nav folder with airports.csv and runways.csv; outputs go there")
     ap.add_argument("--airports", default="", help="only these idents, e.g. KPDX,KOTH")
+    ap.add_argument("--bbox", default="",
+                    help="west,south,east,north: only airports in the pack's region (write "
+                         "--bbox=-124.7,43.0,-121.4,46.3 so the minus sign is not an option)")
     ap.add_argument("--osm-file", action="append", type=Path, default=[],
                     help="parse this saved OSM XML instead of querying Overpass (repeatable)")
     ap.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
@@ -471,13 +487,30 @@ def run(argv: list[str] | None = None) -> int:
 
     nav_dir: Path = args.nav_dir
     subset = {s.strip().upper() for s in args.airports.split(",") if s.strip()} or None
-    boxes = read_airports(nav_dir, subset, args.margin_m)
+    try:
+        region = parse_bbox(args.bbox) if args.bbox else None
+    except ValueError as e:
+        print(f"osm: {e}", file=sys.stderr)
+        return 2
+    if region is None and subset is None and not args.osm_file:
+        # airports.csv is worldwide: never send thousands of queries by accident.
+        print("osm: give --bbox (the pack's region) or --airports; refusing to query every airport "
+              "in airports.csv", file=sys.stderr)
+        return 2
+    boxes = read_airports(nav_dir, subset, args.margin_m, region)
     today = args.date or dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
     osm = OsmData()
     t0 = time.monotonic()
     if args.osm_file:
         for p in args.osm_file:
             osm.add_xml(p.read_bytes())
+        if osm.nodes and region is None and subset is None:
+            # Only the airports the files can touch (assignment is per way and box).
+            lats = [ll[0] for ll in osm.nodes.values()]
+            lons = [ll[1] for ll in osm.nodes.values()]
+            s_, n_, w_, e_ = min(lats), max(lats), min(lons), max(lons)
+            boxes = [b for b in boxes
+                     if b.south <= n_ and b.north >= s_ and b.west <= e_ and b.east >= w_]
         source = f"{len(args.osm_file)} OSM files read"
         answered, tried = len(args.osm_file), 0
     else:
@@ -498,6 +531,8 @@ def run(argv: list[str] | None = None) -> int:
                 print(f"osm: {i + 1}/{len(boxes)} airports, {answered} answered "
                       f"({time.monotonic() - t0:.0f} s)", flush=True)
         source = f"{answered}/{tried} airports answered, {tried - answered} failed"
+        if region:
+            source += f" (region {args.bbox})"
 
     res = extract(osm, boxes)
     tax = csv_text(TAXIWAY_COLS, res.taxiways)

@@ -202,7 +202,8 @@ wmm = WMM2025, epoch used <decimal year>
 - `surface` is normalized like runways (`asphalt,concrete,grass,dirt,gravel,water,other`); without
   a tag it is the surface of the airport's longest runway. `asphalt` and `concrete` count as hard.
 - `points`: `lat lon` pairs in degrees with 6 decimals, space separated, in way order, at least 2.
-- Each way belongs to one airport: the one whose box (runways + 1.5 km) holds its mean point.
+- Only airports with a hard runway inside the pack's region box are queried (the pack's preset or
+  bbox). Each way belongs to one airport: the one whose box (runways + 1.5 km) holds its mean point.
   Dropped: `area=yes` taxiways and ways with `disused`, `abandoned`, `construction` or
   `proposed` set to anything other than `no`. OSM runway ways are not used, and OSM is matched to
   the runways by geometry, never by designator.
