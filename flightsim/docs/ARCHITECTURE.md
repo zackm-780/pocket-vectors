@@ -530,8 +530,6 @@ start = final
 ; distance_nm: final only. altitude_ft: cruise only (0 = profile cruise altitude)
 distance_nm = 6
 altitude_ft = 0
-; W8c, optional: runway (on the ground) and cruise starts at this point and true heading instead,
-; e.g. on an apron: lat_deg = 45.5895, lon_deg = -122.5948, heading_true_deg = 300
 time_utc = 2026-06-21T18:00:00
 ; optional fuel (F6): full | auto (plan trip + 10 % + 45 min) | 40% | 9000 (lb); unset = as loaded
 fuel = full

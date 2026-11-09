@@ -177,6 +177,32 @@ TEST_CASE("world: taxiway pavement has no gap at a 90 degree junction or at bend
     }
 }
 
+TEST_CASE("world: taxiway edge lines run on through mitred bends") {
+    JoinAirport ja;
+    const Airport& a = ja.b.airport;
+    Surface s(a);
+    const TaxiwayMeshes m = buildTaxiwayMeshes(a, s.fn);
+    const std::vector<Tri> lines = trianglesOf(m.markings, ja.b.frame());
+    // The 20 degree bend at (700, 400): both edge bands (centred 0.225 m inside the 10 m half-width)
+    // on both pieces, up to 2.5 m from the joint (the inner band ends at the inner mitre point,
+    // 10 x tan 10 deg = 1.8 m before the joint).
+    const double off = 10.0 - 0.5 * kEdgeLineWidthM;
+    const double c = std::cos(20.0 * kRadPerDeg), sn = std::sin(20.0 * kRadPerDeg);
+    int missing = 0, samples = 0;
+    for (const double side : {-1.0, 1.0}) {
+        for (double t = -15.0; t <= 15.0; t += 0.5) {
+            if (std::fabs(t) < 2.5) continue;
+            const Pt2 p =
+                t < 0 ? Pt2{700.0 + t, 400.0 - side * off}
+                      : Pt2{700.0 + c * t + sn * side * off, 400.0 + sn * t - c * side * off};
+            ++samples;
+            if (!covered(lines, p)) ++missing;
+        }
+    }
+    CHECK(samples > 100);
+    CHECK(missing == 0);
+}
+
 TEST_CASE("world: taxiways stop at the runway edge, pavement and markings alike") {
     RunwayAirport ra;
     const Airport& a = ra.b.airport;

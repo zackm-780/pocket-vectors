@@ -392,9 +392,9 @@ ConvexPoly clipHalf(const ConvexPoly& poly, const Pt2& a, const Pt2& b, bool kee
         const Pt2& q = poly[(i + 1) % n];
         const double sp = cross(a, b, p), sq = cross(a, b, q);
         const bool inP = keepLeft ? sp >= 0 : sp <= 0;
-        const bool inQ = keepLeft ? sq >= 0 : sq <= 0;
         if (inP) out.push_back(p);
-        if (inP != inQ && sp != sq) out.push_back(lerp(p, q, sp / (sp - sq)));
+        // A vertex on the line is kept (or dropped) once; only a strict crossing adds a point.
+        if ((sp < 0 && sq > 0) || (sp > 0 && sq < 0)) out.push_back(lerp(p, q, sp / (sp - sq)));
     }
     return out;
 }
@@ -678,6 +678,7 @@ TaxiwayMeshes buildTaxiwayMeshes(const Airport& airport, const SurfaceElevFn& su
     struct Piece {
         Pt2 a, b;
         double h;
+        int strip = -1;  // pieces joined by mitres share a strip (for the edge-line test)
     };
     std::vector<Piece> pieces;
     std::vector<std::pair<Pt2, double>> discs;
@@ -686,6 +687,7 @@ TaxiwayMeshes buildTaxiwayMeshes(const Airport& airport, const SurfaceElevFn& su
         double h;
     };
     std::vector<SegmentStrips> segs;
+    int stripCount = 0;
     for (const Taxiway& t : airport.taxiways) {
         const std::vector<Pt2> pts = drawnPolyline(t, frame);
         if (pts.size() < 2) continue;
@@ -698,6 +700,10 @@ TaxiwayMeshes buildTaxiwayMeshes(const Airport& airport, const SurfaceElevFn& su
         for (size_t i = 0; i + 1 < pts.size(); ++i) pieces.push_back({pts[i], pts[i + 1], h});
         polylineStrips(pts, h, kTaxiwayMaxQuadM, kMitreMaxBendDeg * kRadPerDeg, 2.0, base,
                        seg.strips, &bends);
+        for (const Strip& st : seg.strips) {
+            for (const int q : st.quadPiece) pieces[static_cast<size_t>(q)].strip = stripCount;
+            ++stripCount;
+        }
         for (const Strip& s : seg.strips) pave.strip(s.left, s.right, rgb);
         for (const Pt2& b : bends) {
             pave.convex(fillet(b, h), rgb);
@@ -791,9 +797,13 @@ TaxiwayMeshes buildTaxiwayMeshes(const Airport& airport, const SurfaceElevFn& su
         const auto it = grid.find(cellKey(static_cast<long long>(std::floor(e.eM / kCell)),
                                           static_cast<long long>(std::floor(e.nM / kCell))));
         if (it != grid.end()) {
+            const int ownStrip = pieces[static_cast<size_t>(ownPiece)].strip;
             for (const int i : it->second) {
-                if (i == ownPiece) continue;
                 const Piece& pc = pieces[static_cast<size_t>(i)];
+                // The piece itself and its mitred neighbours: their edges meet the sample's edge
+                // at the mitre, so they never cover it.
+                if (i == ownPiece || (pc.strip == ownStrip && std::abs(i - ownPiece) <= 1))
+                    continue;
                 const double lim = pc.h - 0.05;
                 if (lim > 0 && dist2ToSegment(e, pc.a, pc.b) < lim * lim) return true;
             }
