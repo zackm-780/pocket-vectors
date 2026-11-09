@@ -11,8 +11,9 @@ together as 1.3, owner 2026-11-08.)
   - **What you see:** real taxiways from OpenStreetMap, drawn as pavement ribbons with round
     fillets where they meet, and the aprons around the terminals. They carry yellow centerlines,
     and edge lines that break at junctions and on the ramps.
-  - **Where:** every airport in the `pdx_oth` pack that has them mapped. KPDX has its whole
-    network (553 segments, 15 aprons), KOTH has its taxiways and ramps.
+  - **Where:** 47 of the 50 airports with a hard runway in the `pdx_oth` pack (2,930 taxiway
+    segments, 116 aprons). KPDX has its whole network (553 segments, 15 aprons), and KOTH has its
+    taxiways and ramps.
   - **The ground:** taxiways sit on ground as smooth as the runways and meet them without a step
     (no slope steeper than about 1:110 at KPDX). Their heights come from the runways, so loading
     terrain never moves them.
@@ -24,6 +25,9 @@ together as 1.3, owner 2026-11-08.)
     the About page carries the credit.
   - **Adding them to an existing install:** copy `data/nav/` from the 1.3 data pack over
     `flightsim/data/nav/` on the SD card. Older packs still work, with generic aprons.
+  - **More regions:** the `datapack` workflow builds taxiways for any region (on by default). A new
+    `sea_sfo` preset covers Seattle to San Francisco, with KSEA, KPDX, KEUG, KOTH and KSFO in one
+    pack.
 
 - **GPS turns are arcs** (N10). At each fly-by waypoint the route turns along an arc tangent to
   both legs, flown at a constant bank: 15 degrees in the light aircraft, 20 in the jets (the

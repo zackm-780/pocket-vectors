@@ -36,11 +36,12 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
-      # The pdx_oth pack for this release: built from main 84554f0 by datapack run 42155295255,
-      # with SIDs and STARs (FAA CIFP 2611). The artifact expires on 2026-12-06. For a later
-      # release, run the datapack workflow on main and put its run id and artifact name here.
-      DATA_RUN_ID: ${{ inputs.data_run_id || '42155295255' }}
-      DATA_ARTIFACT: ${{ inputs.data_artifact || 'flightsim-data-pdx_oth-20261106' }}
+      # The pdx_oth pack for this release: built from main 14c3113 by datapack run 42540892889,
+      # with SIDs and STARs (FAA CIFP 2611) and the OpenStreetMap taxiways and aprons (W8a,
+      # ODbL). The artifact expires on 2026-12-09. For a later release, run the datapack workflow on
+      # main and put its run id and artifact name here.
+      DATA_RUN_ID: ${{ inputs.data_run_id || '42540892889' }}
+      DATA_ARTIFACT: ${{ inputs.data_artifact || 'flightsim-data-pdx_oth-20261109' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,8 +74,9 @@ jobs:
         run: tools/build_device.sh --docker --skip-probe
 
       # The data pack goes on the release as pocket-vectors-<tag>-data-pdx_oth.zip with data/ at
-      # the top, like the 1.0 pack. It must have the nav database, terrain, ATTRIBUTION.txt and
-      # SIDs (a pack built before 1.2's cifp.py has none).
+      # the top, like the 1.0 pack. It must have the nav database, terrain, ATTRIBUTION.txt, SIDs
+      # (a pack built before 1.2's cifp.py has none) and, from 1.3, the taxiways (KPDX rows in
+      # nav/taxiways.csv; a pack built before W8a, or when Overpass did not answer, has none).
       - name: Fetch the data pack
         id: pack
         env:
@@ -89,11 +91,13 @@ jobs:
             exit 0
           fi
           if [ ! -f "$dir/data/nav/nav.ini" ] || [ ! -f "$dir/data/terrain/pack.ini" ] || \
-             [ ! -f "$dir/data/ATTRIBUTION.txt" ] || ! grep -rqs '^SID ' "$dir/data/nav/procedures"; then
-            echo "::warning::Data pack ${DATA_ARTIFACT} lacks nav, terrain, ATTRIBUTION.txt or SIDs. The notes link the 1.0 pack."
+             [ ! -f "$dir/data/ATTRIBUTION.txt" ] || ! grep -rqs '^SID ' "$dir/data/nav/procedures" || \
+             ! grep -qs '^KPDX,' "$dir/data/nav/taxiways.csv"; then
+            echo "::warning::Data pack ${DATA_ARTIFACT} lacks nav, terrain, ATTRIBUTION.txt, SIDs or taxiways (nav/taxiways.csv). The notes link the 1.0 pack."
             exit 0
           fi
-          grep -E '^(created_utc|faa_cifp) ' "$dir/data/nav/nav.ini" || true
+          grep -E '^(created_utc|faa_cifp|osm_taxiways) ' "$dir/data/nav/nav.ini" || true
+          wc -l "$dir/data/nav/taxiways.csv" "$dir/data/nav/aprons.csv"
           (cd "$dir" && zip -q -r -X "$out" data)
           ls -l "$out"
           echo "zip=$out" >> "$GITHUB_OUTPUT"
@@ -123,9 +127,9 @@ jobs:
 
           Or unzip the game zip into \`Roms/PORTS\` and add the Pacific Northwest terrain and nav pack:"
             pack_name="$(basename "$PACK_ZIP")"
-            pack_link="[${pack_name}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${pack_name}) (on this release, with SIDs and STARs)"
-            pack_update="For SIDs and STARs on the flight-plan screen, also download \`${pack_name}\` and copy its
-          \`data/nav/\` folder over \`flightsim/data/nav/\` (or the whole \`data/\` folder)."
+            pack_link="[${pack_name}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${pack_name}) (on this release, with SIDs, STARs and taxiways)"
+            pack_update="For the taxiways (and SIDs and STARs on the flight-plan screen), also download \`${pack_name}\`
+          and copy its \`data/nav/\` folder over \`flightsim/data/nav/\` (or the whole \`data/\` folder)."
           else
             pack_link="[pocket-vectors-1.0.0-data-pdx_oth.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.0.0/pocket-vectors-1.0.0-data-pdx_oth.zip) (the 1.0 pack: no SIDs or STARs)"
             pack_update="The 1.0 data pack keeps working; it has no SIDs or STARs."
@@ -159,7 +163,9 @@ jobs:
           \`mthood\`, \`tam_diablo\`, or a \`bbox\`) or with \`tools/datapack/build_datapack.sh\`.
           Keep the pack's \`ATTRIBUTION.txt\`.
 
-          Code: Apache-2.0. JSBSim is LGPL-2.1. Zack Martin, https://github.com/zackm-780.
+          Code: Apache-2.0. JSBSim is LGPL-2.1. Taxiway data © OpenStreetMap contributors: the pack's
+          \`nav/taxiways.csv\` and \`nav/aprons.csv\` are shared under the ODbL (\`nav/TAXIWAYS-ODbL.txt\`).
+          Zack Martin, https://github.com/zackm-780.
           EOF
           # The heredoc above is indented; strip the leading spaces.
           sed -i 's/^          //' "$notes"
