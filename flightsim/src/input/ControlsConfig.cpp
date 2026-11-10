@@ -19,7 +19,7 @@ const char* const kActionNames[] = {
     "NavSourceCycle", "DirectTo",     "RudderTrimLeft",  "RudderTrimRight", "MenuUp",
     "MenuDown",       "MenuLeft",     "MenuRight",       "MenuAccept",      "MenuBack",
     "Screenshot",     "Quit",         "BaroInc",         "BaroDec",         "BaroStd",
-    "OverlayPreset",  "GoAround",     "FlcMode",         "ViewToggle"};
+    "OverlayPreset",  "GoAround",     "FlcMode",         "ViewToggle",      "PlanUndo"};
 static_assert(sizeof(kActionNames) / sizeof(kActionNames[0]) == kActionCount,
               "kActionNames must list every Action in enum order");
 

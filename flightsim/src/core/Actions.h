@@ -60,6 +60,8 @@ enum class Action {
     FlcMode,
     // Additive (V1): cockpit <-> external chase view (L2 + L3, C on the keyboard).
     ViewToggle,
+    // Additive (N11b): undo the last destructive plan edit within 10 s (R1 + Start, Ctrl+Z).
+    PlanUndo,
     Count
 };
 
