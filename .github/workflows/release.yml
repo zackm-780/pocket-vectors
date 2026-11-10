@@ -1,12 +1,12 @@
 name: release
 
 # On a v* tag, build the RG40XXH game (no probe, no data pack) and attach it to the GitHub
-# Release, together with the pdx_oth data pack from a datapack workflow run (DATA_RUN_ID and
-# DATA_ARTIFACT below) and, from 1.2.2, one SD-card zip of both (tools/sdcard/make_sdcard_zip.py).
-# From 1.3 (owner, 2026-11-09, board OD2 / R3) the Seattle to San Francisco pack (preset sea_sfo,
-# SEA_RUN_ID and SEA_ARTIFACT) goes on the release too, as a data zip and an SD-card zip with the
-# game. Workflow artifacts expire after 30 days; a release asset stays, so the release keeps the
-# packs. Copernicus DEM and ESA WorldCover may be redistributed with the
+# Release, together with a data pack from a datapack workflow run (DATA_RUN_ID and DATA_ARTIFACT
+# below) and, from 1.2.2, one SD-card zip of both (tools/sdcard/make_sdcard_zip.py). From 1.4 the
+# release's pack is the Seattle to San Francisco pack (preset sea_sfo, owner 2026-11-10): it holds
+# all of the Pacific Northwest (pdx_oth) pack's area, which 1.2 and 1.3 attached, so pdx_oth is no
+# longer rebuilt. Workflow artifacts expire after 30 days; a release asset stays, so the release
+# keeps the pack. Copernicus DEM and ESA WorldCover may be redistributed with the
 # attribution in ATTRIBUTION.txt (DATA.md section 2), which the pack carries. If the artifact is
 # gone, the release still publishes and its notes link the 1.0 pack (no SIDs or STARs) with a
 # warning; re-run it for the tag with a newer datapack run.
@@ -22,18 +22,10 @@ on:
         description: "Existing tag to build and publish, e.g. v1.1.0"
         required: true
       data_run_id:
-        description: "datapack workflow run whose pack to attach (empty: the default in this file)"
+        description: "datapack workflow run (preset sea_sfo) whose pack to attach (empty: the default in this file)"
         required: false
         default: ""
       data_artifact:
-        description: "Artifact name in that run (empty: the default in this file)"
-        required: false
-        default: ""
-      sea_run_id:
-        description: "datapack run with the sea_sfo pack (empty: the default in this file; 'none' to skip it)"
-        required: false
-        default: ""
-      sea_artifact:
         description: "Artifact name in that run (empty: the default in this file)"
         required: false
         default: ""
@@ -47,17 +39,14 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
-      # The pdx_oth pack for this release: built from main 14c3113 by datapack run 42540892889,
-      # with SIDs and STARs (FAA CIFP 2611) and the OpenStreetMap taxiways and aprons (W8a,
-      # ODbL). The artifact expires on 2026-12-09. For a later release, run the datapack workflow on
-      # main and put its run id and artifact name here.
-      DATA_RUN_ID: ${{ inputs.data_run_id || '42540892889' }}
-      DATA_ARTIFACT: ${{ inputs.data_artifact || 'flightsim-data-pdx_oth-20261109' }}
-      # The sea_sfo pack (Seattle to San Francisco, -124.8,37.0,-120.8,48.2, coarse far view
-      # -129,34,-114,51): datapack run 42540895471 on main 14c3113, 1.3 GB, taxiways at 211 of
-      # its 267 hard-runway airports. The artifact expires on 2026-12-09.
-      SEA_RUN_ID: ${{ inputs.sea_run_id || '42540895471' }}
-      SEA_ARTIFACT: ${{ inputs.sea_artifact || 'flightsim-data-sea_sfo-20261109' }}
+      # The sea_sfo pack for this release (Seattle to San Francisco, -124.8,37.0,-120.8,48.2,
+      # coarse far view -129,34,-114,51): built from main 0e69d77 by datapack run 42761504332,
+      # with SIDs and STARs (FAA CIFP) and the OpenStreetMap taxiways and aprons (W8a, ODbL),
+      # 438 MB zipped, about 1.3 GB unpacked. The artifact expires on 2026-12-10. For a later
+      # release, run the datapack workflow on main (preset sea_sfo, coarse_bbox -129,34,-114,51)
+      # and put its run id and artifact name here.
+      DATA_RUN_ID: ${{ inputs.data_run_id || '42761504332' }}
+      DATA_ARTIFACT: ${{ inputs.data_artifact || 'flightsim-data-sea_sfo-20261110' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,9 +78,9 @@ jobs:
           REQUIRE_MAIN: "1"
         run: tools/build_device.sh --docker --skip-probe
 
-      # The data pack goes on the release as pocket-vectors-<tag>-data-pdx_oth.zip with data/ at
+      # The data pack goes on the release as pocket-vectors-<tag>-data-sea_sfo.zip with data/ at
       # the top, like the 1.0 pack. It must have the nav database, terrain, ATTRIBUTION.txt, SIDs
-      # (a pack built before 1.2's cifp.py has none) and, from 1.3, the taxiways (KPDX rows in
+      # (a pack built before 1.2's cifp.py has none) and the taxiways (KPDX and KSFO rows in
       # nav/taxiways.csv; a pack built before W8a, or when Overpass did not answer, has none).
       - name: Fetch the data pack
         id: pack
@@ -101,47 +90,15 @@ jobs:
         run: |
           set -euo pipefail
           dir="${RUNNER_TEMP}/datapack"
-          out="${RUNNER_TEMP}/pocket-vectors-${TAG}-data-pdx_oth.zip"
+          out="${RUNNER_TEMP}/pocket-vectors-${TAG}-data-sea_sfo.zip"
           if ! gh run download "$DATA_RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$DATA_ARTIFACT" -D "$dir"; then
             echo "::warning::Data pack ${DATA_ARTIFACT} (run ${DATA_RUN_ID}) is missing or expired. The notes link the 1.0 pack. Re-run this workflow for ${TAG} with a newer datapack run."
             exit 0
           fi
           if [ ! -f "$dir/data/nav/nav.ini" ] || [ ! -f "$dir/data/terrain/pack.ini" ] || \
              [ ! -f "$dir/data/ATTRIBUTION.txt" ] || ! grep -rqs '^SID ' "$dir/data/nav/procedures" || \
-             ! grep -qs '^KPDX,' "$dir/data/nav/taxiways.csv"; then
+             ! grep -qs '^KPDX,' "$dir/data/nav/taxiways.csv" || ! grep -qs '^KSFO,' "$dir/data/nav/taxiways.csv"; then
             echo "::warning::Data pack ${DATA_ARTIFACT} lacks nav, terrain, ATTRIBUTION.txt, SIDs or taxiways (nav/taxiways.csv). The notes link the 1.0 pack."
-            exit 0
-          fi
-          grep -E '^(created_utc|faa_cifp|osm_taxiways) ' "$dir/data/nav/nav.ini" || true
-          wc -l "$dir/data/nav/taxiways.csv" "$dir/data/nav/aprons.csv"
-          printf '%s\n' "Region pdx_oth: Portland to the coast at North Bend and Mt Hood" \
-            "Box -124.7,43.0,-121.4,46.3 (west,south,east,north)" \
-            "Main airports: KPDX KHIO KTTD KUAO KSLE KEUG KOTH KAST" > "$dir/data/REGION.txt"
-          (cd "$dir" && zip -q -r -X "$out" data)
-          ls -l "$out"
-          echo "zip=$out" >> "$GITHUB_OUTPUT"
-
-      # The Seattle to San Francisco pack (owner, 2026-11-09): pocket-vectors-<tag>-data-sea_sfo.zip.
-      # It holds all of pdx_oth's box, so a player picks one of the two. Same checks, with KSFO
-      # taxiways. A missing or expired artifact only skips it (with a warning).
-      - name: Fetch the sea_sfo data pack
-        id: seapack
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          set -euo pipefail
-          if [ "$SEA_RUN_ID" = "none" ]; then echo "sea_sfo pack skipped"; exit 0; fi
-          dir="${RUNNER_TEMP}/datapack-sea"
-          out="${RUNNER_TEMP}/pocket-vectors-${TAG}-data-sea_sfo.zip"
-          if ! gh run download "$SEA_RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$SEA_ARTIFACT" -D "$dir"; then
-            echo "::warning::sea_sfo pack ${SEA_ARTIFACT} (run ${SEA_RUN_ID}) is missing or expired; the release goes out without it. Re-run this workflow for ${TAG} with a newer sea_sfo datapack run."
-            exit 0
-          fi
-          if [ ! -f "$dir/data/nav/nav.ini" ] || [ ! -f "$dir/data/terrain/pack.ini" ] || \
-             [ ! -f "$dir/data/ATTRIBUTION.txt" ] || ! grep -rqs '^SID ' "$dir/data/nav/procedures" || \
-             ! grep -qs '^KSFO,' "$dir/data/nav/taxiways.csv"; then
-            echo "::warning::sea_sfo pack ${SEA_ARTIFACT} lacks nav, terrain, ATTRIBUTION.txt, SIDs or taxiways; the release goes out without it."
             exit 0
           fi
           grep -E '^(created_utc|faa_cifp|osm_taxiways) ' "$dir/data/nav/nav.ini" || true
@@ -161,14 +118,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag || github.ref_name }}
           PACK_ZIP: ${{ steps.pack.outputs.zip }}
-          SEA_ZIP: ${{ steps.seapack.outputs.zip }}
         run: |
           set -euo pipefail
           tag="${TAG}"
           asset="${RUNNER_TEMP}/pocket-vectors-${tag}-game.zip"
           cp dist/flightsim-portmaster.zip "$asset"
           assets=("$asset")
-          new_install="Unzip the game zip into \`Roms/PORTS\`. Then add the Pacific Northwest terrain and nav pack:"
+          new_install="Unzip the game zip into \`Roms/PORTS\`. Then add the terrain and nav pack:"
           if [ -n "${PACK_ZIP}" ]; then
             # One zip for a new install (from 1.2.2): the game, the pack and the stock OS box art.
             sdzip="${RUNNER_TEMP}/pocket-vectors-${tag}-Roms-PORTS.zip"
@@ -179,34 +135,24 @@ jobs:
           it **into** \`Roms/PORTS\`, so you get \`Roms/PORTS/PocketVectors.sh\` next to \`Roms/PORTS/flightsim/\`.
           If the unzip tool makes a folder named after the zip, move its contents into \`Roms/PORTS\`.
 
-          Or unzip the game zip into \`Roms/PORTS\` and add the Pacific Northwest terrain and nav pack:"
+          Or unzip the game zip into \`Roms/PORTS\` and add the Seattle to San Francisco terrain and nav pack:"
             pack_name="$(basename "$PACK_ZIP")"
             pack_link="[${pack_name}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/${pack_name}) (on this release, with SIDs, STARs and taxiways)"
-            pack_update="For the taxiways (and SIDs and STARs on the flight-plan screen), also download \`${pack_name}\`
-          and copy its \`data/nav/\` folder over \`flightsim/data/nav/\` (or the whole \`data/\` folder)."
+            pack_update="The data pack on this release is the Seattle to San Francisco pack (from 1.4; 1.2 and 1.3
+          attached the Pacific Northwest pack, which it covers). To move to it, download \`${pack_name}\`
+          and copy its whole \`data/\` folder over \`flightsim/data/\`. Your Pacific Northwest pack keeps working."
           else
             pack_link="[pocket-vectors-1.0.0-data-pdx_oth.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.0.0/pocket-vectors-1.0.0-data-pdx_oth.zip) (the 1.0 pack: no SIDs or STARs)"
             pack_update="The 1.0 data pack keeps working; it has no SIDs or STARs."
           fi
-          # The Seattle to San Francisco pack (owner, 2026-11-09): its own data zip and SD-card zip.
-          sea_section=""
-          if [ -n "${SEA_ZIP}" ]; then
-            seasd="${RUNNER_TEMP}/pocket-vectors-${tag}-Roms-PORTS-sea_sfo.zip"
-            python3 tools/sdcard/make_sdcard_zip.py --game "$asset" --data "$SEA_ZIP" --out "$seasd"
-            ls -l "$seasd"
-            assets+=("$seasd" "$SEA_ZIP")
-            sea_section="## Seattle to San Francisco
+          # The pack (from 1.4 the Seattle to San Francisco pack, owner 2026-11-10).
+          sea_section="## The data pack
 
-          One pack from Everett and Seattle down the coast and the Cascades to San Francisco and San Jose
-          (KPAE, KBFI, KSEA, KPDX, KEUG, KOTH, KSFO, KOAK, KSJC and the fields between), so you can fly
-          between them without swapping packs. It covers all of the Pacific Northwest pack too, so use
-          one or the other. About 1.3 GB on the card, taxiways at 211 airports.
-
-          - New install: unzip \`$(basename "$seasd")\` **into** \`Roms/PORTS\` (the game and this pack).
-          - Existing install: unzip \`$(basename "$SEA_ZIP")\` and copy its \`data/\` folder over
-            \`Roms/PORTS/flightsim/data/\` (it replaces the Pacific Northwest pack), or keep it in
-            another folder and set \`data_dir\` in \`flightsim/conf/settings.ini\`."
-          fi
+          Seattle to San Francisco: from Everett and Seattle down the coast and the Cascades to San
+          Francisco and San Jose (KPAE, KBFI, KSEA, KPDX, KEUG, KOTH, KSFO, KOAK, KSJC and the fields
+          between), with SIDs, STARs and taxiways (211 airports). About 1.3 GB on the card. It covers
+          all of the Pacific Northwest pack that 1.2 and 1.3 attached."
+          [ -n "${PACK_ZIP}" ] || sea_section=""
           notes="${RUNNER_TEMP}/notes.md"
           cat > "$notes" <<EOF
           Pocket Vectors ${tag} for the Anbernic RG40XXH (stock OS, 64-bit, SDL2).

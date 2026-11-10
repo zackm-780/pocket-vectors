@@ -57,6 +57,10 @@ install). It covers KSEA, KPDX, KEUG, KOTH, KSFO and the fields between, includi
 pack, so put one or the other in `flightsim/data/` (or keep both and switch with `data_dir`). Each pack's
 `REGION.txt` names its box and main airports.
 
+From 1.4 the Seattle to San Francisco pack is the release's only pack: `pocket-vectors-vX.Y.Z-data-sea_sfo.zip`
+and `pocket-vectors-vX.Y.Z-Roms-PORTS.zip` (the game with it). A Pacific Northwest pack from 1.2 or 1.3 keeps
+working; to move to the bigger pack, copy its whole `data/` folder over `flightsim/data/`.
+
 To keep the pack somewhere else on the card, set `data_dir` in `flightsim/conf/settings.ini`
 (created on first launch).
 

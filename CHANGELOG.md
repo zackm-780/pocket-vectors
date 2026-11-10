@@ -1,5 +1,73 @@
 # Changelog
 
+## 1.4.0
+
+The owner's handling, HUD and flight-plan list (2026-11-09), arcs at every fly-by turn
+(2026-11-10), and the Seattle to San Francisco pack as the release's data pack.
+
+- **Stall warning by flap setting** (F5). The airliners warned at about 12 degrees of pitch and in
+  steeper banks, above their stall speeds. Now each flap detent has its own warning angle of attack,
+  set at max(1.05 × Vs, Vs + 6 kt) for that detent (just over FAR 25.207). It interpolates with the
+  real flap position, and the HUD and the flight model use the same value. 737, B747, A320, 787-8,
+  MD11 and global5000; the light aircraft keep one value. No warning in normal climbs or 30-degree
+  turns.
+- **V-speed and flap bugs on the speed tape** (H9):
+  - on takeoff: V1, VR and V2 (pistons VR only);
+  - on approach: REF and APP;
+  - at each flap detent: the minimum speed for it (1.3 × its stall speed, never above the next
+    detent's Vfe), and in the descent the clean minimum.
+  - All of them scale with the square root of the weight. The chase view shows the next bug
+    under the speed box.
+- **Route and path overlays follow the HUD declutter level** (H10). OVERLAY ROUTE and OVERLAY PATH are
+  AUTO (shown at the FULL HUD), ON or OFF; L3 still cycles the presets.
+- **Flight-plan edits like a Garmin or an FMS** (N11a, N11b). On the FLIGHT PLAN screen in flight:
+  - **Direct-To:** a waypoint in the plan flies on along the plan; a fix off the plan rejoins it at
+    the next waypoint ahead (`DIRECT TO X, THEN Y`); the destination keeps its arrival and
+    approach; another airport replaces the route and offers its approaches (NOT NOW flies direct).
+  - **NEW DESTINATION** asks KEEP ROUTE or CLEAR ROUTE (CLEAR is selected, B cancels).
+  - **DEPARTURE RUNWAY** on the ground keeps the SID when it serves the runway, and ACTIVATE
+    APPROACH picks the approach back up.
+  - **On a leg:** A goes direct to it, X activates it, Y deletes it.
+  - **One press:** L1 + Select is DIRECT TO NEXT, after vectors or a heading.
+  - **Undo:** R1 + Start (Ctrl+Z) undoes a route change within 10 s. The HUD says what each edit
+    did, with R1+START UNDO under a destructive one.
+  - The autopilot stays in NAV through every edit. On the setup screens a new start runway
+    keeps the plan, and a new destination asks KEEP / CLEAR too.
+- **Arcs at every fly-by turn** (N10b, the owner's device feedback). The turn from the route onto an
+  approach (an IF in mid-plan), DF legs and straight CF legs now get arcs too. An approach that starts
+  on the last enroute fix (the real KOTH I05-Z at OTH) turns on an arc onto its next leg.
+- **PA28 balked landing** (F8). The stock model could not climb with full flaps at full power
+  (−200 fpm at flaps 40, −320 at 25: the flaps pitched the nose down past the elevator). An overlay
+  reduces the flap pitching moment and fixes the 25-degree flap lift. Flaps 40 now climbs about
+  +130 fpm, 25 +260 and 10 +410, and the clean airplane is unchanged. The first-flight help gives
+  the go-around: full power, flaps 25 at once, then 10.
+- **Pitch handling** (F9). Small stick inputs were far too strong: in the C172, 0.2 of stick changed
+  the VS by 1,550 fpm in 3 s.
+  - **Stick:** the left stick's pitch now has its own expo (`[axes] left_pitch_expo`, and per
+    aircraft `[controls] pitch_expo`), so 0.2 is now about 450 fpm. Roll and full deflection are
+    unchanged.
+  - **Trim:** a trim press is one step (a tap moves the VS by 30–150 fpm); held, it runs at a
+    steady rate. Both shrink with speed, so a tap does about the same at any speed.
+  - **Aids (settings, off by default):** PITCH DAMPER, and AUTO TRIM (now wired), which holds
+    the climb or descent you leave the stick at and calms the phugoid.
+- **Armed speed brakes** (F10). X cycles RETRACTED, ARMED, 50 %, FULL. Armed (SPDBRK ARM on the HUD),
+  they deploy fully at touchdown with the thrust at idle and stow on a go-around (737 at XTST:
+  rollout 2,400 ft against 3,370 ft unarmed).
+- **Nose-wheel steering for taxiing** (F11).
+  - **The tiller:** below 35 kt the right stick is a tiller up to the aircraft's real limit
+    (light aircraft 30 degrees, airliners 60–78). It is held to 0.3 g at the ground speed, on a
+    curve that keeps small moves small and at a hydraulic rate. At walking pace a C172 turns on
+    about 7 m, an A320 on 20 m and a B747 on 14 m; before, the A320 needed 136 m and the B747
+    337 m.
+  - **Above 35 kt** the pedal steering is unchanged.
+  - **Overlays:** the C310 and the Global 5000 now steer on the ground at all (their JSBSim
+    autopilots overwrote the steering), and the C182 and PA28 no longer pivot on castering main
+    wheels.
+- **The release's data pack is Seattle to San Francisco** (owner, 2026-11-10). From 1.4 the release
+  attaches only `pocket-vectors-v1.4.0-data-sea_sfo.zip` (with SIDs, STARs and taxiways at 211
+  airports) and the one-zip install `pocket-vectors-v1.4.0-Roms-PORTS.zip`. It covers all of the
+  Pacific Northwest pack that 1.2 and 1.3 attached, and that pack keeps working.
+
 ## 1.3.0
 
 Taxiways, fly-by turns flown as arcs, fixes from the owner's 2026-11-08 flights, runways that
