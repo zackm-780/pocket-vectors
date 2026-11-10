@@ -158,6 +158,16 @@ struct FlightModel::Impl {
 
     // ground steering authority fades with ground speed
     float steerFullKt = 15, steerMinKt = 60, steerMinFrac = 0.15f;
+    // F11: the tiller below tillerBelowKt: the nose-wheel angle in degrees, limited by the tiller
+    // and by the lateral acceleration it would give (atan(wheelbase * latG * g / v^2)), shaped by
+    // steerExpo and rate limited; written to every fcs/steer-pos-deg[i] after steer-cmd-norm.
+    float tillerMaxDeg = 0, tillerBelowKt = 35, wheelbaseFt = 0, steerLatG = 0.3f;
+    float steerExpo = 0.5f, steerRateDegS = 40;
+    std::vector<Prop> steerPos;  // the steerable, non-castered units' angles (bound once)
+    static constexpr double kTillerBlendKt = 10.0;
+    static constexpr double kTillerHysteresisKt = 2.0;
+    double noseDeg = 0;  // the angle the tiller holds now
+    bool tillerActive = false;
 
     // crash detection / bookkeeping
     float eyeBodyM[3] = {0, 0, 0};
@@ -284,6 +294,28 @@ void FlightModel::Impl::bindProps() {
     steerFullKt = static_cast<float>(propNumber("ground.steer_full_below_kt", 15));
     steerMinKt = static_cast<float>(propNumber("ground.steer_min_above_kt", 60));
     steerMinFrac = static_cast<float>(propNumber("ground.steer_min_frac", 0.15));
+    // F11: the tiller ([ground] tiller_max_deg 0 = off: today's pedal steering only).
+    tillerMaxDeg = static_cast<float>(propNumber("ground.tiller_max_deg", 0));
+    tillerBelowKt = static_cast<float>(propNumber("ground.tiller_below_kt", 35));
+    wheelbaseFt = static_cast<float>(propNumber("ground.wheelbase_ft", 0));
+    steerLatG = static_cast<float>(propNumber("ground.steer_lat_g", 0.3));
+    steerExpo = static_cast<float>(std::clamp(propNumber("ground.steer_expo", 0.5), 0.0, 1.0));
+    steerRateDegS = static_cast<float>(std::max(1.0, propNumber("ground.steer_rate_deg_s", 40)));
+    steerPos.clear();
+    noseDeg = 0;
+    tillerActive = false;
+    if (tillerMaxDeg > 0 && wheelbaseFt <= 0)
+        LOG_WARN("%s: [ground] tiller_max_deg without wheelbase_ft: the tiller is off",
+                 profile.id.c_str());
+    if (tillerMaxDeg > 0 && wheelbaseFt > 0) {
+        for (size_t i = 0; i < gears.size(); ++i) {
+            JSBSim::FGLGear* u = gears[i].unit.get();
+            if (!u || u->GetSteerType() != JSBSim::FGLGear::stSteer) continue;  // not castered
+            const Prop p = prop("fcs/steer-pos-deg[" + std::to_string(i) + "]");
+            if (p.valid()) steerPos.push_back(p);
+        }
+        if (steerPos.empty()) LOG_WARN("%s: tiller set but no steerable gear", profile.id.c_str());
+    }
 }
 
 bool FlightModel::Impl::trim() {
@@ -579,6 +611,53 @@ void FlightModel::Impl::applyControls(const ControlInputs& in, const AircraftSta
         steerGain = std::max(steerMinFrac, 1.f - (1.f - steerMinFrac) * (state.gsKt - steerFullKt) /
                                                      (steerMinKt - steerFullKt));
     cSteer.set(clampf(in.steeringNorm, -1.f, 1.f) * steerGain);
+
+    // F11: the tiller on the ground below tillerBelowKt: the angle in degrees, after the command
+    // above (which set every unit from steer-cmd-norm), rate limited like a hydraulic tiller.
+    // Hysteresis: from the pedals it takes over below tillerBelowKt - kTillerHysteresisKt; above
+    // tillerBelowKt it hands the wheel back at the same rate until it meets the pedal angle.
+    if (!steerPos.empty()) {
+        const double pedalDeg = steerPos.front().get();  // the angle steer-cmd-norm just gave
+        const double enterKt = tillerActive ? tillerBelowKt : tillerBelowKt - kTillerHysteresisKt;
+        const double step = steerRateDegS * stepDtS;
+        if (state.wowAny && state.gsKt < enterKt) {
+            const double x = clampf(in.steeringNorm, -1.f, 1.f);
+            const double shaped = x * (1.0 - steerExpo + steerExpo * x * x);
+            const double vMps = ktToMps(std::max(static_cast<double>(state.gsKt), 1.0));
+            const double latDeg = radToDeg(
+                std::atan(ftToM(wheelbaseFt) * steerLatG * kStdGravityMps2 / (vMps * vMps)));
+            double target = shaped * std::min(static_cast<double>(tillerMaxDeg), latDeg);
+            // Over the last kTillerBlendKt below tillerBelowKt the angle blends into the pedal
+            // steering's (held to the same lateral limit), so a small correction in a takeoff roll
+            // feels the same either side of the handover.
+            const double blend = std::clamp(
+                (state.gsKt - (tillerBelowKt - kTillerBlendKt)) / kTillerBlendKt, 0.0, 1.0);
+            if (blend > 0)
+                target = (1.0 - blend) * target + blend * std::clamp(pedalDeg, -latDeg, latDeg);
+            // The rudder (and propwash) yaws the aircraft too: while the measured lateral
+            // acceleration in the turn's direction is over the limit, the tiller backs off
+            // (at twice the limit it centres), so the nose wheel never adds to a skid. Not while
+            // rolling backwards, where the same wheel angle turns the other way.
+            const double hdg = state.headingTrueRad;
+            const double fwdMps =
+                state.velNorthMps * std::cos(hdg) + state.velEastMps * std::sin(hdg);
+            const double aLim = steerLatG * kStdGravityMps2;
+            const double aLat = static_cast<double>(state.rRadps) * vMps;  // + = turning right
+            if (fwdMps > 0 && target * aLat > 0 && std::fabs(aLat) > aLim)
+                target *= std::max(0.0, 1.0 - (std::fabs(aLat) - aLim) / aLim);
+            if (!tillerActive) noseDeg = pedalDeg;  // from where the pedals left it
+            noseDeg += std::clamp(target - noseDeg, -step, step);
+            for (const Prop& p : steerPos) p.set(noseDeg);
+            tillerActive = true;
+        } else if (tillerActive && state.wowAny) {
+            // Handing back to the pedals: no step in the wheel at the handover.
+            noseDeg += std::clamp(pedalDeg - noseDeg, -step, step);
+            for (const Prop& p : steerPos) p.set(noseDeg);
+            if (std::fabs(pedalDeg - noseDeg) < 0.05) tillerActive = false;
+        } else {
+            tillerActive = false;
+        }
+    }
 }
 
 // F3: the JSBSim ground follows the TerrainQuery. Without a terrain JSBSim's default callback

@@ -93,8 +93,11 @@ Engine and gear counts: `engineCount` is `min(profile engines, model engines, kM
   F2 removes this through `assets/jsbsim-overlay/`.
 - **Other stock models** (read, not flown): `pa28`, `c182` and `A320` declare wing tips, tail and
   nose as `BOGEY` contacts; list those names in `structure_contacts` so they count as structure
-  rather than wheels. `c182` and `pa28` main wheels are castering (`max_steer 360`): steer with
-  differential brakes. `global5000`, `B747`, `A320` use `direct` thrusters, so reversers work as for
+  rather than wheels. `c182` and `pa28` main wheels are castering in the stock models
+  (`max_steer 360`); their overlays fix them (F11), so they turn on the nose wheel like the c172p.
+  The stock `c310` autopilot (`c310ap.xml`) and `systems/Autopilot.xml` (used by the `global5000`)
+  wrote `fcs/steer-cmd-norm` every step, so those two never steered on the ground; the overlays
+  comment those switches out (F11). `global5000`, `B747`, `A320` use `direct` thrusters, so reversers work as for
   the 737. The stock `c310` sockets 1138/1139 are commented out in v1.3.3; its constant-speed
   propeller cannot be trimmed (JSBSim resets blade pitch at every initial condition), so the
   overlay fits a fixed-pitch propeller (F2). The stock `global5000` writes `global5000.csv` to
@@ -158,7 +161,21 @@ belly_agl_ft = 3.3                ; gear-up: CG height at which the belly touche
 steer_full_below_kt = 15          ; full nose-wheel authority below this ground speed
 steer_min_above_kt = 60           ; reduced to steer_min_frac at and above this
 steer_min_frac = 0.15
+; F11 tiller (taxiing): on the ground below tiller_below_kt the nose-wheel angle is set in degrees
+; (every non-castered steerable fcs/steer-pos-deg[i]), after the fcs/steer-cmd-norm write above:
+tiller_max_deg = 30               ; 0 = off (pedal steering only); airliners 60-78
+tiller_below_kt = 35
+wheelbase_ft = 5.42               ; nose to main contact x in the model
+steer_lat_g = 0.3                 ; angle never more than gives this lateral acceleration
+steer_expo = 0.5                  ; x (1 - e + e x^2): small stick moves, small corrections
+steer_rate_deg_s = 40             ; the angle follows at most this fast (airliners 20)
 ```
+
+The tiller angle is `curve(stick) × min(tiller_max_deg, atan(wheelbase × steer_lat_g × g / v²))`;
+while the measured lateral acceleration in the turn's direction is over `steer_lat_g`, it backs off
+(centred at twice the limit), so the nose wheel never adds to a skid the rudder started. Above
+`tiller_below_kt`, and with `tiller_max_deg = 0`, the pedal steering above is unchanged
+(`tests/sim/steeringTest.cpp`).
 
 `[crash]` and `[ground]` values are stored in `AircraftProfile::properties` as `crash.<key>` and
 `ground.<key>` (keeps `core/` unchanged). The `;` annotations above are for this document only:
