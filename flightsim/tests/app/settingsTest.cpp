@@ -86,6 +86,8 @@ TEST_CASE("settings: round trip of every key") {
     s.rudderExpo = 1.0f;
     s.audioBufferSamples = 2048;
     s.lastAircraft = "737";
+    s.overlayRoute = world::OverlayMode::Off;  // H10
+    s.overlayVpath = world::OverlayMode::On;
     REQUIRE(s.save(t.file("settings.ini")));
 
     Settings r;
@@ -99,6 +101,30 @@ TEST_CASE("settings: round trip of every key") {
     CHECK(r.rudderExpo == doctest::Approx(1.0f));
     CHECK(r.audioBufferSamples == 2048);
     CHECK(r.lastAircraft == "737");
+    CHECK(r.overlayRoute == world::OverlayMode::Off);
+    CHECK(r.overlayVpath == world::OverlayMode::On);
+}
+
+TEST_CASE(
+    "settings: overlay_route and overlay_vpath read auto, on, off and the old booleans (H10)") {
+    Settings s;
+    CHECK(s.overlayRoute == world::OverlayMode::Auto);  // the default
+    CHECK(s.overlayVpath == world::OverlayMode::Auto);
+    CHECK(s.applyText("[settings]\noverlay_route = on\noverlay_vpath = OFF\n") == 0);
+    CHECK(s.overlayRoute == world::OverlayMode::On);
+    CHECK(s.overlayVpath == world::OverlayMode::Off);
+    CHECK(s.applyText("[settings]\noverlay_route = auto\n") == 0);
+    CHECK(s.overlayRoute == world::OverlayMode::Auto);
+    // A 1.3 settings.ini: false was everyone's default, so it reads as auto; true is on.
+    CHECK(s.applyText("[settings]\noverlay_route = false\noverlay_vpath = true\n") == 0);
+    CHECK(s.overlayRoute == world::OverlayMode::Auto);
+    CHECK(s.overlayVpath == world::OverlayMode::On);
+    CHECK(s.applyText("[settings]\noverlay_route = sometimes\n") == 1);  // rejected, kept
+    CHECK(s.overlayRoute == world::OverlayMode::Auto);
+    CHECK(s.toKeyValueText().find("overlay_vpath = on") != std::string::npos);
+    const world::OverlayToggles t = s.overlayToggles();
+    CHECK(t.routeMode == world::OverlayMode::Auto);
+    CHECK(t.vpathMode == world::OverlayMode::On);
 }
 
 TEST_CASE("settings: out-of-range and invalid values are clamped or rejected") {

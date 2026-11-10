@@ -151,10 +151,15 @@ about 4k vertices to the HUD batch and the FMA row about 3.5k; with 1.2.1's fast
 chase HUD still costs less CPU than 1.2.0's did without them.
 
 ## 8. World overlays (W6)
-Drawn in the world, after the airports and before the HUD. Labels share the HUD batch. Every layer
-starts off (`overlay_route`, `overlay_vpath`, `overlay_airports`, `overlay_runways` in
-`settings.ini`). L3, or the pause-menu OVERLAYS row, cycles off / route / route + path / airports /
-all. A mix that is not one of those presets shows as CUSTOM.
+Drawn in the world, after the airports and before the HUD. Labels share the HUD batch.
+`overlay_route` and `overlay_vpath` in `settings.ini` are `auto | on | off` (H10, 1.4). **auto**, the
+default, draws the route and the vertical path only at **FULL** declutter and hides them at STD and
+MIN, so the overlay is what separates FULL from STD (Y switches them with the rest of the HUD); on
+and off force them. A 1.3 `settings.ini` with `false` reads as auto, `true` as on.
+`overlay_airports` and `overlay_runways` stay off until turned on. L3, or the pause-menu OVERLAYS
+row, cycles AUTO (route and path auto) / ROUTE+PATH (both on) / AIRPORTS (route and path auto,
+airports and runways on) / ALL (all on) / OFF (all off). A mix that is not one of those presets
+shows as CUSTOM and goes to AUTO next.
 
 - **Route.** A pole at each plan waypoint (the active one magenta) and a line along each leg. The
   label reads `NAME  12.3 NM`. Heights follow one profile for the whole plan (1.2.0): the
