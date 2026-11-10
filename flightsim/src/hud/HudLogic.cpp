@@ -587,8 +587,8 @@ std::uint32_t activeWarnings(const AircraftState& s, const ControlInputs& c,
     std::uint32_t m = 0;
     const int engines = engineCountOf(s, p);
     if (s.crashed) m |= warningBit(WarningId::Crash);
-    if (s.stallWarning ||
-        (p.stallWarnAlphaDeg > 0 && !s.wowAny && s.alphaDeg > p.stallWarnAlphaDeg))
+    const float stallWarnDeg = stallWarnAlphaForFlapDeg(p, s.flapPosNorm);  // F5
+    if (s.stallWarning || (stallWarnDeg > 0 && !s.wowAny && s.alphaDeg > stallWarnDeg))
         m |= warningBit(WarningId::Stall);
     const float vneKt = p.vmoKt > 0 ? p.vmoKt : p.vneKt;
     if (s.overspeed || (vneKt > 0 && s.iasKt > vneKt) || (p.mmo > 0 && s.mach > p.mmo))

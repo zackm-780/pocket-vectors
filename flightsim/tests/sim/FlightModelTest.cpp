@@ -110,6 +110,39 @@ TEST_CASE("profile: parser rejects broken profiles with a message") {
     CHECK(p.flapDetents.size() == 1);  // a profile without flaps gets a single UP detent
 }
 
+TEST_CASE("profile: per-detent stall warning alpha and stall speeds (F5)") {
+    AircraftProfile p;
+    std::string err;
+    REQUIRE(parseAircraftProfile("[aircraft]\nid = x\n[flaps]\ndetents = UP:0, 10:0.5, 30:1\n"
+                                 "[speeds_kt]\nvs_by_flap = 150, 130, 115\n[warnings]\n"
+                                 "stall_warn_alpha_deg = 9\n"
+                                 "stall_warn_alpha_by_flap_deg = 12, 10, 8\n",
+                                 p, err));
+    REQUIRE(p.vsByFlapKt.size() == 3);
+    CHECK(p.vsByFlapKt[1] == doctest::Approx(130.0f));
+    // Interpolated by the actual flap position between the detents' commands.
+    CHECK(stallWarnAlphaForFlapDeg(p, 0.0f) == doctest::Approx(12.0f));
+    CHECK(stallWarnAlphaForFlapDeg(p, 0.25f) == doctest::Approx(11.0f));
+    CHECK(stallWarnAlphaForFlapDeg(p, 0.5f) == doctest::Approx(10.0f));
+    CHECK(stallWarnAlphaForFlapDeg(p, 0.75f) == doctest::Approx(9.0f));
+    CHECK(stallWarnAlphaForFlapDeg(p, 1.0f) == doctest::Approx(8.0f));
+    CHECK(stallWarnAlphaForFlapDeg(p, 1.2f) == doctest::Approx(8.0f));
+    CHECK(p.stallWarnAlphaDeg == doctest::Approx(9.0f));  // kept for the autopilot's alpha limit
+    // Without the key: the single value at every flap setting.
+    REQUIRE(parseAircraftProfile("[aircraft]\nid = x\n[flaps]\ndetents = UP:0, 30:1\n"
+                                 "[warnings]\nstall_warn_alpha_deg = 9\n",
+                                 p, err));
+    CHECK(p.stallWarnAlphaByFlapDeg.empty());
+    CHECK(stallWarnAlphaForFlapDeg(p, 1.0f) == doctest::Approx(9.0f));
+    // One value per detent, or the profile is rejected.
+    CHECK_FALSE(parseAircraftProfile("[aircraft]\nid = x\n[flaps]\ndetents = UP:0, 30:1\n"
+                                     "[warnings]\nstall_warn_alpha_by_flap_deg = 12\n",
+                                     p, err));
+    CHECK(err.find("stall_warn_alpha_by_flap_deg") != std::string::npos);
+    CHECK_FALSE(parseAircraftProfile(
+        "[aircraft]\nid = x\n[flaps]\ndetents = UP:0\n[speeds_kt]\nvs_by_flap = 1, 2\n", p, err));
+}
+
 TEST_CASE("profile: [crash] and [ground] sections travel in the properties map") {
     AircraftProfile p;
     std::string err;

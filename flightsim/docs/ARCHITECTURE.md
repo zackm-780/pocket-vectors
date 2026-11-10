@@ -248,7 +248,12 @@ struct AircraftProfile {
   float wingspanM = 0;         // additive (V1): [view] wingspan_m
   float gearHeightM = 0;       // additive (V1): [view] gear_height_m, reference point above ground
   float cruiseFuelFlowLbsHr = 0;  // additive (F6): [cruise] fuel_flow_lbs_hr, all engines, measured
+  std::vector<float> stallWarnAlphaByFlapDeg;  // additive (F5): [warnings] stall_warn_alpha_by_flap_deg, one per detent
+  std::vector<float> vsByFlapKt;               // additive (F5): [speeds_kt] vs_by_flap, measured 1 g stall per detent
 };
+// additive (F5): the warning alpha for the actual flap position (interpolated between detents;
+// stallWarnAlphaDeg without per-detent values). FlightModel and the HUD both call it.
+float stallWarnAlphaForFlapDeg(const AircraftProfile& p, float flapPosNorm);
 
 // ---------- core/TerrainQuery.h ----------   implemented by world/terrain (W1); used by sim, renderers, HUD, nav
 enum class LandClass : uint8_t { Unknown = 0, Water, Tree, Shrub, Grass, Crop, Urban, Bare,
