@@ -31,8 +31,24 @@ double courseDeg(double e, double n) {
     return c;
 }
 
-bool inboundType(LegType t) {
-    return t == LegType::TF || t == LegType::IF || t == LegType::DF;
+constexpr double kSameFixNm = 0.05;  // N10b: a leg this short repeats the fix before it
+
+double bearingTrueDeg(const LatLon& a, const Waypoint& b) {
+    return wrap360(radToDeg(initialBearingTrueRad(a.latDeg, a.lonDeg, b.latDeg, b.lonDeg)));
+}
+
+// N10b: a leg flown as the straight line from `from` (its previous fix) to its fix: TF, an IF in
+// mid-plan (flown as a TF), DF, or a CF whose course is that line within kCfStraightMaxDeg.
+bool straightLeg(const Leg& l, const LatLon& from) {
+    switch (l.type) {
+    case LegType::TF:
+    case LegType::IF:
+    case LegType::DF: return true;
+    case LegType::CF:
+        return std::fabs(wrap180(l.courseTrueDeg - bearingTrueDeg(from, l.to))) <=
+               kCfStraightMaxDeg;
+    default: return false;
+    }
 }
 
 }  // namespace
@@ -133,20 +149,45 @@ int arcPoints(const FlyByTurn& t, LatLon* out, int maxPoints) {
     return segs + 1;
 }
 
+bool sameFixLeg(const FlightPlan& plan, int legIndex) {
+    const int n = static_cast<int>(plan.legs.size());
+    if (legIndex < 1 || legIndex >= n) return false;
+    const Leg& l = plan.legs[static_cast<size_t>(legIndex)];
+    const Leg& prev = plan.legs[static_cast<size_t>(legIndex - 1)];
+    if (l.type != LegType::IF && l.type != LegType::TF) return false;
+    const double dM = greatCircleDistM(l.to.latDeg, l.to.lonDeg, prev.to.latDeg, prev.to.lonDeg);
+    return mToNm(dM) < kSameFixNm;
+}
+
+int flyByOutboundLeg(const FlightPlan& plan, int fixLeg) {
+    const int n = static_cast<int>(plan.legs.size());
+    int o = fixLeg + 1;
+    if (sameFixLeg(plan, o) && o + 1 < n) ++o;
+    return o;
+}
+
 bool flyByEligible(const FlightPlan& plan, int fixLeg) {
     const int n = static_cast<int>(plan.legs.size());
     if (fixLeg < 1 || fixLeg + 1 >= n) return false;
+    if (sameFixLeg(plan, fixLeg)) return false;  // the turn is at the fix before, looking through
+    const int o = flyByOutboundLeg(plan, fixLeg);
+    const Leg& prev = plan.legs[static_cast<size_t>(fixLeg - 1)];
     const Leg& cur = plan.legs[static_cast<size_t>(fixLeg)];
-    const Leg& next = plan.legs[static_cast<size_t>(fixLeg + 1)];
-    if (cur.flyOver || !inboundType(cur.type) || next.type != LegType::TF) return false;
-    return cur.missedApproach == next.missedApproach;
+    const Leg& next = plan.legs[static_cast<size_t>(o)];
+    if (cur.flyOver || cur.missedApproach != next.missedApproach) return false;
+    if (o != fixLeg + 1) {  // the same-fix leg looked through
+        const Leg& dup = plan.legs[static_cast<size_t>(fixLeg + 1)];
+        if (dup.flyOver || dup.missedApproach != cur.missedApproach) return false;
+    }
+    return straightLeg(cur, {prev.to.latDeg, prev.to.lonDeg}) &&
+           straightLeg(next, {cur.to.latDeg, cur.to.lonDeg});
 }
 
 FlyByTurn planTurnAt(const FlightPlan& plan, int fixLeg, double radiusNm) {
     if (!(radiusNm > 0) || !flyByEligible(plan, fixLeg)) return {};
     const Leg& prev = plan.legs[static_cast<size_t>(fixLeg - 1)];
     const Leg& cur = plan.legs[static_cast<size_t>(fixLeg)];
-    const Leg& next = plan.legs[static_cast<size_t>(fixLeg + 1)];
+    const Leg& next = plan.legs[static_cast<size_t>(flyByOutboundLeg(plan, fixLeg))];
     return flyByTurn({prev.to.latDeg, prev.to.lonDeg}, {cur.to.latDeg, cur.to.lonDeg},
                      {next.to.latDeg, next.to.lonDeg}, radiusNm);
 }
@@ -159,7 +200,11 @@ LegSpan legSpan(const FlightPlan& plan, int i, double radiusNm) {
     const Leg& leg = plan.legs[static_cast<size_t>(i)];
     s.start = {prev.to.latDeg, prev.to.lonDeg};
     s.end = {leg.to.latDeg, leg.to.lonDeg};
-    s.turnIn = planTurnAt(plan, i - 1, radiusNm);
+    if (sameFixLeg(plan, i)) return s;  // N10b: nothing to draw; the turn looks through it
+    // N10b: the turn into this leg is at the fix before, or the one before a same-fix leg.
+    const int inFix = sameFixLeg(plan, i - 1) ? i - 2 : i - 1;
+    if (inFix >= 1 && flyByOutboundLeg(plan, inFix) == i)
+        s.turnIn = planTurnAt(plan, inFix, radiusNm);
     if (s.turnIn.valid) s.start = s.turnIn.end;
     const FlyByTurn out = planTurnAt(plan, i, radiusNm);
     if (out.valid) s.end = out.start;

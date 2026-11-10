@@ -19,6 +19,9 @@ constexpr double kFlyByMaxBankDeg = 25.0;
 constexpr double kFlyByBankMarginDeg = 5.0;  // left to the AP for wind
 constexpr double kFlyByMinGsKt = 40.0;
 constexpr double kFlyByRollInLeadS = 2.5;  // half the roll-in: the roll starts before the arc
+// N10b: a CF leg is flown by (an arc into or out of it) when its course is within this of the
+// bearing from its previous fix to its fix, i.e. it is the straight line a TF would be.
+constexpr double kCfStraightMaxDeg = 5.0;
 
 // Turn radius (NM) at a ground speed (kt, at least kFlyByMinGsKt) and bank (deg).
 double flyByRadiusNm(double gsKt, double bankDeg);
@@ -54,12 +57,20 @@ ArcGuide arcGuide(const FlyByTurn& turn, const LatLon& pos);
 int arcPoints(const FlyByTurn& turn, LatLon* out, int maxPoints);
 
 // ---- plans --------------------------------------------------------------------------------------
-// True when the fix at the end of legs[fixLeg] is flown by with an arc: an interior fix, not
-// fly-over, the inbound leg TF, IF or DF and the outbound leg TF, both on the same side of the
-// missed approach.
+// N10b: true when legs[legIndex] (an IF or TF) repeats the fix before it (within 0.05 NM), e.g. an
+// approach whose IF is the last enroute fix: a zero-length leg that the turn at that fix looks
+// through.
+bool sameFixLeg(const FlightPlan& plan, int legIndex);
+// The leg the turn at the end of legs[fixLeg] turns onto: fixLeg + 1, or fixLeg + 2 past a
+// same-fix leg.
+int flyByOutboundLeg(const FlightPlan& plan, int fixLeg);
+// True when the fix at the end of legs[fixLeg] is flown by with an arc (NAVIGATION 2.3): an
+// interior fix, not fly-over, both legs on the same side of the missed approach, and both legs
+// straight from their previous fix: TF, an IF in mid-plan, DF, or a CF whose course is within
+// kCfStraightMaxDeg of the bearing from its previous fix (N10b; N10 had TF / IF / DF in, TF out).
 bool flyByEligible(const FlightPlan& plan, int fixLeg);
-// The turn at the end of legs[fixLeg] as drawn (from legs[fixLeg - 1].to); invalid when not
-// eligible or radiusNm <= 0.
+// The turn at the end of legs[fixLeg] as drawn (from legs[fixLeg - 1].to onto
+// flyByOutboundLeg); invalid when not eligible or radiusNm <= 0.
 FlyByTurn planTurnAt(const FlightPlan& plan, int fixLeg, double radiusNm);
 
 // What a drawer draws for legs[i] (i >= 1): the straight line from `start` to `end` (T2 of the turn
