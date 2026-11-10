@@ -86,7 +86,7 @@ Every field is visible in **FULL** declutter. In STD, row 2 hides FUEL and fligh
 | Flaps | `flapDetent`, `flapPosNorm`, profile labels | `FLAP 15` (selected detent label) plus a detent bar `▮▮▯▯`. Label blinks while the surface is moving. Amber if IAS > Vfe for that detent. |
 | Gear | `gearPosNorm`, `gearRetractable`, `wowAny` | Fixed gear: `GEAR FIXED` (dim). Retractable: `GEAR DN ●●●` (green, down and locked), `GEAR ↕` (amber, in transit), `GEAR UP` (white). |
 | Trim | `elevTrimNorm` (+ rudder/aileron trim if non-zero) | `TRIM ↑ +0.12` (↑ = nose-up trim) plus a 5-tick mini scale with a takeoff band if the profile defines one. Rudder trim `RTRIM L0.05` only when non-zero. |
-| Speedbrake / spoilers | `speedbrakePosNorm` | `SPDBRK 50%` when > 0. Amber if extended with throttle > 50%. Hidden when the aircraft has none. |
+| Speedbrake / spoilers | `speedbrakePosNorm`, `ControlInputs::speedbrakeArmed` (F10) | `SPDBRK 50%` when > 0. Amber if extended with throttle > 50%. `SPDBRK ARM` (green) when armed and still retracted. Hidden when the aircraft has none. |
 | Reversers | `engines[].reverserDeployed` | `REV` (amber in flight, green on ground) |
 | Brakes | `brakeLeftNorm/RightNorm`, `parkingBrake` | `BRK` while braking. `PARK` while the parking brake is set. |
 | Fuel | `fuelTotalLbs`, `fuelFlowLbsPerHr` | `FUEL 9 840 LB`, plus the endurance at the present flow when under 2 h: `FUEL 9 840 LB 1:42` (h:mm; amber under 30 min, red under 15). LOW FUEL messages at 30 and 15 min (F6). |

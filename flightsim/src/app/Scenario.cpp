@@ -33,6 +33,7 @@ constexpr CommandName kCommandNames[] = {
     {"trim", ScriptCommand::Trim},
     {"mixture", ScriptCommand::Mixture},
     {"speedbrake", ScriptCommand::Speedbrake},
+    {"speedbrake_arm", ScriptCommand::SpeedbrakeArm},  // F10
 };
 
 bool parseDoubleStrict(const std::string& s, double& out) {
@@ -282,6 +283,7 @@ void ScriptedInputs::apply(double simTimeS, int engineCount, ControlInputs& c) {
         case ScriptCommand::Trim: c.elevTrimNorm = e.value; break;
         case ScriptCommand::Mixture: c.mixtureNorm = e.value; break;
         case ScriptCommand::Speedbrake: c.speedbrakeNorm = e.value; break;
+        case ScriptCommand::SpeedbrakeArm: c.speedbrakeArmed = e.value > 0.5f; break;  // F10
         }
     }
 }

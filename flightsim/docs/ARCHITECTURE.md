@@ -223,6 +223,7 @@ struct ControlInputs {
   float brakeLeftNorm = 0, brakeRightNorm = 0;
   bool  parkingBrake = false;
   float steeringNorm = 0;                                    // -1..1, usually follows rudder
+  bool  speedbrakeArmed = false;  // additive (F10): auto deploy at touchdown (sim/SpeedbrakeArm)
 };
 
 // ---------- core/AircraftProfile.h ----------   parsed from assets/aircraft/<id>.ini by sim/

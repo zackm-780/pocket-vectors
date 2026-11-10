@@ -212,18 +212,34 @@ TEST_CASE("input: fixed gear never moves") {
     CHECK(r.saidLast("GEAR FIXED"));
 }
 
-TEST_CASE("input: speedbrake cycles retracted, 50, 100, retracted") {
+TEST_CASE("input: speedbrake cycles retracted, armed, 50, 100, retracted (F10)") {
     Rig r;
     r.press(Action::SpeedbrakeCycle);
     r.step();
+    CHECK(r.controls.speedbrakeArmed);
+    CHECK(r.controls.speedbrakeNorm == 0.0f);
+    CHECK(r.saidLast("SPEEDBRAKE ARMED"));
+    r.press(Action::SpeedbrakeCycle);
+    r.step();
+    CHECK_FALSE(r.controls.speedbrakeArmed);  // a manual position clears the arm
     CHECK(r.controls.speedbrakeNorm == doctest::Approx(0.5f));
     CHECK(r.saidLast("SPEEDBRAKE 50%"));
     r.press(Action::SpeedbrakeCycle);
     r.step();
     CHECK(r.controls.speedbrakeNorm == doctest::Approx(1.0f));
+    CHECK(r.saidLast("SPEEDBRAKE FULL"));
     r.press(Action::SpeedbrakeCycle);
     r.step();
     CHECK(r.controls.speedbrakeNorm == 0.0f);
+    CHECK(r.saidLast("SPEEDBRAKE RETRACTED"));
+    // Auto-deployed (armed, out at 100 %): X retracts and disarms.
+    r.controls.speedbrakeArmed = true;
+    r.controls.speedbrakeNorm = 1.0f;
+    r.press(Action::SpeedbrakeCycle);
+    r.step();
+    CHECK(r.controls.speedbrakeNorm == 0.0f);
+    CHECK_FALSE(r.controls.speedbrakeArmed);
+    CHECK(r.saidLast("SPEEDBRAKE RETRACTED"));
 
     r.profile.hasSpeedbrake = false;
     r.press(Action::SpeedbrakeCycle);
