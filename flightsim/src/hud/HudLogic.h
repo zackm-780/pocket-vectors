@@ -57,6 +57,9 @@ struct HudOptions {
     // to the cockpit eye point and stays hidden; X3c adds a compact readout of the numbers
     // (buildChaseReadout) to the status rows, warnings and messages.
     bool externalView = false;
+    // H9: an approach is loaded in the flight plan (NavState::approachName set); the speed bugs
+    // then show REF and APP.
+    bool approachLoaded = false;
 };
 
 // What each declutter level shows (HUD.md section 1). Attitude, speed, altitude, FPV, warnings and
@@ -300,9 +303,14 @@ struct ChaseReadout {
     char heading[16] = {0};                          // magnetic, "285"
     bool headingShown = true;
     ChaseTextLine gs, mach, vs, baro;
+    // H9: the next speed bug ahead in the direction the speed is moving ("VR 145", "REF 140"),
+    // under the speed box; empty when none.
+    ChaseTextLine nextBug;
 };
+struct SpeedBugSet;
 ChaseReadout buildChaseReadout(const AircraftState& s, const HudOptions& opt,
-                               const HudVisibility& vis, float virtualWidth);
+                               const HudVisibility& vis, float virtualWidth,
+                               const SpeedBugSet* bugs = nullptr, float trend10sKt = 0.0f);
 // The line's text box (cap height, plus 2 px for the outline and the stroke width), for layout
 // checks; w = 0 when the line is not shown.
 HudRect chaseLineRect(const ChaseTextLine& line);

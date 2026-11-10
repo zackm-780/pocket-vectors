@@ -24,6 +24,7 @@
 #include "hud/HudLogic.h"
 #include "hud/HudProjector.h"
 #include "hud/Renderer2D.h"
+#include "hud/SpeedBugs.h"
 
 namespace fsim {
 
@@ -62,12 +63,13 @@ public:
                              MessageQueue* messages);
 
     void setOverlay(HudOverlay* overlay) { overlay_ = overlay; }
-    // Forgets the speed trend and warning ages (new flight, restart).
+    // Forgets the speed trend, the warning ages and the speed-bug phase (new flight, restart).
     void reset();
 
 private:
     SpeedTrend trend_;
     WarningTracker warnings_;
+    SpeedBugTracker bugs_;  // H9
     HudOverlay* overlay_ = nullptr;
 };
 

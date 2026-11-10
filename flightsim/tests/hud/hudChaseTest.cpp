@@ -12,6 +12,7 @@
 #include "gfx/Camera.h"
 #include "hud/Hud.h"
 #include "hud/NavHud.h"
+#include "hud/SpeedBugs.h"
 
 using namespace fsim;
 
@@ -63,7 +64,12 @@ ChaseReadout widestReadout(float vw) {
     s.altimeterSettingHpa = 1001.0f;
     HudOptions opt;
     opt.baroInHg = true;
-    return buildChaseReadout(s, opt, visibilityFor(Declutter::Full), vw);
+    // H9: the widest next-bug line ("FULL 340": a four-letter flap label, three digits).
+    SpeedBugSet bugs;
+    bugs.count = 1;
+    bugs.bugs[0].kt = 340;
+    std::strcpy(bugs.bugs[0].label, "FULL");
+    return buildChaseReadout(s, opt, visibilityFor(Declutter::Full), vw, &bugs, -5.0f);
 }
 
 std::vector<std::pair<std::string, HudRect>> readoutRects(const ChaseReadout& c) {
@@ -75,6 +81,7 @@ std::vector<std::pair<std::string, HudRect>> readoutRects(const ChaseReadout& c)
     out.push_back({"Mach", chaseLineRect(c.mach)});
     out.push_back({"VS", chaseLineRect(c.vs)});
     out.push_back({"altimeter", chaseLineRect(c.baro)});
+    out.push_back({"next bug", chaseLineRect(c.nextBug)});  // H9
     return out;
 }
 

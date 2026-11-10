@@ -313,7 +313,46 @@ void bandRect(const Ctx& k, float x, float w, float loKt, float hiKt, float cent
     k.r.fillRect(x, yHi, w, yLo - yHi, col, FillMode::Front);
 }
 
-void drawSpeedTape(const Ctx& k, const SpeedTrend& trend) {
+// H9: V-speed and flap bugs on the inner edge of the speed tape: a 10 px line out from the edge at
+// the bug's speed and its label right of the trend arrow. Bugs off the visible tape are not drawn.
+void drawSpeedBugs(const Ctx& k, const SpeedBugSet& bugs, float x1, float ias) {
+    if (bugs.count == 0) return;
+    Renderer2D& r = k.r;
+    const TapeGeom& g = kSpeedTapeGeom;
+    // Visible bugs sorted top to bottom; the lines sit at their speeds, the labels are pushed
+    // apart (bugs 5 kt apart are only 10 px apart, closer than a label is tall).
+    float lineY[kMaxSpeedBugs], labelY[kMaxSpeedBugs];
+    const char* label[kMaxSpeedBugs];
+    int n = 0;
+    for (int i = 0; i < bugs.count; ++i) {
+        const SpeedBug& b = bugs.bugs[i];
+        const float y = g.yOf(b.kt, ias);
+        if (y < g.topY + 4 || y > g.bottomY - 4) continue;
+        int at = n++;
+        while (at > 0 && lineY[at - 1] > y) {
+            lineY[at] = lineY[at - 1];
+            label[at] = label[at - 1];
+            --at;
+        }
+        lineY[at] = y;
+        label[at] = b.label;
+    }
+    const float gapPx = StrokeFont::capHeightPx(TextSize::S) + 3.0f;
+    for (int i = 0; i < n; ++i)
+        labelY[i] = i == 0 ? lineY[i] : std::max(lineY[i], labelY[i - 1] + gapPx);
+    // A stack that ran down past the tape moves back up as a block.
+    const float overflow = n > 0 ? labelY[n - 1] - (g.bottomY - 4) : 0.0f;
+    if (overflow > 0)
+        for (int i = 0; i < n; ++i) labelY[i] -= overflow;
+    r.setLineWidth(1.5f);
+    for (int i = 0; i < n; ++i) {
+        r.line(x1, lineY[i], x1 + 10, lineY[i], k.base);
+        r.text(x1 + 17, labelY[i], label[i], TextSize::S, k.base, HAlign::Left, VAlign::Middle);
+    }
+    r.setLineWidth(2.0f);
+}
+
+void drawSpeedTape(const Ctx& k, const SpeedTrend& trend, const SpeedBugSet& bugs) {
     Renderer2D& r = k.r;
     const TapeGeom& g = kSpeedTapeGeom;
     const float x0 = r.leftX() + kTapeMarginPx, x1 = x0 + kTapeWidthPx;
@@ -343,6 +382,7 @@ void drawSpeedTape(const Ctx& k, const SpeedTrend& trend) {
         }
     }
     r.popClip();
+    drawSpeedBugs(k, bugs, x1, ias);  // H9
     // Current value box with a pointer.
     char v[16];
     std::snprintf(v, sizeof v, "%d", roundToStep(ias, 1));
@@ -439,13 +479,14 @@ void drawAltTape(const Ctx& k) {
 // Chase view readout (X3c, HUD.md section 7a)
 // ---------------------------------------------------------------------------------------------
 
-void drawChaseReadout(const Ctx& k) {
+void drawChaseReadout(const Ctx& k, const SpeedBugSet& bugs, float trend10sKt) {
     Renderer2D& r = k.r;
-    const ChaseReadout c = buildChaseReadout(k.s, k.opt, k.vis, r.virtualWidth());
+    const ChaseReadout c =
+        buildChaseReadout(k.s, k.opt, k.vis, r.virtualWidth(), &bugs, trend10sKt);
     drawSpeedValueBox(r, c.speedBox, c.speed, k.base);
     drawAltValueBox(r, c.altBox, c.altThousands, c.altRest, k.base);
     if (c.headingShown) drawHeadingValueBox(r, c.headingBox, r.centerX(), c.heading, k.base);
-    for (const ChaseTextLine* line : {&c.gs, &c.mach, &c.vs, &c.baro})
+    for (const ChaseTextLine* line : {&c.gs, &c.mach, &c.vs, &c.baro, &c.nextBug})
         if (line->text[0])
             r.text(line->x, line->baselineY, line->text, TextSize::M, k.base, HAlign::Left,
                    VAlign::Baseline);
@@ -613,6 +654,7 @@ bool Hud::applyActions(const ActionState& actions, HudOptions& options, MessageQ
 
 void Hud::reset() {
     trend_.reset();
+    bugs_.reset();
     warnings_ = WarningTracker{};
 }
 
@@ -628,13 +670,16 @@ void Hud::draw(Renderer2D& r, const gfx::Camera& camera, const AircraftState& s,
     const Ctx k{r, camera, proj, s, c, p, options, vis, base, base.withAlpha(0.55f), hdgMag, nowS};
 
     trend_.update(s.iasKt, s.simTimeS);
+    // H9: the speed bugs for this phase of flight (hidden at MIN declutter).
+    const SpeedBugSet& bugs =
+        bugs_.update(s, c, p, options.approachLoaded, options.declutter == Declutter::Min);
     const std::uint32_t mask = activeWarnings(s, c, p, options);
     warnings_.update(mask, nowS);
 
     r.setLineWidth(2.0f);
 
     if (options.externalView) {  // V1: no conformal symbology; X3c: the numbers and the FMA
-        drawChaseReadout(k);
+        drawChaseReadout(k, bugs, trend_.trend10sKt());
         if (overlay_) {  // NavHud draws only its FMA row in the chase view
             const HudFrame frame{r, camera, proj, s, c, p, options, vis, base, hdgMag, nowS};
             overlay_->draw(frame);
@@ -660,7 +705,7 @@ void Hud::draw(Renderer2D& r, const gfx::Camera& camera, const AircraftState& s,
     drawRadioAltLarge(k, fpv);
 
     if (vis.headingTape) drawHeadingTape(k);
-    drawSpeedTape(k, trend_);
+    drawSpeedTape(k, trend_, bugs);
     drawAltTape(k);
     drawStatusRows(k);
 

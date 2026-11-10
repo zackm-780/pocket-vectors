@@ -50,6 +50,11 @@ inline void profileTest(const FleetSpec& sp) {
 
     // The model loads and the profile agrees with it.
     REQUIRE_MESSAGE(f.begin(sp.id, "runway"), f.error);
+    // H9: the weight the stock model ships with (default fuel, the profile speeds' weight); the
+    // profile's ref_weight_lbs carries it, within 1 %.
+    report(sp, "weight_lbs", f.s().grossWeightLbs);
+    CHECK(f.s().grossWeightLbs > 0.0f);
+    CHECK(p.refWeightLbs == doctest::Approx(f.s().grossWeightLbs).epsilon(0.01));
     CHECK(f.s().engineCount == p.engineCount);
     CHECK(f.s().gearRetractable == p.hasRetractableGear);
     CHECK(f.s().wowAll);

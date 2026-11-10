@@ -18,7 +18,9 @@ in `FleetApTest.cpp`. The phase functions are shared in `FleetPhases.h`; the per
 `FleetSpecs.h` (core) and `FleetSpecsExt.h` (extended). The extended suite takes about 13 s in all, about
 2.5 s per aircraft with its autopilot flights.
 
-Each test also prints `FLEET <id> <key> <value>` lines with its measurements (the numbers below).
+Each test also prints `FLEET <id> <key> <value>` lines with its measurements (the numbers below). The profile phase prints
+`weight_lbs`, the stock model's weight with its default fuel: every profile's `ref_weight_lbs` (the
+weight the speed bugs scale from, H9) is that value within 1 %.
 
 | Phase | What is flown | Pass criteria |
 |---|---|---|

@@ -52,6 +52,8 @@ struct AircraftState {
     float fuelTotalLbs = 0;
     // Additive (F6): total fuel flow of all engines and the tank capacity, pounds (per hour).
     float fuelFlowLbsPerHr = 0, fuelCapacityLbs = 0;
+    // Additive (H9): gross weight (JSBSim inertia/weight-lbs), for the V-speed bugs.
+    float grossWeightLbs = 0;
     // warnings
     bool stallWarning = false, overspeed = false;
     bool crashed = false;

@@ -61,6 +61,7 @@ altitudes, flaps, gear, trim, throttle and engines, brakes, nav, autopilot) must
 | Boresight / waterline | center (320,240) | `─W─` fixed aircraft reference |
 | FPV | conformal | Circle + wings + tail at the velocity vector. Clamped (and dimmed) at the clip edge. |
 | Speed tape | 16, 70, 80, 300 | IAS kt, ticks every 10, labels every 20, current box at center, speed bug, bands (red below Vs0/Vs1, white flap band Vs0..Vfe, red above Vne/Vmo), 10 s trend arrow |
+| Speed bugs (H9, 1.4) | on the tape's inner edge, labels right of the trend arrow | A 10 px line at the bug's speed, the label in S size (`V1`, `VR`, `V2`, `REF`, `APP`, or a flap detent's label at its minimum manoeuvring speed, 1.3 Vs(detent), never above the next detent's Vfe); labels closer than a line height are stacked apart, the lines stay at their speeds. All scale with sqrt(gross weight / the profile's `ref_weight_lbs`). V1 = VR − 5, V2 = max(1.2 Vs(takeoff flaps), VR + 3), jets and turboprops only (pistons: VR). Which show: on the takeoff roll V1 / VR / V2, after liftoff V2 until the flaps are up (or 3,000 ft AGL), plus the next lower detent's bug; on the approach (flaps out, an approach loaded, or slow and descending) REF, APP, the current detent's bug and the next one; in a descent (VS below −300 fpm) the current detent's bug (UP = the minimum clean speed) and the next one; otherwise the current detent's bug while flaps are out. MIN hides them; the AP speed bug draws on top. Logic in `src/hud/SpeedBugs.*`. |
 | Below speed tape | 16, 374 | `GS 128` (ground speed); `M.78` when mach > 0.40 |
 | Altitude tape | 544, 70, 80, 300 | ft MSL, ticks every 100, labels every 500, current box (thousands larger), altitude bug, minimums bug, ground band (terrain elevation) when in range |
 | Below altitude tape | 544, 374 | `VS +700` (fpm, rounded to 50) and `RA 450` (radio altitude when AGL < 2,500 ft). Below 1,000 ft AGL, RA also shows as large text under the FPV. The altimeter setting (X1) is the third line: `STD`, `29.92` (inHg) or `1013` (hPa) per the pressure-units setting. |
@@ -136,6 +137,7 @@ changes):
 | Item | Where | Rules |
 |---|---|---|
 | IAS | the speed tape's value box (18, 227, 66 × 26) | kt, no tape, bands, bugs, trend or pointer |
+| Next speed bug (H9) | under the speed box, (16, 272), M | the next bug ahead in the direction the speed is moving (`VR 145`, `V2 162`, `5 178`, `REF 140`); empty when steady or none |
 | Altitude | the altitude tape's value box (right edge at `rightX() − 18`, 70 × 28, around y 240) | indicated (with the altimeter setting), thousands large, 20 ft steps |
 | Heading | the heading tape's box (centred, y 24, 40 × 18) | magnetic, no tape; hidden in MIN (like the heading tape) |
 | `GS 112` and `M.78` | (16, 388) and (16, 404) | GS always, Mach above M.40; hidden in MIN |
