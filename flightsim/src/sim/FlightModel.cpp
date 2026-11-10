@@ -165,6 +165,7 @@ struct FlightModel::Impl {
     float steerExpo = 0.5f, steerRateDegS = 40;
     std::vector<Prop> steerPos;  // the steerable, non-castered units' angles (bound once)
     static constexpr double kTillerBlendKt = 10.0;
+    static constexpr double kTillerHysteresisKt = 2.0;
     double noseDeg = 0;  // the angle the tiller holds now
     bool tillerActive = false;
 
@@ -299,10 +300,13 @@ void FlightModel::Impl::bindProps() {
     wheelbaseFt = static_cast<float>(propNumber("ground.wheelbase_ft", 0));
     steerLatG = static_cast<float>(propNumber("ground.steer_lat_g", 0.3));
     steerExpo = static_cast<float>(std::clamp(propNumber("ground.steer_expo", 0.5), 0.0, 1.0));
-    steerRateDegS = static_cast<float>(propNumber("ground.steer_rate_deg_s", 40));
+    steerRateDegS = static_cast<float>(std::max(1.0, propNumber("ground.steer_rate_deg_s", 40)));
     steerPos.clear();
     noseDeg = 0;
     tillerActive = false;
+    if (tillerMaxDeg > 0 && wheelbaseFt <= 0)
+        LOG_WARN("%s: [ground] tiller_max_deg without wheelbase_ft: the tiller is off",
+                 profile.id.c_str());
     if (tillerMaxDeg > 0 && wheelbaseFt > 0) {
         for (size_t i = 0; i < gears.size(); ++i) {
             JSBSim::FGLGear* u = gears[i].unit.get();
@@ -610,9 +614,13 @@ void FlightModel::Impl::applyControls(const ControlInputs& in, const AircraftSta
 
     // F11: the tiller on the ground below tillerBelowKt: the angle in degrees, after the command
     // above (which set every unit from steer-cmd-norm), rate limited like a hydraulic tiller.
+    // Hysteresis: from the pedals it takes over below tillerBelowKt - kTillerHysteresisKt; above
+    // tillerBelowKt it hands the wheel back at the same rate until it meets the pedal angle.
     if (!steerPos.empty()) {
-        const bool tiller = state.wowAny && state.gsKt < tillerBelowKt;
-        if (tiller) {
+        const double pedalDeg = steerPos.front().get();  // the angle steer-cmd-norm just gave
+        const double enterKt = tillerActive ? tillerBelowKt : tillerBelowKt - kTillerHysteresisKt;
+        const double step = steerRateDegS * stepDtS;
+        if (state.wowAny && state.gsKt < enterKt) {
             const double x = clampf(in.steeringNorm, -1.f, 1.f);
             const double shaped = x * (1.0 - steerExpo + steerExpo * x * x);
             const double vMps = ktToMps(std::max(static_cast<double>(state.gsKt), 1.0));
@@ -620,28 +628,35 @@ void FlightModel::Impl::applyControls(const ControlInputs& in, const AircraftSta
                 std::atan(ftToM(wheelbaseFt) * steerLatG * kStdGravityMps2 / (vMps * vMps)));
             double target = shaped * std::min(static_cast<double>(tillerMaxDeg), latDeg);
             // Over the last kTillerBlendKt below tillerBelowKt the angle blends into the pedal
-            // steering's (the angle steer-cmd-norm just gave the first unit, held to the same
-            // lateral limit), so a small correction in a takeoff roll feels the same either side
-            // of the handover.
+            // steering's (held to the same lateral limit), so a small correction in a takeoff roll
+            // feels the same either side of the handover.
             const double blend = std::clamp(
                 (state.gsKt - (tillerBelowKt - kTillerBlendKt)) / kTillerBlendKt, 0.0, 1.0);
-            if (blend > 0) {
-                const double pedalDeg = std::clamp(steerPos.front().get(), -latDeg, latDeg);
-                target = (1.0 - blend) * target + blend * pedalDeg;
-            }
+            if (blend > 0)
+                target = (1.0 - blend) * target + blend * std::clamp(pedalDeg, -latDeg, latDeg);
             // The rudder (and propwash) yaws the aircraft too: while the measured lateral
             // acceleration in the turn's direction is over the limit, the tiller backs off
-            // (at twice the limit it centres), so the nose wheel never adds to a skid.
+            // (at twice the limit it centres), so the nose wheel never adds to a skid. Not while
+            // rolling backwards, where the same wheel angle turns the other way.
+            const double hdg = state.headingTrueRad;
+            const double fwdMps =
+                state.velNorthMps * std::cos(hdg) + state.velEastMps * std::sin(hdg);
             const double aLim = steerLatG * kStdGravityMps2;
             const double aLat = static_cast<double>(state.rRadps) * vMps;  // + = turning right
-            if (target * aLat > 0 && std::fabs(aLat) > aLim)
+            if (fwdMps > 0 && target * aLat > 0 && std::fabs(aLat) > aLim)
                 target *= std::max(0.0, 1.0 - (std::fabs(aLat) - aLim) / aLim);
-            if (!tillerActive) noseDeg = steerPos.front().get();  // from where the pedals left it
-            const double step = steerRateDegS * stepDtS;
+            if (!tillerActive) noseDeg = pedalDeg;  // from where the pedals left it
             noseDeg += std::clamp(target - noseDeg, -step, step);
             for (const Prop& p : steerPos) p.set(noseDeg);
+            tillerActive = true;
+        } else if (tillerActive && state.wowAny) {
+            // Handing back to the pedals: no step in the wheel at the handover.
+            noseDeg += std::clamp(pedalDeg - noseDeg, -step, step);
+            for (const Prop& p : steerPos) p.set(noseDeg);
+            if (std::fabs(pedalDeg - noseDeg) < 0.05) tillerActive = false;
+        } else {
+            tillerActive = false;
         }
-        tillerActive = tiller;
     }
 }
 

@@ -262,3 +262,35 @@ TEST_CASE("sim: F11 a 90 degree taxiway turn holds the centerline within 3 m") {
         CHECK(maxErrM < 3.0);
     }
 }
+
+// F11: the handover at 35 kt has no step in the wheel: accelerating with a steady 0.3 of right
+// stick through 35 kt, the nose-wheel angle never moves faster than the tiller's rate.
+TEST_CASE("sim: F11 the tiller hands the wheel to the pedals at 35 kt without a step") {
+    for (const char* id : {"c172p", "737"}) {
+        INFO(id);
+        Flight f;
+        REQUIRE_MESSAGE(f.begin(id, "runway"), f.error);
+        f.ctl.parkingBrake = false;
+        const double rateDegS =
+            std::strtod(f.profile.properties.at("ground.steer_rate_deg_s").c_str(), nullptr);
+        const double hdg0 = radToDeg(f.s().headingTrueRad);
+        setThrottles(f, 1.0f);
+        double last = noseAngleDeg(f), maxStepDeg = 0, maxKt = 0;
+        for (long i = 0; i < 120L * kSimHz && f.s().gsKt < 45.0f; ++i) {
+            const bool steady = f.s().gsKt > 20.0f;
+            f.ctl.steeringNorm = steady ? 0.3f : static_cast<float>(headingHoldRudder(f.s(), hdg0));
+            f.ctl.rudderNorm = 0.0f;  // the nose wheel alone
+            f.step();
+            REQUIRE_FALSE(f.s().crashed);
+            const double now = noseAngleDeg(f);
+            if (steady && f.s().gsKt > 22.0f)
+                maxStepDeg = std::max(maxStepDeg, std::fabs(now - last));
+            last = now;
+            maxKt = std::max(maxKt, static_cast<double>(f.s().gsKt));
+        }
+        CHECK(maxKt >= 40.0);
+        std::printf("STEER %s handover: max wheel change %.3f deg per step (rate limit %.3f)\n", id,
+                    maxStepDeg, rateDegS / kSimHz);
+        CHECK(maxStepDeg <= rateDegS / kSimHz + 0.01);
+    }
+}
