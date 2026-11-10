@@ -180,6 +180,7 @@ int Settings::applyText(const std::string& text) {
     integer("volume_pct", volumePct);
     flag("assist_auto_rudder", assistAutoRudder);
     flag("assist_auto_trim", assistAutoTrim);
+    flag("assist_pitch_damper", assistPitchDamper);  // F9
     choice("throttle_mode", kThrottle, throttleMode);
     num("pitch_sensitivity", pitchSens);
     num("roll_sensitivity", rollSens);
@@ -255,6 +256,8 @@ StickTuning Settings::stickTuning() const {
     t.rollExpo = rollExpo;
     t.rudderExpo = rudderExpo;
     t.throttleAbsolute = throttleMode == ThrottleMode::Absolute;
+    t.pitchDamper = assistPitchDamper;  // F9
+    t.autoTrim = assistAutoTrim;
     return t;
 }
 
@@ -292,6 +295,7 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"volume_pct", std::to_string(s.volumePct)},
         {"assist_auto_rudder", b(s.assistAutoRudder)},
         {"assist_auto_trim", b(s.assistAutoTrim)},
+        {"assist_pitch_damper", b(s.assistPitchDamper)},
         {"throttle_mode", enumText(kThrottle, s.throttleMode)},
         {"pitch_sensitivity", fmtFloat(s.pitchSens)},
         {"roll_sensitivity", fmtFloat(s.rollSens)},

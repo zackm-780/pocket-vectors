@@ -67,6 +67,10 @@ struct AircraftProfile {
     // [speeds_kt] ref_weight_lbs: the weight the profile's speeds were measured at (the stock model's
     // shipped weight); the speed bugs scale with sqrt(weight / this). 0 = no scaling.
     float refWeightLbs = 0;
+    // F9: [controls] pitch handling; 0 / -1 = use the global value. trimStepNorm: one trim press
+    // (elevator trim, -1..1 range); trimRateNormPerS: the rate while held past 0.3 s; pitchExpo:
+    // the left stick's Y expo in place of [axes] left_pitch_expo.
+    float trimStepNorm = 0, trimRateNormPerS = 0, pitchExpo = -1;
 };
 
 // F5: the stall warning angle of attack for the actual flap position (AircraftState::flapPosNorm),

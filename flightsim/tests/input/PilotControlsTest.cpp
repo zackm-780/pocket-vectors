@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include "core/Units.h"
 #include "input/InputTestUtil.h"
 #include "input/PilotControls.h"
 
@@ -119,22 +120,158 @@ TEST_CASE("input: throttle moves every engine of the profile") {
     CHECK(r.controls.throttleNorm[2] == 0.9f);
 }
 
-TEST_CASE("input: elevator trim integrates while held and clamps") {
+TEST_CASE("input: elevator trim: a press is one step, held past 0.3 s the rate; it clamps") {
     Rig r;
+    const PilotTuning t;
     r.hold(Action::TrimNoseUp, true);
     r.actions.pressed[idx(Action::TrimNoseUp)] = true;
-    for (int i = 0; i < 60; ++i) r.step();  // 1 s at 0.1/s
-    CHECK(r.controls.elevTrimNorm == doctest::Approx(0.1f).epsilon(0.001));
+    r.step();  // the press: one step at once
+    CHECK(r.controls.elevTrimNorm == doctest::Approx(t.elevTrimStepNorm).epsilon(0.001));
+    for (int i = 1; i < 18; ++i) r.step();  // still inside the 0.3 s delay: no more
+    CHECK(r.controls.elevTrimNorm == doctest::Approx(t.elevTrimStepNorm).epsilon(0.001));
+    for (int i = 18; i < 60; ++i) r.step();  // to 1 s: the rate for the last 0.7 s
+    CHECK(r.controls.elevTrimNorm ==
+          doctest::Approx(t.elevTrimStepNorm + t.elevTrimRateNormPerS * (1.0f - 18 * kFrameS))
+              .epsilon(0.02));
     CHECK(r.saidLast("TRIM NOSE UP"));
     CHECK(r.messages.size() == 1);  // one message per press, not per frame
+    const float held = r.controls.elevTrimNorm;
     r.hold(Action::TrimNoseUp, false);
     for (int i = 0; i < 60; ++i) r.step();
-    CHECK(r.controls.elevTrimNorm == doctest::Approx(0.1f).epsilon(0.001));
+    CHECK(r.controls.elevTrimNorm == doctest::Approx(held));
+
+    // Two taps are two steps.
+    r.controls.elevTrimNorm = 0.0f;
+    for (int tap = 0; tap < 2; ++tap) {
+        r.press(Action::TrimNoseDown);
+        r.step();
+        r.hold(Action::TrimNoseDown, false);
+        r.step();
+    }
+    CHECK(r.controls.elevTrimNorm == doctest::Approx(-2 * t.elevTrimStepNorm).epsilon(0.001));
 
     r.press(Action::TrimNoseDown);
-    for (int i = 0; i < 6000; ++i) r.step();
+    for (int i = 0; i < 60 * 200; ++i) r.step();
     CHECK(r.controls.elevTrimNorm == -1.0f);
     CHECK(r.saidLast("TRIM NOSE DOWN"));
+}
+
+TEST_CASE("input: F9 profile trim step and rate override the defaults and shrink with speed") {
+    Rig r;
+    r.profile.trimStepNorm = 0.01f;
+    r.profile.trimRateNormPerS = 0.1f;
+    r.profile.vrefKt = 60.0f;
+    CHECK(r.pilot.elevTrimStepNorm(r.profile, r.state) == doctest::Approx(0.01f));
+    CHECK(r.pilot.elevTrimRateNormPerS(r.profile, r.state) == doctest::Approx(0.1f));
+    r.state.iasKt = 120.0f;  // twice Vref: (1/2)^2
+    CHECK(r.pilot.elevTrimStepNorm(r.profile, r.state) == doctest::Approx(0.0025f));
+    CHECK(r.pilot.elevTrimRateNormPerS(r.profile, r.state) == doctest::Approx(0.025f));
+    r.state.iasKt = 400.0f;  // never below a quarter
+    CHECK(r.pilot.elevTrimStepNorm(r.profile, r.state) == doctest::Approx(0.0025f));
+    r.state.wowAny = true;  // on the ground: full step
+    CHECK(r.pilot.elevTrimStepNorm(r.profile, r.state) == doctest::Approx(0.01f));
+    // A tap with the profile's step.
+    r.state.wowAny = false;
+    r.state.iasKt = 50.0f;
+    r.press(Action::TrimNoseUp);
+    r.step();
+    CHECK(r.controls.elevTrimNorm == doctest::Approx(0.01f));
+    // Rudder trim keeps its held rate.
+    r.hold(Action::TrimNoseUp, false);
+    r.hold(Action::RudderTrimRight, true);
+    for (int i = 0; i < 60; ++i) r.step();
+    CHECK(r.controls.rudderTrimNorm == doctest::Approx(0.1f).epsilon(0.001));
+}
+
+TEST_CASE("input: F9 pitch damper and auto trim do nothing when off") {
+    Rig r;
+    r.state.qRadps = 0.1f;  // pitching up at 5.7 deg/s
+    r.state.vsFpm = 1500.0f;
+    r.state.tasKt = 100.0f;
+    r.actions.axis[idx(Axis::Pitch)] = 0.1f;
+    for (int i = 0; i < 180; ++i) r.step();
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.1f));
+    CHECK(r.controls.elevTrimNorm == 0.0f);
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
+    for (int i = 0; i < 180; ++i) r.step();
+    CHECK(r.controls.elevTrimNorm == 0.0f);
+    CHECK_FALSE(r.pilot.autoTrimHolding());
+}
+
+TEST_CASE("input: F9 pitch damper opposes the pitch rate near the stick centre only") {
+    Rig r;
+    StickTuning t;
+    t.pitchDamper = true;
+    r.pilot.setStickTuning(t);
+    r.profile.category = AircraftCategory::Piston;
+    r.state.qRadps = static_cast<float>(degToRad(2.0));  // 2 deg/s nose up
+    const PilotTuning tu;
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;  // centred: full damping
+    r.step();
+    CHECK(r.controls.elevatorNorm ==
+          doctest::Approx(-2.0f * tu.damperPerDegPsPiston).epsilon(0.01));
+    r.actions.axis[idx(Axis::Pitch)] = 0.5f * tu.damperStickMax;  // half way: half of it
+    r.step();
+    CHECK(r.controls.elevatorNorm ==
+          doctest::Approx(0.5f * tu.damperStickMax - 0.5f * 2.0f * tu.damperPerDegPsPiston)
+              .epsilon(0.01));
+    r.actions.axis[idx(Axis::Pitch)] = 0.2f;  // a real input (shaped): no damping
+    r.step();
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.2f));
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
+    r.state.wowAny = true;  // on the ground: none
+    r.step();
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.0f));
+    r.state.wowAny = false;
+    r.pilot.setAutopilotEngaged(true);  // the AP flies: none (it would count as a stick input)
+    r.step();
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.0f));
+}
+
+TEST_CASE("input: F9 auto trim holds the flight path left after 1 s; AP, ground, trim press") {
+    Rig r;
+    StickTuning t;
+    t.autoTrim = true;
+    r.pilot.setStickTuning(t);
+    r.state.tasKt = 100.0f;
+    r.state.vsFpm = 0.0f;  // level: the path to hold
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
+    for (int i = 0; i < 59; ++i) r.step();
+    CHECK_FALSE(r.pilot.autoTrimHolding());  // not yet a second
+    r.step();
+    r.step();
+    CHECK(r.pilot.autoTrimHolding());
+    // Now sinking: the trim moves nose up (slowly), and keeps doing so.
+    r.state.vsFpm = -500.0f;
+    r.step();  // the path rate this frame is large: the damping term acts once
+    const float t0 = r.controls.elevTrimNorm;
+    for (int i = 0; i < 60; ++i) r.step();
+    CHECK(r.controls.elevTrimNorm > t0);
+    CHECK(r.controls.elevTrimNorm - t0 <= PilotTuning{}.autoTrimMaxRateNormPerS * 1.01f);
+    // A stick input stops it (any deflection past the deadzone: shaped 0.01 is about raw 0.15 in
+    // the C172), and the path is captured again 1 s after the stick is centred.
+    r.actions.axis[idx(Axis::Pitch)] = 0.01f;
+    r.step();
+    CHECK_FALSE(r.pilot.autoTrimHolding());
+    // A new flight starts over: no hold until the stick has been centred for 1 s again.
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
+    for (int i = 0; i < 70; ++i) r.step();
+    REQUIRE(r.pilot.autoTrimHolding());
+    r.pilot.resetFlight();
+    CHECK_FALSE(r.pilot.autoTrimHolding());
+    r.step();
+    CHECK_FALSE(r.pilot.autoTrimHolding());
+    // Off while the AP is engaged and on the ground.
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
+    r.pilot.setAutopilotEngaged(true);
+    const float t1 = r.controls.elevTrimNorm;
+    for (int i = 0; i < 180; ++i) r.step();
+    CHECK(r.controls.elevTrimNorm == t1);
+    r.pilot.setAutopilotEngaged(false);
+    r.state.wowAny = true;
+    for (int i = 0; i < 180; ++i) r.step();
+    CHECK(r.controls.elevTrimNorm == t1);
+    CHECK_FALSE(r.pilot.autoTrimHolding());
 }
 
 TEST_CASE("input: rudder trim integrates") {

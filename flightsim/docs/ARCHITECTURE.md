@@ -252,6 +252,9 @@ struct AircraftProfile {
   std::vector<float> stallWarnAlphaByFlapDeg;  // additive (F5): [warnings] stall_warn_alpha_by_flap_deg, one per detent
   std::vector<float> vsByFlapKt;               // additive (F5): [speeds_kt] vs_by_flap, measured 1 g stall per detent
   float refWeightLbs = 0;  // additive (H9): [speeds_kt] ref_weight_lbs, the profile speeds' weight (0 = no scaling)
+  float trimStepNorm = 0;      // additive (F9): [controls] trim_step_norm, one elevator trim press (0 = PilotTuning)
+  float trimRateNormPerS = 0;  // additive (F9): [controls] trim_rate_norm_per_s, held past 0.3 s (0 = PilotTuning)
+  float pitchExpo = -1;        // additive (F9): [controls] pitch_expo, left stick Y expo (< 0 = [axes] left_pitch_expo)
 };
 // additive (F5): the warning alpha for the actual flap position (interpolated between detents;
 // stallWarnAlphaDeg without per-detent values). FlightModel and the HUD both call it.

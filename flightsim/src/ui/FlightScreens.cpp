@@ -102,6 +102,9 @@ const SettingDef kSettingDefs[] = {
     {"AUTO TRIM", false,
      [](const Settings& s) -> std::string { return s.assistAutoTrim ? "ON" : "OFF"; },
      [](Settings& s, int) { s.assistAutoTrim = !s.assistAutoTrim; }},
+    {"PITCH DAMPER", false,  // F9
+     [](const Settings& s) -> std::string { return s.assistPitchDamper ? "ON" : "OFF"; },
+     [](Settings& s, int) { s.assistPitchDamper = !s.assistPitchDamper; }},
     {"PITCH SENSITIVITY", true, [](const Settings& s) { return fmt("%.2f", s.pitchSens); },
      [](Settings& s, int d) { s.pitchSens += 0.25f * static_cast<float>(d); }},
     {"ROLL SENSITIVITY", true, [](const Settings& s) { return fmt("%.2f", s.rollSens); },

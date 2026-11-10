@@ -91,3 +91,29 @@ TEST_CASE("input: accelerated bug step") {
     CHECK(acceleratedStep(25, 1.0f, 10.0f) == doctest::Approx(10.0f));
     CHECK(acceleratedStep(100, 1.0f, 10.0f) == doctest::Approx(10.0f));
 }
+
+TEST_CASE("input: F9 pitch-only expo leaves roll as it was and keeps full deflection") {
+    for (float rx : {0.0f, 0.3f, -0.7f}) {
+        for (float ry : {0.0f, 0.2f, -0.5f, 1.0f}) {
+            float ax = rx, ay = ry, bx = rx, by = ry;
+            applyRadialStick(ax, ay, 0.08f, 0.35f);
+            applyRadialStick(bx, by, 0.08f, 0.35f, 0.8f);
+            CHECK(bx == doctest::Approx(ax));  // roll unchanged
+            float cx = rx, cy = ry;
+            applyRadialStick(cx, cy, 0.08f, 0.35f, 0.35f);  // equal expos: the old curve
+            CHECK(cy == doctest::Approx(ay));
+            if (ry != 0.0f && std::hypot(rx, ry) < 0.99f) CHECK(std::fabs(by) < std::fabs(ay));
+        }
+    }
+    float x = 0.0f, y = 1.0f;
+    applyRadialStick(x, y, 0.08f, 0.35f, 0.83f);
+    CHECK(y == doctest::Approx(1.0f));
+    x = 0.0f;
+    y = -1.0f;
+    applyRadialStick(x, y, 0.08f, 0.35f, 0.83f);
+    CHECK(y == doctest::Approx(-1.0f));
+    x = 0.0f;
+    y = 0.05f;  // inside the deadzone
+    applyRadialStick(x, y, 0.08f, 0.35f, 0.83f);
+    CHECK(y == 0.0f);
+}

@@ -89,6 +89,8 @@ struct ControlsConfig {
     int keyLookModifier = 0;  // SDL_Keycode, 0 = none
 
     float leftDeadzone = 0.08f, leftExpo = 0.35f;
+    // F9: expo of the left stick's Y (pitch) alone; [axes] left_pitch_expo, default left_expo.
+    float leftPitchExpo = 0.35f;
     float rightDeadzone = 0.12f, rightExpo = 0.0f;
     float dominanceRatio = 1.5f;
     float triggerOnNorm = 0.5f, triggerOffNorm = 0.3f;

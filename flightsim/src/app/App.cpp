@@ -298,6 +298,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     menuEnv.attributionPath = paths.data("ATTRIBUTION.txt");
     MenuSystem menu(menuEnv);
     menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
+    input.setPitchExpoOverride(sim.profile().pitchExpo);  // F9
     if (!opt.menuSpec.empty()) {
         std::string menuError;
         if (!menu.openCanned(opt.menuSpec, menuError)) {
@@ -403,6 +404,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         setWeatherVisibility();  // X1
         setClouds();             // W7
         menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
+        input.setPitchExpoOverride(sim.profile().pitchExpo);  // F9: the aircraft's pitch expo
+        pilotControls.resetFlight();                          // F9: no auto-trim hold carried over
     };
     auto startOrReport = [&](const Scenario& sc) {
         std::string err;
@@ -513,6 +516,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 clearButtons(flightActions);
                 clearButtons(cmdActions);
             }
+            pilotControls.setAutopilotEngaged(sim.autopilotState().apEngaged);  // F9: auto trim
             if (interactive)
                 pilotControls.update(flightActions, sim.profile(), sim.aircraft(), dtS, sim.pilot(),
                                      &messages);  // P2
