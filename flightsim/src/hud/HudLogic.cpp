@@ -511,7 +511,10 @@ int buildStatusRow2(const StatusInputs& in, StatusField* out) {
         Role role = Role::Dim;
         if (s.speedbrakePosNorm > 0.01f)
             role = maxThrottleNorm(c, engines) > 0.5f ? Role::Amber : Role::White;
-        setText(addSeg(f), role, "SPDBRK %d%%", pct);
+        if (c.speedbrakeArmed && s.speedbrakePosNorm <= 0.01f)
+            setText(addSeg(f), Role::Normal, "SPDBRK ARM");  // F10: armed, still retracted
+        else
+            setText(addSeg(f), role, "SPDBRK %d%%", pct);
     }
     // Reversers: amber in flight, green on the ground.
     bool reverser = false;

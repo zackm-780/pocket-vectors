@@ -257,7 +257,8 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
     if (const char* env = std::getenv("FSIM_LOOK_DEG"))
         std::sscanf(env, "%f,%f", &lookHoldYawDeg, &lookHoldPitchDeg);
     MessageQueue messages;
-    Hud hud;                // H2: flight HUD, drawn every frame after the 3D scene
+    unsigned shownSpeedbrakeEvents = 0;  // F10
+    Hud hud;                             // H2: flight HUD, drawn every frame after the 3D scene
     HudOptions hudOptions;  // H2: declutter level, color, paused flag, magnetic variation
     GpwsMonitor gpws;       // X2: ground proximity warnings and radio altitude callouts
     MapPage mapPage;        // H4: moving map (MapToggle), replaces the HUD while shown
@@ -590,6 +591,11 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 }
             }
             sim.advance(dtS);
+            // F10: what the armed speed brakes did (deployed at touchdown, stowed on a go-around).
+            if (sim.speedbrakeEventCount() != shownSpeedbrakeEvents) {
+                shownSpeedbrakeEvents = sim.speedbrakeEventCount();
+                if (sim.lastSpeedbrakeEvent()) messages.post(sim.lastSpeedbrakeEvent());
+            }
         }
         {  // F6: LOW FUEL at 30 and 15 minutes of endurance
             const AircraftState& as = sim.aircraft();

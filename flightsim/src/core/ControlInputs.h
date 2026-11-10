@@ -19,6 +19,9 @@ struct ControlInputs {
     float brakeLeftNorm = 0, brakeRightNorm = 0;
     bool parkingBrake = false;
     float steeringNorm = 0;  // -1..1, usually follows rudder
+    // Additive (F10): speed brakes armed (the X cycle's ARMED position): sim/SpeedbrakeArm deploys
+    // them at touchdown with the thrust at idle and stows them on a go-around.
+    bool speedbrakeArmed = false;
 };
 
 }  // namespace fsim

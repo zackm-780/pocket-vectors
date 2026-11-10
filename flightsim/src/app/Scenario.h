@@ -26,7 +26,8 @@ enum class ScriptCommand {
     Gear,          // 0 = up, 1 = down
     Trim,          // elevator trim, -1..1
     Mixture,       // 0..1
-    Speedbrake     // 0..1
+    Speedbrake,    // 0..1
+    SpeedbrakeArm  // F10: 1 = arm, 0 = disarm
 };
 
 struct ScriptEvent {
