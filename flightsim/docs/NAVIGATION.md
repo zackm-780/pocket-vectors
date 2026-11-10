@@ -127,16 +127,16 @@ recomputed from the new plan.
    position (`X DELETED, DIRECT TO Y`). Another enroute waypoint is simply deleted (`X DELETED`).
    Approach legs are changed with CHANGE APPROACH, the destination with NEW DESTINATION.
 8. **Back onto the route after vectors or a heading excursion:** DIRECT TO NEXT (one press) goes
-   direct to the active waypoint while it is still ahead (more than 0.5 NM to go along its leg),
-   else to the first waypoint ahead. ACTIVATE LEG makes a leg active without a direct-to, so the
+   direct to the active waypoint while it is still ahead (more than 0.5 NM to go along its leg,
+   or the bearing to it within 90° of the track), else to the first waypoint ahead. ACTIVATE LEG makes a leg active without a direct-to, so the
    navigator intercepts its course (`ACTIVATE LEG X`).
 9. **Missed approach:** the MAP sequences into the missed legs only when passed airborne (§3.4).
    Direct-To during the missed approach follows rules 1–4.
 
-**Undo:** every edit applied through `applyEdit` keeps the plan before it, one level, for 10 s
-(`Navigator::undo`); a newer edit replaces it. The screens offer it for the destructive ones
-(`ROUTE REPLACED`, `PLAN CLEARED`, `SID REMOVED`); the restored plan is applied the same way, so
-NAV stays engaged.
+**Undo:** a destructive edit (`ROUTE REPLACED`, `PLAN CLEARED`, `SID REMOVED`) applied through
+`applyEdit` keeps the plan before it, one level, for 10 s; a newer destructive edit replaces it,
+other edits leave it alone. `Navigator::undo` restores it with `setPlan` (so NAV stays engaged)
+and returns the label for the message (`ROUTE REPLACED UNDONE`).
 
 ## 3. Approaches
 

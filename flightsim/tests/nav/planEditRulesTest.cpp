@@ -13,6 +13,7 @@
 #include "autopilot/Autopilot.h"
 #include "core/Geo.h"
 #include "nav/FlightPlan.h"
+#include "nav/FlyBy.h"
 #include "nav/Navigator.h"
 #include "nav/PlanEdit.h"
 #include "navigatorTestUtil.h"
@@ -277,6 +278,11 @@ TEST_CASE("nav: plan edit rules (N11a, NAVIGATION 2.4)") {
         {"8: direct to next after vectors past the active waypoint", Start::Enroute,
          [&](const FlightPlan& p, const PlanFakeDb&) { return directToNext(p, pastBbb); }, true,
          "PPOS CCC RW05", 1, -1, "", "", "DIRECT TO CCC", false},
+        {"8: direct to next, vectored back toward the passed active waypoint", Start::Enroute,
+         [&](const FlightPlan& p, const PlanFakeDb&) {
+             return directToNext(p, ctxAt(43.8, -123.2, 45));
+         },
+         true, "PPOS BBB CCC RW05", 1, -1, "", "", "DIRECT TO BBB", false},
         {"8: activate a leg (intercept its course, no direct-to)", Start::Enroute,
          [&](const FlightPlan& p, const PlanFakeDb&) { return activateLeg(p, 3, midLeg); }, true,
          "RW28L AAA BBB CCC RW05", 3, -1, "", "", "ACTIVATE LEG CCC", false},
@@ -357,7 +363,7 @@ TEST_CASE("nav: plan edit undo keeps one level for 10 s") {
     const FlightPlan before = nav.plan();
     const PlanEditContext ctx = ctxAt(43.7, -123.3, 225);
     CHECK_FALSE(nav.undoAvailable(0.0));
-    CHECK_FALSE(nav.undo(0.0));
+    CHECK(nav.undo(0.0).empty());
 
     PlanEditResult edit =
         directTo(nav.plan(), fix("KCCC", 44.0, -121.0, WaypointKind::Airport), ctx);
@@ -365,7 +371,9 @@ TEST_CASE("nav: plan edit undo keeps one level for 10 s") {
     CHECK(legIdents(nav.plan()) == "PPOS KCCC");
     CHECK(nav.undoAvailable(109.9));
     CHECK(nav.undoLabel() == "ROUTE REPLACED");
-    REQUIRE(nav.undo(105.0));
+    const std::string label = nav.undo(105.0);
+    CHECK(label == "ROUTE REPLACED");
+    CHECK(undoneMessage(label) == "ROUTE REPLACED UNDONE");
     CHECK(legIdents(nav.plan()) == legIdents(before));
     CHECK(nav.plan().activeLeg == before.activeLeg);
     CHECK(nav.plan().approachId == "I05");
@@ -375,17 +383,28 @@ TEST_CASE("nav: plan edit undo keeps one level for 10 s") {
     // Outside the window: refused, the edit stays.
     REQUIRE(nav.applyEdit(
         directTo(nav.plan(), fix("KCCC", 44.0, -121.0, WaypointKind::Airport), ctx), 200.0));
-    CHECK_FALSE(nav.undo(210.5));
+    CHECK(nav.undo(210.5).empty());
     CHECK(legIdents(nav.plan()) == "PPOS KCCC");
 
-    // A newer edit replaces the stash: undo goes back one step only.
+    // A newer destructive edit replaces the stash: undo goes back one step only.
     nav.setPlan(startPlan(db, Start::Enroute));
-    REQUIRE(nav.applyEdit(deleteWaypoint(nav.plan(), 3, ctx), 300.0));  // CCC
-    const std::string afterDelete = legIdents(nav.plan());
-    REQUIRE(nav.applyEdit(directTo(nav.plan(), fix("BBB", 44.0, -123.0), ctx), 301.0));
-    REQUIRE(nav.undo(302.0));
-    CHECK(legIdents(nav.plan()) == afterDelete);
-    CHECK_FALSE(nav.undo(302.5));
+    REQUIRE(nav.applyEdit(changeDestination(nav.plan(), db, "KCCC", "", true, ctx), 300.0));
+    const std::string afterNewDest = legIdents(nav.plan());
+    CHECK(afterNewDest == "RW28L AAA BBB CCC KCCC");
+    REQUIRE(nav.applyEdit(
+        directTo(nav.plan(), fix("KBBB", 43.0, -124.0, WaypointKind::Airport), ctx), 301.0));
+    CHECK(nav.undo(302.0) == "ROUTE REPLACED");
+    CHECK(legIdents(nav.plan()) == afterNewDest);
+    CHECK(nav.undo(302.5).empty());
+
+    // A non-destructive edit keeps the undo of the destructive one before it.
+    nav.setPlan(startPlan(db, Start::Enroute));
+    REQUIRE(nav.applyEdit(
+        directTo(nav.plan(), fix("KCCC", 44.0, -121.0, WaypointKind::Airport), ctx), 500.0));
+    REQUIRE(nav.applyEdit(directTo(nav.plan(), fix("SIDE", 44.3, -122.5), ctx), 501.0));
+    CHECK(nav.undoLabel() == "ROUTE REPLACED");
+    CHECK(nav.undo(503.0) == "ROUTE REPLACED");
+    CHECK(legIdents(nav.plan()) == "RW28L AAA BBB CCC RW05");
 
     // A failed edit changes nothing and keeps no undo.
     nav.setPlan(startPlan(db, Start::Enroute));
@@ -429,6 +448,30 @@ TEST_CASE("nav: the VNAV target after a direct-to is the next constrained leg") 
     CHECK(s.activeLegIndex == 1);
     CHECK(std::string(s.activeWptIdent) == "SIDE");
     CHECK(s.targetAltFt == doctest::Approx(6000.0f));
+    // The fly-by arcs (N10) follow the new plan: a turn at SIDE onto BBB; AAA's is gone.
+    CHECK(s.turnRadiusNm > 0.0f);
+    const FlyByTurn atSide = planTurnAt(nav.plan(), 1, s.turnRadiusNm);
+    REQUIRE(atSide.valid);
+    CHECK(atSide.fix.latDeg == doctest::Approx(44.3));
+    CHECK(atSide.fix.lonDeg == doctest::Approx(-122.5));
+    for (size_t i = 0; i < nav.plan().legs.size(); ++i) CHECK(nav.plan().legs[i].to.ident != "AAA");
+    const FlyByTurn atAaaBefore = planTurnAt(p, 1, s.turnRadiusNm);
+    CHECK(atAaaBefore.valid);
+    CHECK(atAaaBefore.fix.latDeg == doctest::Approx(44.5));
+}
+
+TEST_CASE("nav: direct to the destination matches its ident in any case") {
+    const PlanFakeDb db = makeDb();
+    Navigator nav(db);
+    nav.setPlan(startPlan(db, Start::WithStarApproach));
+    const PlanEditResult r = directTo(nav.plan(), fix("kbbb", 43.0, -124.0, WaypointKind::Airport),
+                                      ctxAt(43.7, -123.3, 225));
+    REQUIRE(r.ok);
+    CHECK(r.plan.legs[1].to.ident == "KBBB");  // matched against destIdent by the navigator
+    REQUIRE(nav.applyEdit(r, 0.0));
+    const AircraftState over = test::makeAircraft(42.95, -124.05, 3000, 240);
+    nav.update(over, 1.0);
+    CHECK(nav.plan().activeLeg == 1);
 }
 
 TEST_CASE("nav: an engaged NAV follows every plan edit without dropping to ROL") {
@@ -465,7 +508,7 @@ TEST_CASE("nav: an engaged NAV follows every plan edit without dropping to ROL")
     check("new destination, clear the route",
           changeDestination(nav.plan(), db, "XTST", "09", false, ctx()), "RW09");
     // Undo brings the previous plan back, still in NAV.
-    REQUIRE(nav.undo(f.sim.aircraft().simTimeS));
+    REQUIRE(nav.undo(f.sim.aircraft().simTimeS) == "PLAN CLEARED");
     f.run(2.0);
     CHECK(f.sim.autopilotState().latActive == LatMode::Nav);
     CHECK(std::string(f.sim.navState().activeWptIdent) == "KZZZ");

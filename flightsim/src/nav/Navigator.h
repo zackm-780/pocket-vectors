@@ -107,14 +107,18 @@ public:
     // ---- plan edits and undo (N11a, NAVIGATION 2.4) ------------------------------------------
     static constexpr double kUndoWindowS = 10.0;
     // Applies a PlanEdit result with setPlan (never clearPlan, so an engaged NAV keeps a leg to
-    // fly) and keeps the plan before it for one level of undo. False (nothing changes) if !ok.
+    // fly). A destructive one (ROUTE REPLACED, PLAN CLEARED, SID REMOVED) keeps the plan before
+    // it for one level of undo; other edits leave an undo already kept alone. False (nothing
+    // changes) if !ok.
     bool applyEdit(const PlanEditResult& edit, double simTimeS);
     // Keeps a copy of the present plan for undo (an edit made another way: SID, STAR, approach).
     void stashUndo(const char* label, double simTimeS);
     bool undoAvailable(double simTimeS) const;
     const std::string& undoLabel() const { return undoLabel_; }
-    // Restores the plan before the last edit while undoAvailable(); one level, then it is gone.
-    bool undo(double simTimeS);
+    // Restores the plan kept by the last destructive edit while undoAvailable() and returns its
+    // label ("ROUTE REPLACED"; undoneMessage() makes the HUD text); one level, then it is gone.
+    // Empty (nothing changes) outside the window.
+    std::string undo(double simTimeS);
 
     // ---- guidance commands -----------------------------------------------------------------
     bool directToLeg(int legIndex);              // direct-to legs[legIndex].to (N3)

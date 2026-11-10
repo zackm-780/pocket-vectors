@@ -27,6 +27,8 @@ struct PlanEditContext {
 };
 // The context for an aircraft state.
 PlanEditContext planEditContext(const AircraftState& aircraft);
+// "ROUTE REPLACED UNDONE" for Navigator::undo()'s label; empty for an empty label.
+std::string undoneMessage(const std::string& undoLabel);
 
 struct PlanEditResult {
     bool ok = false;
@@ -41,7 +43,8 @@ struct PlanEditResult {
 // destination airport keeps the STAR and the approach; another airport replaces the plan; any
 // other fix rejoins the plan at the first waypoint ahead of it ("DIRECT TO X, THEN Y").
 PlanEditResult directTo(const FlightPlan& plan, const Waypoint& target, const PlanEditContext& ctx);
-// Rule 8: Direct-To the active waypoint if it is still ahead, else the first waypoint ahead.
+// Rule 8: Direct-To the active waypoint if it is still ahead (more than 0.5 NM to go along its
+// leg, or the bearing to it within 90 degrees of the track), else the first waypoint ahead.
 PlanEditResult directToNext(const FlightPlan& plan, const PlanEditContext& ctx);
 // Rule 8: makes leg `legIndex` active without a direct-to (the navigator intercepts its course).
 PlanEditResult activateLeg(const FlightPlan& plan, int legIndex, const PlanEditContext& ctx);

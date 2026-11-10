@@ -263,7 +263,7 @@ bool Navigator::startApproachOnly(const Approach& approach, const LatLon& presen
 
 bool Navigator::applyEdit(const PlanEditResult& edit, double simTimeS) {
     if (!edit.ok) return false;
-    stashUndo(edit.undoLabel, simTimeS);
+    if (edit.destructive) stashUndo(edit.undoLabel, simTimeS);
     setPlan(edit.plan);
     return true;
 }
@@ -278,13 +278,13 @@ bool Navigator::undoAvailable(double simTimeS) const {
     return undoUntilS_ >= 0.0 && simTimeS <= undoUntilS_;
 }
 
-bool Navigator::undo(double simTimeS) {
-    if (!undoAvailable(simTimeS)) return false;
+std::string Navigator::undo(double simTimeS) {
+    if (!undoAvailable(simTimeS)) return {};
     FlightPlan restored = std::move(undoPlan_);
     undoPlan_ = FlightPlan{};
     undoUntilS_ = -1.0;
     setPlan(std::move(restored));
-    return true;
+    return undoLabel_.empty() ? std::string("PLAN") : undoLabel_;
 }
 
 // ---- guidance commands --------------------------------------------------------------------------

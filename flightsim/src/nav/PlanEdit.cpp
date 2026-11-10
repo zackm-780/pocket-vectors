@@ -14,6 +14,7 @@ namespace {
 constexpr double kSameFixNm = 1.0;        // a plan waypoint "is" the target within this distance
 constexpr double kRejoinMaxTurnDeg = 90;  // rule 2: the turn at X onto the rejoin leg
 constexpr double kAheadNm = 0.5;          // rule 8: still this far to go on its leg
+constexpr double kAheadMaxOffDeg = 90;    // rule 8: or the bearing to it this close to the track
 
 std::string upper(std::string_view s) {
     std::string r(s);
@@ -168,6 +169,10 @@ PlanEditResult directToFix(const FlightPlan& plan, const Waypoint& x, const Plan
 
 }  // namespace
 
+std::string undoneMessage(const std::string& undoLabel) {
+    return undoLabel.empty() ? std::string() : undoLabel + " UNDONE";
+}
+
 PlanEditContext planEditContext(const AircraftState& a) {
     PlanEditContext c;
     c.present = LatLon{a.latDeg, a.lonDeg};
@@ -199,6 +204,7 @@ PlanEditResult directTo(const FlightPlan& plan, const Waypoint& target,
             p.legs.clear();
             p.legs.push_back(pposLeg(ctx.present));
             p.legs.push_back(dfLeg(target));
+            p.legs.back().to.ident = id;  // the navigator matches it against destIdent exactly
             p.legs.insert(p.legs.end(), plan.legs.begin() + keepFrom, plan.legs.end());
             p.approachStartLeg =
                 plan.approachStartLeg >= 0 ? 2 + (plan.approachStartLeg - keepFrom) : -1;
@@ -215,6 +221,7 @@ PlanEditResult directTo(const FlightPlan& plan, const Waypoint& target,
         p.destIdent = id;
         p.legs.push_back(pposLeg(ctx.present));
         p.legs.push_back(dfLeg(target));
+        p.legs.back().to.ident = id;
         p.activeLeg = 1;
         const bool hadRoute = plan.legs.size() > 1;
         return success(std::move(p),
@@ -245,9 +252,16 @@ PlanEditResult directToNext(const FlightPlan& plan, const PlanEditContext& ctx) 
         }
         const LatLon fix{l.to.latDeg, l.to.lonDeg};
         const double legNm = distNm(start, fix.latDeg, fix.lonDeg);
-        const double remNm = legNm < 0.05 ? distNm(ctx.present, fix.latDeg, fix.lonDeg)
-                                          : legNm - mToNm(alongTrackM(ctx.present, start, fix));
-        if (remNm > kAheadNm) return directToPlanLeg(plan, j, ctx);
+        const double toFixNm = distNm(ctx.present, fix.latDeg, fix.lonDeg);
+        const double remNm =
+            legNm < 0.05 ? toFixNm : legNm - mToNm(alongTrackM(ctx.present, start, fix));
+        // Ahead: still more than 0.5 NM to go along its leg, or the aircraft is heading for it
+        // (the bearing to it within 90 degrees of the track), e.g. vectored back toward it.
+        const double brgDeg =
+            bearingDeg(ctx.present.latDeg, ctx.present.lonDeg, fix.latDeg, fix.lonDeg);
+        const bool headingFor =
+            toFixNm > kAheadNm && std::fabs(wrap180(brgDeg - ctx.trackTrueDeg)) <= kAheadMaxOffDeg;
+        if (remNm > kAheadNm || headingFor) return directToPlanLeg(plan, j, ctx);
     }
     if (lastFix >= 1) return directToPlanLeg(plan, lastFix, ctx);
     return fail(plan, "NO WAYPOINT AHEAD");
