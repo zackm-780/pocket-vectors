@@ -588,7 +588,8 @@ Navigator::Guide Navigator::computeGuide(const AircraftState& ac, int legIndex) 
 
 double Navigator::courseOutRad(int legIndex) const {
     const Leg& cur = plan_.legs[static_cast<size_t>(legIndex)];
-    const Leg& next = plan_.legs[static_cast<size_t>(legIndex + 1)];
+    // N10b: through a same-fix leg (e.g. an approach IF on this fix, then a hold there).
+    const Leg& next = plan_.legs[static_cast<size_t>(flyByOutboundLeg(plan_, legIndex))];
     if (isCourseLeg(next.type) || isHoldLeg(next.type)) return degToRad(next.courseTrueDeg);
     return initialBearingTrueRad(cur.to.latDeg, cur.to.lonDeg, next.to.latDeg, next.to.lonDeg);
 }
@@ -620,16 +621,21 @@ bool Navigator::shouldSequence(const AircraftState& ac, const Guide& g, int legI
         return -g.remNm > kLatePassNm && ac.altAglFt > kMapMinAglFt;
     }
 
-    const bool flyOver = cur.flyOver || isCourseLeg(next.type) || isHoldLeg(next.type);
-    if (flyOver) return g.remNm <= 0;
+    // N10b: a same-fix leg (the approach's IF on the last enroute fix) is passed at once while
+    // the arc at that fix is flown through it.
+    if (turnLeg_ == legIndex && turn_.valid && sameFixLeg(plan_, legIndex)) return true;
 
     // N10: a fly-by fix flown with an arc: sequence at its start (T1), half a roll-in early.
+    // N10b: asked first, so a straight CF next leg is flown by, not over.
     const FlyByTurn turn = sequenceTurn(ac, legIndex);
     if (turn.valid) {
         const double leadNm = std::max(static_cast<double>(ac.gsKt), kAnticipationMinGsKt) *
                               kFlyByRollInLeadS / 3600.0;
         return g.remNm <= turn.anticipationNm + leadNm;
     }
+
+    const bool flyOver = cur.flyOver || isCourseLeg(next.type) || isHoldLeg(next.type);
+    if (flyOver) return g.remNm <= 0;
 
     const double dtkDeg = radToDeg(g.dtkRad);
     const double dPsiDeg = std::min(std::fabs(wrap180(radToDeg(courseOutRad(legIndex)) - dtkDeg)),
@@ -654,7 +660,7 @@ LatLon Navigator::legStart(int legIndex) const {
 FlyByTurn Navigator::sequenceTurn(const AircraftState& ac, int fixLeg) const {
     if (!flyByEligible(plan_, fixLeg)) return {};
     const Leg& cur = plan_.legs[static_cast<size_t>(fixLeg)];
-    const Leg& next = plan_.legs[static_cast<size_t>(fixLeg + 1)];
+    const Leg& next = plan_.legs[static_cast<size_t>(flyByOutboundLeg(plan_, fixLeg))];  // N10b
     return flyByTurn(legStart(fixLeg), {cur.to.latDeg, cur.to.lonDeg},
                      {next.to.latDeg, next.to.lonDeg}, turnRadiusNm(ac.gsKt));
 }
@@ -854,12 +860,19 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
         // flown even when the aircraft is still intercepting the leg: the arc guidance pulls it
         // in, where a plain intercept of the next leg would start ~R inside the corner.
         const FlyByTurn turn = sequenceTurn(ac, plan_.activeLeg);
+        // N10b: passing a same-fix leg inside the arc keeps the arc for the leg after it.
+        const bool throughSameFix =
+            turn_.valid && turnLeg_ == plan_.activeLeg && sameFixLeg(plan_, plan_.activeLeg);
         ++plan_.activeLeg;
         captureEntry(ac);
         trackedLeg_ = plan_.activeLeg;
         g = computeGuide(ac, plan_.activeLeg);
-        turn_ = turn;
-        turnLeg_ = turn.valid ? plan_.activeLeg : -1;
+        if (throughSameFix) {
+            turnLeg_ = plan_.activeLeg;
+        } else {
+            turn_ = turn;
+            turnLeg_ = turn.valid ? plan_.activeLeg : -1;
+        }
     }
     if (turnLeg_ != plan_.activeLeg) {
         turn_ = FlyByTurn{};
@@ -996,6 +1009,8 @@ const NavState& Navigator::update(const AircraftState& ac, double dtS) {
             if (arc.done || std::fabs(arc.xtkNm) > kTurnAbandonNm) {
                 turn_ = FlyByTurn{};  // past T2 (the leg takes over at XTK ~0), or far off it
                 turnLeg_ = -1;
+                // N10b: a DF leg runs from where it starts: from here (T2), not from T1.
+                if (leg.type == LegType::DF) captureEntry(ac);
             } else {
                 s.desiredTrackTrueDeg = static_cast<float>(arc.dtkTrueDeg);
                 s.crossTrackNm = static_cast<float>(arc.xtkNm);
