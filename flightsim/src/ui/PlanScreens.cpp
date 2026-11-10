@@ -313,7 +313,7 @@ void applyProcedure(MenuSystem& m, bool sid, ApproachMode mode, const std::strin
     }
     if (removed && (sid ? !nav->plan().sidId.empty() : !nav->plan().starId.empty())) {
         // N11b: removing a procedure throws its legs away, so it can be undone for a while.
-        nav->stashUndo(sid ? "DEPARTURE REMOVED" : "ARRIVAL REMOVED", flightSimTimeS(m));
+        nav->stashUndo(sid ? "SID REMOVED" : "STAR REMOVED", flightSimTimeS(m));
         res.message2 = kUndoHint;
     }
     nav->setPlan(std::move(p));

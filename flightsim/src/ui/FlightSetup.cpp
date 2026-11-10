@@ -315,7 +315,9 @@ void FlightSetup::setRunway(const NavDatabase& db, const std::string& navDir,
     // stays when it serves the new runway.
     const std::string sid = plan.sidId, sidTrans = plan.sidTransition;
     const PlanEditResult r = changeDepartureRunway(plan, db, runwayIdentDb, std::nullopt);
-    if (!r.ok) return;  // not a runway of the origin: the plan stays as it was
+    // Not a runway of the plan's origin (a plan from another airport than the start): the start
+    // runway changes, the plan stays as it was.
+    if (!r.ok) return;
     plan = r.plan;
     const bool keepSid =
         !sid.empty() && sidLegsForRunway(navDir, airportIdent, sid, sidTrans, runwayIdentDb);

@@ -514,7 +514,7 @@ private:
                 m.push(makeConfirmScreen("NO FIX: X ACTIVATES THE LEG", nullptr));
                 return;
             }
-            edit = directTo(plan_, l.to, flightEditContext(m));
+            edit = directToLegIndex(plan_, leg, flightEditContext(m));
         } else if (in.x) {
             edit = activateLeg(plan_, leg, flightEditContext(m));
         } else if (in.y) {
@@ -529,9 +529,14 @@ private:
         }
         if (in.y) {  // stay on the list to delete more; the message goes to the HUD now
             m.post(std::move(res));
+            const bool wasActive = leg == plan_.activeLeg;
             const int keep = nav_.selected();
             load(m);
-            nav_.select(std::min(keep, nav_.count() - 1));
+            // The active one: the plan is now [PPOS, DF next, ...], so select the new active leg.
+            if (wasActive && plan_.activeLeg >= 1)
+                nav_.select(actionRows_ + plan_.activeLeg);
+            else
+                nav_.select(std::min(keep, nav_.count() - 1));
             if (nav_.isDisabled(nav_.selected())) nav_.move(1);
             return;
         }

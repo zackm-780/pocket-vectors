@@ -43,6 +43,9 @@ struct PlanEditResult {
 // destination airport keeps the STAR and the approach; another airport replaces the plan; any
 // other fix rejoins the plan at the first waypoint ahead of it ("DIRECT TO X, THEN Y").
 PlanEditResult directTo(const FlightPlan& plan, const Waypoint& target, const PlanEditContext& ctx);
+// Rule 1 for the plan leg the pilot picked by its index (a leg row, a map waypoint), so a fix that
+// appears twice (a missed approach back to the IAF) goes to the copy picked (N11b).
+PlanEditResult directToLegIndex(const FlightPlan& plan, int legIndex, const PlanEditContext& ctx);
 // Rule 8: Direct-To the active waypoint if it is still ahead (more than 0.5 NM to go along its
 // leg, or the bearing to it within 90 degrees of the track), else the first waypoint ahead.
 PlanEditResult directToNext(const FlightPlan& plan, const PlanEditContext& ctx);

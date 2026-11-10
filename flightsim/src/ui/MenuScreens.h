@@ -57,8 +57,6 @@ std::string formatDistNm(double nm);
 
 // ---- N11b: plan edits in flight (NAVIGATION 2.4) -------------------------------------------------
 
-// The second HUD line after a destructive edit.
-inline constexpr const char* kUndoHint = "R1+START UNDO";
 // Where the flight's aircraft is (PlanEditContext of the aircraft; an empty one without a flight).
 PlanEditContext flightEditContext(const MenuSystem& menu);
 double flightSimTimeS(const MenuSystem& menu);

@@ -541,6 +541,27 @@ TEST_CASE("ui: N11b new destination: KEEP / CLEAR prompt (CLEAR, B cancels), off
     CHECK(nav.plan().legs.size() > 2);
     m.close();
 
+    // A new flight never offers the last flight's undo (its sim clock starts again).
+    {
+        REQUIRE(nav.applyEdit(
+            changeDestination(nav.plan(), db, "KBBB", "", false, flightEditContext(m)),
+            mf.f.sim.aircraft().simTimeS));
+        REQUIRE(nav.undoAvailable(mf.f.sim.aircraft().simTimeS));
+        mf.startFlying();
+        CHECK_FALSE(nav.undoAvailable(mf.f.sim.aircraft().simTimeS));
+        openPlanScreen(m);
+        tap(m, &MenuInput::up);
+        r = tap(m, &MenuInput::accept);
+        CHECK(r.message.find("UNDONE") == std::string::npos);
+        CHECK(nav.plan().destIdent == "XTST");
+        m.close();
+        newDestinationSearch(m, "KBBB");  // back to the state the next check expects
+        tap(m, &MenuInput::up);
+        tap(m, &MenuInput::accept);
+        tap(m, &MenuInput::back);
+        m.close();
+    }
+
     // Outside the window there is no UNDO row and nothing to undo.
     mf.f.run(Navigator::kUndoWindowS + 1.0);
     CHECK_FALSE(nav.undoAvailable(mf.f.sim.aircraft().simTimeS));

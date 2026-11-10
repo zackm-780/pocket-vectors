@@ -60,6 +60,9 @@ enum class MenuAction {
     Quit            // leave the game
 };
 
+// N11b: the second HUD line after a destructive plan edit (MenuResult::message2).
+inline constexpr const char* kUndoHint = "R1+START UNDO";
+
 struct MenuResult {
     MenuAction action = MenuAction::None;
     Scenario scenario;

@@ -410,6 +410,44 @@ TEST_CASE("nav: plan edit undo keeps one level for 10 s") {
     nav.setPlan(startPlan(db, Start::Enroute));
     CHECK_FALSE(nav.applyEdit(deleteWaypoint(nav.plan(), 4, ctx), 400.0));
     CHECK_FALSE(nav.undoAvailable(400.0));
+
+    // N11b: a new flight (clearPlan) drops the undo, whatever its sim clock says.
+    REQUIRE(nav.applyEdit(
+        directTo(nav.plan(), fix("KCCC", 44.0, -121.0, WaypointKind::Airport), ctx), 600.0));
+    REQUIRE(nav.undoAvailable(605.0));
+    nav.clearPlan();
+    CHECK_FALSE(nav.undoAvailable(5.0));
+    CHECK_FALSE(nav.undoAvailable(605.0));
+    CHECK(nav.undo(5.0).empty());
+    CHECK(nav.undoLabel().empty());
+}
+
+TEST_CASE("nav: N11b Direct-To by leg index goes to the copy of a repeated fix that was picked") {
+    // AAA BBB CCC, then a missed approach back to BBB (the same fix twice).
+    FlightPlan p;
+    p.legs.push_back(tf("ORIG", 43.0, -123.0));
+    p.legs.front().type = LegType::IF;
+    p.legs.push_back(tf("AAA", 43.2, -123.0));
+    p.legs.push_back(tf("BBB", 43.4, -123.0));
+    p.legs.push_back(tf("CCC", 43.6, -123.0));
+    p.legs.push_back(tf("BBB", 43.4, -123.0, true));
+    p.activeLeg = 1;
+    const PlanEditContext ctx = ctxAt(43.1, -123.05, 0);
+
+    const PlanEditResult byIdent = directTo(p, p.legs[4].to, ctx);  // the first BBB from active
+    REQUIRE(byIdent.ok);
+    CHECK_FALSE(byIdent.plan.legs[static_cast<size_t>(byIdent.plan.activeLeg)].missedApproach);
+
+    const PlanEditResult byIndex = directToLegIndex(p, 4, ctx);  // the missed approach's BBB
+    REQUIRE(byIndex.ok);
+    CHECK(byIndex.message == "DIRECT TO BBB");
+    const Leg& active = byIndex.plan.legs[static_cast<size_t>(byIndex.plan.activeLeg)];
+    CHECK(active.to.ident == "BBB");
+    CHECK(active.missedApproach);
+    CHECK_FALSE(byIndex.destructive);
+
+    CHECK_FALSE(directToLegIndex(p, 0, ctx).ok);  // the origin
+    CHECK_FALSE(directToLegIndex(p, 5, ctx).ok);  // past the end
 }
 
 TEST_CASE("nav: direct to the destination flies to the airport, then the approach is re-entered") {

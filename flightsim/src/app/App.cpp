@@ -458,10 +458,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             if (mr.directToLeg >= 1 && nav.hasPlan() &&
                 mr.directToLeg < static_cast<int>(nav.plan().legs.size())) {  // N11b: rule 1
                 const PlanEditResult edit =
-                    directTo(nav.plan(), nav.plan().legs[static_cast<size_t>(mr.directToLeg)].to,
-                             planEditContext(sim.aircraft()));
+                    directToLegIndex(nav.plan(), mr.directToLeg, planEditContext(sim.aircraft()));
                 const bool ok = nav.applyEdit(edit, sim.aircraft().simTimeS);
-                postHudLines(messages, edit.message, ok && edit.destructive ? "R1+START UNDO" : "");
+                postHudLines(messages, edit.message, ok && edit.destructive ? kUndoHint : "");
             }
             if (mr.close) mapShown = false;
             for (Action a : {Action::MenuUp, Action::MenuDown, Action::MenuLeft, Action::MenuRight,
