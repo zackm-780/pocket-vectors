@@ -21,7 +21,8 @@ crossings), U2 (#16, the flight log) and N10 (#19, fly-by arcs); planned as 1.2.
 pack that carries them on the release; the owner device-checks `main` and tags it. **v1.3.0** is
 released and device-checked (2026-11-09). **1.4** (2026-11-09) is the owner's handling, HUD and
 flight-plan list: F5, H9, F8, F9, H10, F10, N11a and N11b, plus F11 (nose-wheel steering, added the
-same day) (phase 1.4 below); N8 and H8 stay in
+same day) and N10b (arcs at every fly-by turn, from the owner's 2026-11-10 device feedback) (phase
+1.4 below); N8 and H8 stay in
 phase 3 until the owner adds them. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
@@ -58,7 +59,7 @@ session can be thrown away and a fresh one picks up from the board.
 | 2b | T2 (owner, done 2026-11-05), then X3c (refined 2026-11-07: parts A–E, one pull request) | | v1.2.0 ships first (owner, 2026-11-06); X3c meets the 30 fps floor, moves MED toward 60 and shows the flight data in the chase view | owner tags **v1.2.0**, then **v1.2.1** for X3c |
 | 2c | N10 (owner, 2026-11-08: arcs between GPS legs) | alone: it shares `Autopilot.cpp` and the navigator with the 1.3 fixes | N10 merged | in **v1.3.0** |
 | 3 | N8, N9, H8, W7, R3, U2, T3 (owner) | Same rule as phase 2. N9, H8 and W7 are outlines: a planner session refines them first. (H9 moved to 1.4) | T3 done | after 1.4 (1.3 went out early, 2026-11-08; 1.4 is the owner's list) |
-| 1.4 | F5, then H9; F8, F9, H10, F10, F11, N11a, N11b (owner's list, 2026-11-09) | F5 first, H9 after it. H10 and N11a can run beside F5 or H9. F8 waits for F5 (profiles, fleet tests), F9 for F8 (profiles), F10 for H9 and F9 (`HudLogic.*`, `PilotControls.*`), F11 for F9 (profiles, `FlightModel.cpp` with F5), N11b for N11a and H10 (settings rows in `FlightScreens.cpp`, `App.cpp`). Never N11a or N11b beside N8 or N10 | every 1.4 card merged, then the 1.4.0 release-prep PR | owner tags **v1.4.0** after device-checking `main` |
+| 1.4 | F5, then H9; F8, F9, H10, F10, F11, N11a, N11b (owner's list, 2026-11-09), N10b (2026-11-10) | F5 first, H9 after it. N10b after N11b (the navigator). H10 and N11a can run beside F5 or H9. F8 waits for F5 (profiles, fleet tests), F9 for F8 (profiles), F10 for H9 and F9 (`HudLogic.*`, `PilotControls.*`), F11 for F9 (profiles, `FlightModel.cpp` with F5), N11b for N11a and H10 (settings rows in `FlightScreens.cpp`, `App.cpp`). Never N11a or N11b beside N8 or N10 | every 1.4 card merged, then the 1.4.0 release-prep PR | owner tags **v1.4.0** after device-checking `main` |
 | 4 | W8a, W8b, W8c (owner, 2026-11-08: taxiways; [../TAXIWAYS.md](../TAXIWAYS.md)) | one at a time: each needs the one before | W8c merged and device-checked | in **v1.3.0** (owner, 2026-11-08) |
 
 ## Cards
@@ -92,6 +93,7 @@ session can be thrown away and a fresh one picks up from the board.
 | [F11](F11.md) | Nose-wheel steering for taxiing | 1.4 | none (board: after F5, F8, F9) | high | builder | `FlightModel.cpp`, `assets/aircraft/*.ini` |
 | [N11a](N11a.md) | Plan edits: the navigator rules and their tests | 1.4 | none | high | builder | `src/nav/FlightPlan*`, `src/nav/Navigator*`, `src/nav/PlanEdit*`, `docs/NAVIGATION.md` |
 | [N11b](N11b.md) | Plan edits on the screens: Direct-To, new destination, prompts, messages and undo | 1.4 | N11a | high | builder | `PlanScreens.cpp`, `FlightScreens.cpp`, `SetupScreens.cpp`, `FlightSetup.*`, `App.cpp`, `core/Actions.h`, `controls_default.ini`, `assets/help/flight-plan.txt` |
+| [N10b](N10b.md) | Arcs at every fly-by turn (IF in mid-plan, DF, straight CF) | 1.4 | N10, N11b | high | builder | `src/nav/FlyBy*`, `src/nav/Navigator*` |
 | [U2](U2.md) | Flight log | 3 | none | medium | builder | `App.cpp`, `SetupScreens.cpp` |
 | [T3](T3.md) | Device session 3: phase-3 build | 3 | phase 3 merged | | owner | `docs/DEVICE.md` |
 | [W8a](W8a.md) | Taxiways from OpenStreetMap: extraction, pack format, loader | 4 | OD6 | high | builder | `tools/nav/`, `tools/datapack/`, `datapack.yml`, `src/nav/NavDb*`, `core/NavTypes.h` |
@@ -110,7 +112,9 @@ U1, so those two never run together. Added 2026-11-08: N10 shares `MapPage*` wit
 2026-11-09 (1.4): F5, H9, F8 and F9 share `assets/aircraft/*.ini` (and F5, F8, F9 `tests/fleet/`),
 so they run in that order (F11 after them, and it shares `FlightModel.cpp` with F5); F9 and F10 share `PilotControls.*`; H9, F5 and F10 share `HudLogic.*`;
 H10, F9 and N11b share the settings rows (`FlightScreens.cpp`) and `App.cpp` with F10; N11a and
-N11b share the navigator with N8 and N10 and the plan screens with each other.
+N11b share the navigator with N8 and N10 and the plan screens with each other. Added 2026-11-10:
+N10b shares `src/nav/FlyBy*` with N10 (done) and the navigator with N11a and N11b, so it runs after
+N11b.
 
 **Status values** (first line of each card): `ready`, `owner`, `blocked (<on what>)`,
 `outline (planner refines)`, `done (<PR>)`. A card is taken when an `origin/wp/<ID>-*` branch
