@@ -467,6 +467,12 @@ bool writePlanFmsFile(const std::string& path, const FlightPlan& plan, const Nav
 
 // ---- quick plan ------------------------------------------------------------------------------
 
+bool planEndpointWaypoint(const NavDatabase& db, std::string_view airportIdent,
+                          std::string_view runwayDb, bool threshold, Waypoint& out) {
+    return endpointWaypoint(db, std::string(airportIdent), std::string(runwayDb), threshold, out,
+                            nullptr);
+}
+
 QuickPlanResult buildQuickPlan(const QuickPlanRequest& req, const NavDatabase& db) {
     QuickPlanResult res;
     FlightPlan& plan = res.plan;
