@@ -54,6 +54,32 @@ struct AircraftProfile {
     // [cruise] fuel_flow_lbs_hr: all engines at the cruise altitude and speed (measured); AUTO fuel
     // plans with it. 0 = unknown (AUTO then loads full tanks).
     float cruiseFuelFlowLbsHr = 0;
+
+    // --- additive (F5) ---
+    // [warnings] stall_warn_alpha_by_flap_deg: the stall warning angle of attack at each flap
+    // detent, in the order of flapDetents (empty: stallWarnAlphaDeg at every flap setting).
+    std::vector<float> stallWarnAlphaByFlapDeg;
+    // [speeds_kt] vs_by_flap: the 1 g stall speed (kt IAS) measured at each flap detent at the
+    // model's shipped weight (empty: unknown). H9 places the flap bugs and V2 from it.
+    std::vector<float> vsByFlapKt;
 };
+
+// F5: the stall warning angle of attack for the actual flap position (AircraftState::flapPosNorm),
+// interpolated between the detents' commands; stallWarnAlphaDeg when the profile has no per-detent
+// values. 0 = no stall warning. The flight model and the HUD both use this.
+inline float stallWarnAlphaForFlapDeg(const AircraftProfile& p, float flapPosNorm) {
+    const std::vector<float>& a = p.stallWarnAlphaByFlapDeg;
+    const size_t n = a.size();
+    if (n == 0 || n != p.flapDetents.size()) return p.stallWarnAlphaDeg;
+    if (n == 1 || flapPosNorm <= p.flapDetents[0].cmdNorm) return a[0];
+    for (size_t i = 1; i < n; ++i) {
+        const float lo = p.flapDetents[i - 1].cmdNorm, hi = p.flapDetents[i].cmdNorm;
+        if (flapPosNorm <= hi) {
+            const float t = hi > lo ? (flapPosNorm - lo) / (hi - lo) : 1.0f;
+            return a[i - 1] + t * (a[i] - a[i - 1]);
+        }
+    }
+    return a[n - 1];
+}
 
 }  // namespace fsim

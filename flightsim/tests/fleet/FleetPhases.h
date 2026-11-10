@@ -8,6 +8,8 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "FleetPilot.h"
 
@@ -35,6 +37,16 @@ inline void profileTest(const FleetSpec& sp) {
     CHECK(p.id == sp.id);
     CHECK_FALSE(p.displayName.empty());
     CHECK(p.engineCount >= 1);
+    // F5: per-detent stall speeds and warnings, when present, have one value per detent; the stall
+    // speed falls from clean to full flap and so does the warning alpha's ceiling.
+    if (!p.vsByFlapKt.empty()) {
+        REQUIRE(p.vsByFlapKt.size() == p.flapDetents.size());
+        for (size_t d = 1; d < p.vsByFlapKt.size(); ++d)
+            CHECK(p.vsByFlapKt[d] <= p.vsByFlapKt[d - 1]);
+        CHECK(p.vsByFlapKt.front() == doctest::Approx(p.vs1Kt).epsilon(0.05));
+    }
+    if (!p.stallWarnAlphaByFlapDeg.empty())
+        CHECK(p.stallWarnAlphaByFlapDeg.size() == p.flapDetents.size());
 
     // The model loads and the profile agrees with it.
     REQUIRE_MESSAGE(f.begin(sp.id, "runway"), f.error);
@@ -359,6 +371,279 @@ inline StallResult measureStall(const FleetSpec& sp, int detent, bool gearDown, 
         if (f.s().simTimeS - tMin > 12.0 || radToDeg(f.s().pitchRad) > 35) break;
     }
     return r;
+}
+
+// F5: elevator for a level turn. Integrates toward the load factor that keeps the turn level at
+// the present bank (1 / cos bank), corrected by the vertical speed, with pitch-rate damping.
+struct LevelTurnElevator {
+    double integ = 0;
+    double ki = 1.5, kp = 0.5;
+    float update(const AircraftState& s) {
+        const double bank = std::min(std::fabs(static_cast<double>(s.rollRad)), degToRad(70.0));
+        const double nCmd = 1.0 / std::cos(bank) + std::clamp(-s.vsFpm / 2000.0, -0.2, 0.2);
+        const double err = nCmd - s.nzG;
+        integ = std::clamp(integ + ki * err / kSimHz, -1.0, 1.0);
+        return static_cast<float>(
+            std::clamp(integ + kp * err - 0.03 * radToDeg(s.qRadps), -1.0, 1.0));
+    }
+};
+
+// F5: the same idle deceleration at one flap detent, optionally in a level banked turn, with the
+// (IAS, alpha) trace and the first speed at which the profile's stall warning came on (the
+// flight model's own latched warning, so the HUD and the model are checked together).
+struct StallTrace {
+    double vsKt = 0, alphaStallDeg = 0;  // minimum IAS before the break, and alpha there
+    double firstWarnKt = 0;              // IAS when AircraftState::stallWarning first came on
+    double nzAtWarn = 1;                 // load factor at that moment
+    bool warned = false;
+    double maxNz = 1;        // highest load factor seen after the settle time
+    double maxAlphaDeg = 0;  // highest angle of attack after the start transient
+    std::vector<std::pair<double, double>> iasAlpha;  // samples every 0.25 s after the settle
+    // Alpha when the deceleration passed `kt` (the last sample at or above it).
+    double alphaAtKt(double kt) const {
+        double a = 0;
+        for (const auto& [ias, alpha] : iasAlpha)
+            if (ias >= kt) a = alpha;
+        return a;
+    }
+};
+
+inline StallTrace measureStallTrace(const FleetSpec& sp, int detent, bool gearDown, double startKt,
+                                    double settleS = 5.0, double bankDeg = 0.0) {
+    Flight f;
+    REQUIRE(f.resolve(sp.id, "cruise"));
+    f.start.iasKt = startKt;
+    f.start.altMslFt = 9000.0;
+    f.start.flapDetent = detent;
+    f.start.gearDown = gearDown;
+    REQUIRE(f.begin());
+    setAllThrottles(f, 0.0);
+    double pitchCmd = radToDeg(f.s().pitchRad), minIas = 1e9, tMin = 0, nextSampleS = 0;
+    LevelTurnElevator turn;
+    turn.integ = f.ctl.elevatorNorm;
+    StallTrace r;
+    for (long i = 0; i < 400 * kSimHz && !f.s().crashed; ++i) {
+        const AircraftState& s = f.s();
+        // Wings level: the slow pitch ramp. In a bank: a level turn (pitch follows the vertical
+        // speed), so the load factor stays at 1 / cos(bank) while the speed bleeds off.
+        pitchCmd += 0.15 / kSimHz;
+        const double bankNow = std::min(bankDeg, 5.0 * s.simTimeS);
+        f.ctl.elevatorNorm =
+            bankDeg == 0.0 ? pitchHoldElevator(s, pitchCmd, 0.1, 0.1) : turn.update(s);
+        f.ctl.aileronNorm =
+            bankDeg == 0.0 ? bankHoldAileron(s) : bankHoldAileron(s, bankNow, 0.1, 0.05);
+        f.ctl.rudderNorm = bankDeg == 0.0
+                               ? headingHoldRudder(s, 270.0, 0.02, 0.02)
+                               : static_cast<float>(std::clamp(-0.05 * s.betaDeg, -1.0, 1.0));
+        f.step();
+        const AircraftState& n = f.s();
+        if (n.simTimeS > settleS) r.maxNz = std::max(r.maxNz, static_cast<double>(n.nzG));
+        if (n.simTimeS > std::min(settleS, 5.0))
+            r.maxAlphaDeg = std::max(r.maxAlphaDeg, static_cast<double>(n.alphaDeg));
+        // The warning counts once the start transient is over (5 s): on a heavy jet it often
+        // comes before the 30 s settle the break test needs.
+        if (n.simTimeS > std::min(settleS, 5.0) && n.stallWarning && !r.warned) {
+            r.warned = true;
+            r.firstWarnKt = n.iasKt;
+            r.nzAtWarn = n.nzG;
+        }
+        // The trace starts once the start transient is over (5 s), so heavy aircraft that need a
+        // longer settle before the load-factor test still show the speeds above 1.07 Vs.
+        if (n.simTimeS > std::min(settleS, 5.0) && n.simTimeS >= nextSampleS) {
+            r.iasAlpha.emplace_back(n.iasKt, n.alphaDeg);
+            nextSampleS = n.simTimeS + 0.25;
+        }
+        // The break: the load factor falls away (wings level: below 0.93 g; in a turn: below 85 %
+        // of what the present bank needs).
+        const double nNow =
+            bankDeg == 0.0 ? 1.0 : 1.0 / std::cos(std::min(std::fabs(n.rollRad), 1.2f));
+        const bool lost = bankDeg == 0.0 ? n.nzG < 0.93f : n.nzG < 0.85 * nNow;
+        if (lost && n.alphaDeg > 5.0f && n.simTimeS > settleS) break;
+        if (n.iasKt < minIas) {
+            minIas = n.iasKt;
+            r.vsKt = minIas;
+            r.alphaStallDeg = n.alphaDeg;
+            tMin = n.simTimeS;
+        }
+        if (n.simTimeS - tMin > 12.0 || radToDeg(n.pitchRad) > 35) break;
+    }
+    return r;
+}
+
+// F5: start speed and settle time for the per-detent deceleration (fast enough that the trace
+// passes 1.2 x Vs after the settle, slow enough that the start transient does not fake a break).
+inline double stallStartKt(const AircraftProfile& p, size_t detent) {
+    const double vs = detent < p.vsByFlapKt.size() ? p.vsByFlapKt[detent] : p.vs1Kt;
+    return p.category == AircraftCategory::Piston ? 1.3 * vs + 12.0 : 1.25 * vs + 15.0;
+}
+inline double stallSettleS(const AircraftProfile& p) {
+    return p.category == AircraftCategory::Piston ? 5.0 : 30.0;
+}
+
+// F5: the stall at every flap detent. The profile's vs_by_flap matches the model, falls with flap,
+// and the per-detent warning comes on at least 5 kt before the stall but not above 1.2 x Vs.
+inline void stallByFlapTest(const FleetSpec& sp) {
+    Flight f;
+    REQUIRE(f.loadProfile(sp.id));
+    const AircraftProfile& p = f.profile;
+    const size_t n = p.flapDetents.size();
+    REQUIRE(p.vsByFlapKt.size() == n);
+    REQUIRE(p.stallWarnAlphaByFlapDeg.size() == n);
+    char key[48];
+    for (size_t d = 0; d < n; ++d) {
+        if (d > 0) CHECK(p.vsByFlapKt[d] <= p.vsByFlapKt[d - 1]);
+        const StallTrace t =
+            measureStallTrace(sp, static_cast<int>(d), d > 0 || !p.hasRetractableGear,
+                              stallStartKt(p, d), stallSettleS(p));
+        INFO(sp.id << " flaps " << p.flapDetents[d].label << ": stall " << t.vsKt << " kt / "
+                   << t.alphaStallDeg << " deg, warning " << p.stallWarnAlphaByFlapDeg[d]
+                   << " deg first at " << t.firstWarnKt << " kt");
+        std::snprintf(key, sizeof key, "vs_f%zu_kt", d);
+        report(sp, key, t.vsKt);
+        std::snprintf(key, sizeof key, "alpha_stall_f%zu_deg", d);
+        report(sp, key, t.alphaStallDeg);
+        std::snprintf(key, sizeof key, "warn_f%zu_kt", d);
+        report(sp, key, t.firstWarnKt);
+        CHECK(t.vsKt == doctest::Approx(p.vsByFlapKt[d]).epsilon(0.03));
+        CHECK(p.stallWarnAlphaByFlapDeg[d] < t.alphaStallDeg - 0.5);
+        REQUIRE(t.warned);
+        CHECK(t.firstWarnKt >= t.vsKt + 5.0);
+        CHECK(t.firstWarnKt <= 1.2 * t.vsKt);
+    }
+}
+
+// The most extended detent, up to the approach detent, whose Vfe allows `iasKt` (the flap a pilot
+// has out at that speed on the approach).
+inline int matchingFlapDetent(const AircraftProfile& p, double iasKt) {
+    int best = 0;
+    for (int d = 1; d <= p.approachFlapDetent && d < static_cast<int>(p.flapDetents.size()); ++d)
+        if (vfeOf(p, static_cast<size_t>(d)) >= iasKt) best = d;
+    return best;
+}
+
+// Flies `holdS` seconds and reports whether the stall warning came on after a 3 s settle.
+// Climb: full power, pitch up at 1.5 deg/s toward `pitchDeg`, less 1 deg per kt below the start
+// speed (a pilot does not hold 15 degrees into a stall). Turn: level at the start speed, banked.
+struct ManoeuvreResult {
+    bool warned = false;
+    double minIasKt = 0, maxAlphaDeg = 0, maxNz = 0, warnAlphaDeg = 0;
+};
+inline ManoeuvreResult flyManoeuvre(const FleetSpec& sp, int detent, double iasKt, double pitchDeg,
+                                    double bankDeg, double holdS) {
+    Flight f;
+    REQUIRE(f.resolve(sp.id, "cruise"));
+    f.start.iasKt = iasKt;
+    f.start.altMslFt = 5000.0;
+    f.start.flapDetent = detent;
+    f.start.gearDown = detent > 0;
+    REQUIRE(f.begin());
+    const bool climb = pitchDeg > 0.0;
+    if (climb) setAllThrottles(f, 1.0);
+    const double pitch0 = radToDeg(f.s().pitchRad);
+    double pitchCmd = pitch0, thr = f.ctl.throttleNorm[0];
+    ManoeuvreResult r;
+    r.minIasKt = 1e9;
+    r.maxAlphaDeg = -90;
+    for (long i = 0; i < static_cast<long>(holdS * kSimHz) && !f.s().crashed; ++i) {
+        const AircraftState& s = f.s();
+        const double t = s.simTimeS;
+        if (climb) {
+            pitchCmd = std::min(pitchDeg, pitch0 + 1.5 * t) - std::max(0.0, iasKt - s.iasKt);
+            f.ctl.elevatorNorm = pitchHoldElevator(s, pitchCmd, 0.1, 0.1);
+        } else {
+            // A steady level turn: the pitch attitude follows the vertical speed slowly (a pilot's
+            // scan, which every model here flies without the pitch oscillation an n-loop can start).
+            thr = std::clamp(thr + 0.02 * (iasKt - s.iasKt) / kSimHz, 0.0, 1.0);
+            setAllThrottles(f, thr);
+            pitchCmd += std::clamp(-s.vsFpm / 300.0, -2.0, 2.0) / kSimHz;
+            f.ctl.elevatorNorm = pitchHoldElevator(s, pitchCmd, 0.1, 0.1);
+        }
+        const double bankNow = std::min(bankDeg, 5.0 * t);
+        f.ctl.aileronNorm = bankHoldAileron(s, bankNow, 0.1, 0.05);
+        f.ctl.rudderNorm = bankDeg == 0.0
+                               ? headingHoldRudder(s, 270.0, 0.02, 0.02)
+                               : static_cast<float>(std::clamp(-0.05 * s.betaDeg, -1.0, 1.0));
+        f.step();
+        const AircraftState& n = f.s();
+        if (n.simTimeS > 3.0) {
+            r.warned = r.warned || n.stallWarning;
+            r.minIasKt = std::min(r.minIasKt, static_cast<double>(n.iasKt));
+            r.maxAlphaDeg = std::max(r.maxAlphaDeg, static_cast<double>(n.alphaDeg));
+            r.maxNz = std::max(r.maxNz, static_cast<double>(n.nzG));
+        }
+    }
+    CHECK_FALSE(f.s().crashed);
+    r.warnAlphaDeg = stallWarnAlphaForFlapDeg(f.profile, f.s().flapPosNorm);
+    return r;
+}
+
+// F5 (owner, 2026-11-09): no warning in a normal climb (up to 15 degrees of pitch, takeoff flaps
+// then clean) or in a 30 degree bank at Vref + 20 kt with the matching flap; in a 45 degree
+// level turn the warning comes only near the load-factor stall speed, Vs x sqrt(n).
+inline void stallWarnManoeuvreTest(const FleetSpec& sp) {
+    Flight f;
+    REQUIRE(f.loadProfile(sp.id));
+    const AircraftProfile& p = f.profile;
+    const double turnKt = p.vrefKt + 20.0;
+    const int turnFlap = matchingFlapDetent(p, turnKt);
+    struct Case {
+        const char* name;
+        int detent;
+        double kt, pitchDeg, bankDeg;
+    };
+    // Initial climb at V2 + 10 kt with H9's V2: 1.2 x the takeoff-flap stall, at least Vr + 3.
+    const double v2Kt =
+        std::max(1.2 * p.vsByFlapKt[static_cast<size_t>(p.takeoffFlapDetent)], p.vrKt + 3.0);
+    const Case cases[] = {{"climb_takeoff_flaps", p.takeoffFlapDetent, v2Kt + 10.0, 15.0, 0.0},
+                          {"climb_clean", 0, sp.cleanKt, 15.0, 0.0},
+                          {"bank30_clean_1.3vs1", 0, 1.3 * p.vsByFlapKt[0], 0.0, 30.0},
+                          {"bank30_vref20", turnFlap, turnKt, 0.0, 30.0}};
+    for (const Case& c : cases) {
+        const ManoeuvreResult r = flyManoeuvre(sp, c.detent, c.kt, c.pitchDeg, c.bankDeg, 40.0);
+        INFO(sp.id << " " << c.name << " flaps "
+                   << p.flapDetents[static_cast<size_t>(c.detent)].label << " from " << c.kt
+                   << " kt: min " << r.minIasKt << " kt, max alpha " << r.maxAlphaDeg
+                   << " (warning " << r.warnAlphaDeg << "), max nz " << r.maxNz);
+        char key[48];
+        std::snprintf(key, sizeof key, "%s_min_kt", c.name);
+        report(sp, key, r.minIasKt);
+        std::snprintf(key, sizeof key, "%s_max_alpha_deg", c.name);
+        report(sp, key, r.maxAlphaDeg);
+        CHECK_FALSE(r.warned);
+    }
+    // The load factor at the warning is the turn's own (about 1.4 at 45 degrees; the level-turn
+    // pilot holds a little less while the speed bleeds off), so Vs x sqrt(n) uses that value.
+    for (int d : {0, turnFlap}) {
+        const double vs1g = p.vsByFlapKt[static_cast<size_t>(d)];
+        const double startKt = 1.25 * vs1g * std::sqrt(1.0 / std::cos(degToRad(45.0))) + 15.0;
+        const StallTrace t = measureStallTrace(sp, d, d > 0 || !p.hasRetractableGear, startKt,
+                                               stallSettleS(p), 45.0);
+        const double vsTurn = vs1g * std::sqrt(std::max(1.0, t.nzAtWarn));
+        INFO(sp.id << " 45 deg bank, flaps " << p.flapDetents[static_cast<size_t>(d)].label
+                   << ": first warning " << t.firstWarnKt << " kt at nz " << t.nzAtWarn
+                   << ", Vs x sqrt(n) " << vsTurn << " kt, break " << t.vsKt << " kt");
+        char key[48];
+        std::snprintf(key, sizeof key, "bank45_f%d_warn_kt", d);
+        report(sp, key, t.firstWarnKt);
+        std::snprintf(key, sizeof key, "bank45_f%d_nz", d);
+        report(sp, key, t.nzAtWarn);
+        std::snprintf(key, sizeof key, "bank45_f%d_vs_sqrt_n_kt", d);
+        report(sp, key, vsTurn);
+        if (!t.warned) {
+            // Some configurations run out of elevator in the turn before they reach the warning
+            // (the 787-8 with flaps 30 tops out at 10.4 degrees and just descends): no warning
+            // is right as long as the angle of attack never got to the threshold.
+            const double warnDeg = p.stallWarnAlphaByFlapDeg[static_cast<size_t>(d)];
+            MESSAGE(sp.id << " 45 deg bank flaps " << p.flapDetents[static_cast<size_t>(d)].label
+                          << ": elevator-limited at " << t.maxAlphaDeg << " deg (warning "
+                          << warnDeg << ")");
+            CHECK(t.maxAlphaDeg < warnDeg);
+            continue;
+        }
+        CHECK(t.nzAtWarn > 1.1);  // clearly in the turn (the level-turn pilot holds 1.1 to 1.8)
+        CHECK(t.firstWarnKt >= vsTurn);
+        CHECK(t.firstWarnKt <= 1.2 * vsTurn);
+    }
 }
 
 inline void stallTest(const FleetSpec& sp, double settleS = 5.0) {

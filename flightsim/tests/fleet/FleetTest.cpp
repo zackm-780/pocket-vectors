@@ -84,3 +84,23 @@ FLEET_CASES("approach", approachTest)
 FLEET_CASES("hands-off final", handsOffTest)
 FLEET_CASES("landing", landingTest)
 FLEET_CASES("stall", stallTest)
+
+// F5: per-detent stall warning on the jets that carry it.
+TEST_CASE("sim: fleet global5000 stall by flap") {
+    stallByFlapTest(kFleet[2]);
+}
+TEST_CASE("sim: fleet 737 stall by flap") {
+    stallByFlapTest(kFleet[3]);
+}
+TEST_CASE("sim: fleet B747 stall by flap") {
+    stallByFlapTest(kFleet[4]);
+}
+TEST_CASE("sim: fleet global5000 stall warning in manoeuvres") {
+    stallWarnManoeuvreTest(kFleet[2]);
+}
+TEST_CASE("sim: fleet 737 stall warning in manoeuvres") {
+    stallWarnManoeuvreTest(kFleet[3]);
+}
+TEST_CASE("sim: fleet B747 stall warning in manoeuvres") {
+    stallWarnManoeuvreTest(kFleet[4]);
+}

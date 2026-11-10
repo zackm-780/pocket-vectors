@@ -31,6 +31,8 @@ Each test also prints `FLEET <id> <key> <value>` lines with its measurements (th
 | landing | `final` start 2.5 to 3 NM out, flare, rollout with brakes, spoilers and reversers where fitted | No crash, touchdown sink under the limit, within 60 ft of the centerline, stops on the runway within the aircraft's limit |
 | stall | Idle deceleration at 1 g from a trimmed start, clean, approach flaps and full flaps | Measured stall speeds match the table, profile Vs0/Vs1 within 30% of the model, Vapp at least 1.15 x the approach stall speed, stall warning alpha below the stall alpha |
 | overlay | Load, start and trim every aircraft in runway, cruise and final starts with the log file sink open | No JSBSim ERROR or WARN line, no `global5000.csv` written, overlay files installed |
+| stall by flap (F5; global5000, 737, B747, A320, 787-8, MD11) | The idle deceleration above at every flap detent | The stall speed matches the profile's `vs_by_flap` within 3 %, `vs_by_flap` falls with flap, the per-detent warning alpha is under the stall alpha, and the warning first comes on at least 5 kt before the stall and not above 1.2 x Vs |
+| stall warning in manoeuvres (F5, the same six) | Full power climb to 15 degrees of pitch with takeoff flaps (from V2 + 10 kt, V2 = max(1.2 Vs, Vr + 3)) and clean; level 30 degree turns at Vref + 20 kt with the matching flap and clean at 1.3 Vs1; idle deceleration in a level 45 degree turn, clean and with the matching flap | No warning in the climbs and 30 degree turns; in the 45 degree turn the warning first comes between Vs x sqrt(n) and 1.2 x Vs x sqrt(n), n the load factor at that moment (or never, when the elevator runs out first and the angle of attack stays under the threshold) |
 
 The pilot (`FleetPilot.h`) is the same code for every aircraft; the per-aircraft numbers (rotation
 speed, climb speeds, flare height, brake use) are in `FleetSpecs.h`. The tests have no pass bands
@@ -70,7 +72,53 @@ elevation), ISA, calm. All 41 tests pass.
 | Stopping devices used | brakes | brakes | brakes, spoilers, reversers | same | same |
 
 Stall angles of attack differ by flap setting for the jets (the 747 falls from 14.3 degrees clean to
-7.7 with flaps 30), while the profile carries a single `stall_warn_alpha_deg`.
+7.7 with flaps 30). Since F5 the jets carry one warning alpha per flap detent
+(`stall_warn_alpha_by_flap_deg`, interpolated by the flap position): the angle of attack the idle
+deceleration passes at max(1.05 x Vs, Vs + 6 kt), just over the FAR 25.207 minimum warning margin
+(5 % or 5 kt). The A320, which never stalls (the elevator runs out first), warns 0.8 degrees under
+that limit. The single `stall_warn_alpha_deg` stays for the autopilot's alpha limit and the
+light aircraft. Measured (F5):
+
+| Aircraft | Detent | Threshold, deg (was) | Stall AoA, deg | Stall speed, kt | Warning first at, kt (× Vs) |
+|---|---|---|---|---|---|
+| 737 | UP | 11.8 (10.5) | 13.8 | 152.3 | 160.2 (1.05) |
+|  | 1 | 11.8 (10.5) | 13.9 | 150.8 | 158.5 (1.05) |
+|  | 2 | 11.8 (10.5) | 13.9 | 149.4 | 156.9 (1.05) |
+|  | 5 | 11.7 (10.5) | 14.0 | 145.5 | 152.8 (1.05) |
+|  | 10 | 11.7 (10.5) | 13.5 | 139.1 | 146.0 (1.05) |
+|  | 15 | 11.3 (10.5) | 12.8 | 134.6 | 141.4 (1.05) |
+|  | 25 | 10.4 (10.5) | 12.1 | 127.4 | 133.7 (1.05) |
+|  | 30 | 9.9 (10.5) | 11.8 | 124.2 | 130.4 (1.05) |
+|  | 40 | 9.0 (10.5) | 11.2 | 118.2 | 124.2 (1.05) |
+| B747 | UP | 12.1 (7.0) | 14.3 | 156.4 | 164.1 (1.05) |
+|  | 1 | 12.0 (7.0) | 14.5 | 153.2 | 161.0 (1.05) |
+|  | 5 | 11.7 (7.0) | 14.9 | 142.3 | 149.7 (1.05) |
+|  | 10 | 11.4 (7.0) | 14.6 | 131.4 | 138.1 (1.05) |
+|  | 20 | 8.7 (7.0) | 10.7 | 120.3 | 126.2 (1.05) |
+|  | 25 | 6.9 (7.0) | 9.2 | 116.4 | 122.4 (1.05) |
+|  | 30 | 5.1 (7.0) | 7.7 | 112.9 | 118.9 (1.05) |
+| A320 | UP | 8.1 (6.0) | 8.9 | 173.5 | 180.4 (1.04) |
+|  | 1 | 8.1 (6.0) | 9.0 | 165.6 | 172.6 (1.04) |
+|  | 2 | 7.8 (6.0) | 8.6 | 164.6 | 171.0 (1.04) |
+|  | 3 | 6.9 (6.0) | 7.7 | 157.2 | 163.4 (1.04) |
+|  | FULL | 6.0 (6.0) | 6.8 | 151.0 | 156.8 (1.04) |
+| 787-8 | UP | 13.7 (11) | 15.5 | 179.0 | 188.0 (1.05) |
+|  | 1 | 13.7 (11) | 15.5 | 177.1 | 185.8 (1.05) |
+|  | 5 | 13.4 (11) | 15.5 | 169.9 | 178.4 (1.05) |
+|  | 15 | 12.6 (11) | 15.5 | 155.5 | 163.3 (1.05) |
+|  | 20 | 12.2 (11) | 15.4 | 149.6 | 157.1 (1.05) |
+|  | 25 | 11.8 (11) | 15.4 | 144.3 | 151.5 (1.05) |
+|  | 30 | 11.3 (11) | 15.3 | 139.6 | 146.6 (1.05) |
+|  | 35 | 10.2 (11) | 14.6 | 136.3 | 143.1 (1.05) |
+| MD11 | UP | 12.1 (10) | 14.1 | 163.4 | 171.5 (1.05) |
+|  | 15 | 11.1 (10) | 14.3 | 128.3 | 134.7 (1.05) |
+|  | 30 | 9.8 (10) | 13.9 | 108.8 | 114.8 (1.06) |
+| global5000 | UP | 12.4 (12) | 14.4 | 150.8 | 158.7 (1.05) |
+|  | 6 | 12.1 (12) | 17.3 | 132.2 | 138.7 (1.05) |
+|  | 16 | 11.2 (12) | 14.4 | 113.0 | 119.0 (1.05) |
+|  | 20 | 10.8 (12) | 14.3 | 107.2 | 113.2 (1.06) |
+|  | 30 | 9.6 (12) | 14.0 | 95.8 | 101.9 (1.06) |
+
 
 ## Exceptions and notes for the maintainer
 
@@ -83,9 +131,8 @@ Stall angles of attack differ by flap setting for the jets (the 747 falls from 1
   the v1.3.3 stock file, so there is nothing to remove. The 737 input sockets were real and are
   removed by the overlay; the global5000 model wrote `global5000.csv` to the working directory on every
   run, which the overlay removes.
-- **Stall warning alpha is per profile, not per flap:** the 747's stall alpha falls to 7.7 degrees
-  in the landing configuration while liftoff alpha with flaps 20 is 4.5, so 7.0 is the compromise.
-  Per-detent values would need an additive field in `FlapDetent` (maintainer decision).
+- **Stall warning alpha per flap (F5):** done for the six jets (above). The light aircraft keep
+  one value: their stall alpha hardly changes with flap.
 - **B747 and 737 are not realistic against real figures:** the stock models stall well above real
   airplanes at these weights (737 flaps 30 stall 124 kt, B747 flaps 30 stall 113 kt, and the B747
   cannot be trimmed above about 150 kt with flaps 30). Profile speeds follow the model, with the

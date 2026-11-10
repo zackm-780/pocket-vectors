@@ -83,6 +83,20 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
     p.cruiseAltFt = ini.getFloat("cruise", "altitude_ft");
     p.cruiseFuelFlowLbsHr = ini.getFloat("cruise", "fuel_flow_lbs_hr");  // F6
     p.stallWarnAlphaDeg = ini.getFloat("warnings", "stall_warn_alpha_deg");
+    // F5: per-detent stall warning alpha and stall speeds, one value per flap detent in order.
+    auto perDetent = [&](const char* section, const char* key, std::vector<float>& out) {
+        out.clear();
+        if (!ini.has(section, key)) return true;
+        for (const std::string& v : splitTrim(ini.getString(section, key), ','))
+            out.push_back(std::strtof(v.c_str(), nullptr));
+        if (out.size() == p.flapDetents.size()) return true;
+        error = std::string("[") + section + "] " + key + ": " + std::to_string(out.size()) +
+                " values for " + std::to_string(p.flapDetents.size()) + " flap detents";
+        return false;
+    };
+    if (!perDetent("warnings", "stall_warn_alpha_by_flap_deg", p.stallWarnAlphaByFlapDeg) ||
+        !perDetent("speeds_kt", "vs_by_flap", p.vsByFlapKt))
+        return false;
 
     if (ini.has("view", "eye_offset_m")) {
         const std::vector<std::string> v = splitTrim(ini.getString("view", "eye_offset_m"), ',');
