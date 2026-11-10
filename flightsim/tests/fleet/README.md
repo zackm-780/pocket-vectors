@@ -35,6 +35,7 @@ weight the speed bugs scale from, H9) is that value within 1 %.
 | overlay | Load, start and trim every aircraft in runway, cruise and final starts with the log file sink open | No JSBSim ERROR or WARN line, no `global5000.csv` written, overlay files installed |
 | stall by flap (F5; global5000, 737, B747, A320, 787-8, MD11) | The idle deceleration above at every flap detent | The stall speed matches the profile's `vs_by_flap` within 3 %, `vs_by_flap` falls with flap, the per-detent warning alpha is under the stall alpha, and the warning first comes on at least 5 kt before the stall and not above 1.2 x Vs |
 | stall warning in manoeuvres (F5, the same six) | Full power climb to 15 degrees of pitch with takeoff flaps (from V2 + 10 kt, V2 = max(1.2 Vs, Vr + 3)) and clean; level 30 degree turns at Vref + 20 kt with the matching flap and clean at 1.3 Vs1; idle deceleration in a level 45 degree turn, clean and with the matching flap | No warning in the climbs and 30 degree turns; in the 45 degree turn the warning first comes between Vs x sqrt(n) and 1.2 x Vs x sqrt(n), n the load factor at that moment (or never, when the elevator runs out first and the angle of attack stays under the threshold) |
+| balked landing (F8; pa28, c172p as the reference) | Full throttle with the flaps out (pa28 40 / 25 / 10 / UP, c172p 30 / 10), wings level, the IAS held at 65, 70 and 75 kt with the elevator, near sea level; mean VS over 20 s | pa28: the best flaps-40 VS 100..400 fpm, flaps 25 above 40, 10 above 25, clean within 10 % of the stock 460 fpm (the overlay in the notes below) |
 
 The pilot (`FleetPilot.h`) is the same code for every aircraft; the per-aircraft numbers (rotation
 speed, climb speeds, flare height, brake use) are in `FleetSpecs.h`. The tests have no pass bands
@@ -161,8 +162,8 @@ conditions as the core table.
 | Liftoff distance, ft | 5,130 | 5,210 | 3,570 | 1,230 | 2,020 |
 | Time to 3,000 ft AGL, s | 68 | 73 | 56 | 176 | 367 |
 | Measured stall, clean, kt / alpha | 173.7 / 8.9 (elevator-limited) | 179.0 / 15.5 | 163.4 / 14.1 | 52.6 / 16.0 | 60.8 / 7.9 (elevator-limited) |
-| Measured stall, approach flaps, kt / alpha | 150.4 / 6.8 (FULL) | 139.6 / 15.3 (30) | 108.8 / 13.9 (30) | 48.2 / 15.8 (20) | 67.5 / 3.7 (40, elevator-limited) |
-| Measured stall, full flaps, kt / alpha | 150.4 / 6.8 | 135.4 / 15.2 | 108.8 / 13.9 | 47.6 / 15.8 | 67.5 / 3.7 |
+| Measured stall, approach flaps, kt / alpha | 150.4 / 6.8 (FULL) | 139.6 / 15.3 (30) | 108.8 / 13.9 (30) | 48.2 / 15.8 (20) | 60.5 / 5.6 (40, elevator-limited; 67.5 / 3.7 before F8) |
+| Measured stall, full flaps, kt / alpha | 150.4 / 6.8 | 135.4 / 15.2 | 108.8 / 13.9 | 47.6 / 15.8 | 60.5 / 5.6 |
 | Profile Vs1 / Vs0, kt | 174 / 150 | 179 / 136 | 163 / 109 | 54 / 49 (published) | 61 / 54 |
 | Profile stall warning alpha, deg | 6.0 | 11 | 10 | 11 | 7 |
 | Approach flaps / Vapp, kt | FULL / 173 | 30 / 165 | 30 / 135 | 20 / 70 | 40 / 80 |
@@ -237,13 +238,25 @@ untouched, the overlay replaces them in the runtime layout):
 ### Notes for the maintainer
 
 - **Elevator authority limits the stall tests on the A320 and pa28:** the idle deceleration cannot raise
-  alpha past 8.9 degrees (A320 clean; Cm-alpha is -4 with a weak elevator) or past 7.9 / 3.7 degrees
-  (pa28 clean / full flaps), so the "stall" speeds are the lowest speeds at which the elevator still
+  alpha past 8.9 degrees (A320 clean; Cm-alpha is -4 with a weak elevator) or past 7.9 / 5.6 degrees
+  (pa28 clean / full flaps; 3.7 before the F8 overlay), so the "stall" speeds are the lowest speeds at which the elevator still
   holds 1 g, well above the real Vs. The profile speeds follow the model, as for the 737 and B747. The
   A320 Vapp is 173 kt with full flaps (Vfe 185). The pa28 spec sets `stallElevatorLimited`, which drops two
   checks: full-flap speed under clean speed (the flaps pitch the nose down beyond the elevator) and the
   stall warning alpha under the full-flap alpha. A small Cm-alpha or CmDe overlay would give the A320 a
   real stall, but that is a tuning change, not a fix, so it was not made.
+- **pa28 balked landing (F8, `FleetBalkedTest.cpp`, `sim: fleet pa28 balked landing`):** full
+  throttle, wings level, the IAS held at 65 / 70 / 75 kt with the elevator, near sea level (flat ground
+  at 0 ft, 1,000 ft MSL), the mean VS over 20 s after 30 s to settle. The stock model could not climb
+  with full flaps (best -202 fpm at flaps 40, -322 at 25, the elevator at its stop at 65 kt), against
+  the FAR 23.77 balked-landing rule (3.3 %, about 200 fpm). The overlay
+  `assets/jsbsim-overlay/aircraft/pa28/pa28.xml` scales the flap pitching moment `CmDf` by 0.3 (the
+  stock table has no downwash relief at the tail) and fixes the 25 degree `CLDf` entry (0.016 to
+  0.16). Best VS now: flaps 40 +128, 25 +258, 10 +410, clean +460 fpm (unchanged); the test asserts
+  40 in 100..400, 25 > 40, 10 > 25, clean within 10 % of 460. The c172p reference case prints its
+  flaps 30 and 10 climbs (1,056 and 1,202 fpm). The full-flap 1 g limit fell from 67.5 kt at 3.7 degrees
+  to 60.5 kt at 5.6, still elevator-limited (under the 7 degree warning alpha), so
+  `stallElevatorLimited` stays set.
 - **Stall test settling:** `stallTest` takes a settle time before a load factor drop counts as the stall
   (default 5 s as in F2; the extended suite uses 30 s). The airliners start 1.4 g away from the trim of the
   new configuration after a configuration change at the start (MD11 flaps 30 at 165 kt), and the 5 s

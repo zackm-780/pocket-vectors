@@ -50,7 +50,7 @@ TEST_CASE("sim: fleet overlay fixes load all aircraft without errors") {
     // The overlay copies replaced the stock files in the runtime layout.
     for (const char* path :
          {"jsbsim/aircraft/737/737.xml", "jsbsim/aircraft/global5000/global5000.xml",
-          "jsbsim/aircraft/c310/c310.xml"}) {
+          "jsbsim/aircraft/c310/c310.xml", "jsbsim/aircraft/pa28/pa28.xml"}) {  // F8: pa28
         std::ifstream xml(path);
         REQUIRE_MESSAGE(xml.good(), path);
         std::stringstream s;
