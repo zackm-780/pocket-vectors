@@ -83,6 +83,7 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
     p.trimStepNorm = ini.getFloat("controls", "trim_step_norm");            // F9
     p.trimRateNormPerS = ini.getFloat("controls", "trim_rate_norm_per_s");  // F9
     p.pitchExpo = ini.getFloat("controls", "pitch_expo", -1.0f);            // F9
+    if (p.pitchExpo > 1.0f) p.pitchExpo = 1.0f;  // above 1 the curve turns back near the centre
     p.cruiseKt = ini.getFloat("cruise", "ias_kt");
     p.cruiseAltFt = ini.getFloat("cruise", "altitude_ft");
     p.cruiseFuelFlowLbsHr = ini.getFloat("cruise", "fuel_flow_lbs_hr");  // F6

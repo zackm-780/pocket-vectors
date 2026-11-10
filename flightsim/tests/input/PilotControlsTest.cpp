@@ -205,17 +205,27 @@ TEST_CASE("input: F9 pitch damper opposes the pitch rate near the stick centre o
     r.pilot.setStickTuning(t);
     r.profile.category = AircraftCategory::Piston;
     r.state.qRadps = static_cast<float>(degToRad(2.0));  // 2 deg/s nose up
-    r.actions.axis[idx(Axis::Pitch)] = 0.1f;
+    const PilotTuning tu;
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;  // centred: full damping
     r.step();
     CHECK(r.controls.elevatorNorm ==
-          doctest::Approx(0.1f - 2.0f * PilotTuning{}.damperPerDegPsPiston).epsilon(0.01));
-    r.actions.axis[idx(Axis::Pitch)] = 0.5f;  // a real input: no damping
+          doctest::Approx(-2.0f * tu.damperPerDegPsPiston).epsilon(0.01));
+    r.actions.axis[idx(Axis::Pitch)] = 0.5f * tu.damperStickMax;  // half way: half of it
     r.step();
-    CHECK(r.controls.elevatorNorm == doctest::Approx(0.5f));
-    r.actions.axis[idx(Axis::Pitch)] = 0.1f;
+    CHECK(r.controls.elevatorNorm ==
+          doctest::Approx(0.5f * tu.damperStickMax - 0.5f * 2.0f * tu.damperPerDegPsPiston)
+              .epsilon(0.01));
+    r.actions.axis[idx(Axis::Pitch)] = 0.2f;  // a real input (shaped): no damping
+    r.step();
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.2f));
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
     r.state.wowAny = true;  // on the ground: none
     r.step();
-    CHECK(r.controls.elevatorNorm == doctest::Approx(0.1f));
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.0f));
+    r.state.wowAny = false;
+    r.pilot.setAutopilotEngaged(true);  // the AP flies: none (it would count as a stick input)
+    r.step();
+    CHECK(r.controls.elevatorNorm == doctest::Approx(0.0f));
 }
 
 TEST_CASE("input: F9 auto trim holds the flight path left after 1 s; AP, ground, trim press") {
@@ -238,8 +248,17 @@ TEST_CASE("input: F9 auto trim holds the flight path left after 1 s; AP, ground,
     for (int i = 0; i < 60; ++i) r.step();
     CHECK(r.controls.elevTrimNorm > t0);
     CHECK(r.controls.elevTrimNorm - t0 <= PilotTuning{}.autoTrimMaxRateNormPerS * 1.01f);
-    // A stick input stops it, and the path is captured again 1 s after the stick is centred.
-    r.actions.axis[idx(Axis::Pitch)] = 0.2f;
+    // A stick input stops it (any deflection past the deadzone: shaped 0.01 is about raw 0.15 in
+    // the C172), and the path is captured again 1 s after the stick is centred.
+    r.actions.axis[idx(Axis::Pitch)] = 0.01f;
+    r.step();
+    CHECK_FALSE(r.pilot.autoTrimHolding());
+    // A new flight starts over: no hold until the stick has been centred for 1 s again.
+    r.actions.axis[idx(Axis::Pitch)] = 0.0f;
+    for (int i = 0; i < 70; ++i) r.step();
+    REQUIRE(r.pilot.autoTrimHolding());
+    r.pilot.resetFlight();
+    CHECK_FALSE(r.pilot.autoTrimHolding());
     r.step();
     CHECK_FALSE(r.pilot.autoTrimHolding());
     // Off while the AP is engaged and on the ground.

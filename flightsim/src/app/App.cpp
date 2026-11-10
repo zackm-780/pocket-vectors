@@ -405,6 +405,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         setClouds();             // W7
         menu.setFlight({&sim.navigator(), &sim.aircraft(), &sim.profile(), &sim.scenario()});
         input.setPitchExpoOverride(sim.profile().pitchExpo);  // F9: the aircraft's pitch expo
+        pilotControls.resetFlight();                          // F9: no auto-trim hold carried over
     };
     auto startOrReport = [&](const Scenario& sc) {
         std::string err;

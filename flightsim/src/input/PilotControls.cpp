@@ -24,6 +24,15 @@ float flightPathDeg(const AircraftState& s) {
 
 }  // namespace
 
+void PilotControls::resetFlight() {
+    trimDir_ = 0;
+    trimHeldS_ = 0.0f;
+    stickCentredS_ = 0.0f;
+    autoTrimHolding_ = false;
+    autoTrimPathDeg_ = 0.0f;
+    havePath_ = false;
+}
+
 float PilotControls::trimSpeedFactor(const AircraftProfile& p, const AircraftState& s) const {
     if (p.vrefKt <= 0 || s.wowAny || s.iasKt <= p.vrefKt) return 1.0f;
     const float r = p.vrefKt / s.iasKt;
@@ -57,13 +66,15 @@ void PilotControls::update(const ActionState& in, const AircraftProfile& profile
         return std::clamp(input::applyExpo(x, expo) * sens, -1.0f, 1.0f);
     };
     c.elevatorNorm = tune(in.axis[idx(Axis::Pitch)], stick_.pitchSens, stick_.pitchExpo);
-    // F9 aid: pitch-rate damping near the centre of the stick (not on the ground).
-    if (stick_.pitchDamper && !state.wowAny &&
-        std::fabs(in.axis[idx(Axis::Pitch)]) < tuning_.damperStickMax) {
+    // F9 aid: pitch-rate damping near the centre of the stick, fading out toward
+    // damperStickMax (no step when the stick crosses it); not on the ground or with the AP on.
+    const float pitchStick = std::fabs(in.axis[idx(Axis::Pitch)]);
+    if (stick_.pitchDamper && !state.wowAny && !apEngaged_ && pitchStick < tuning_.damperStickMax) {
         const float k = profile.category == AircraftCategory::Piston ? tuning_.damperPerDegPsPiston
                                                                      : tuning_.damperPerDegPsJet;
-        c.elevatorNorm = std::clamp(c.elevatorNorm - k * static_cast<float>(radToDeg(state.qRadps)),
-                                    -1.0f, 1.0f);
+        const float fade = 1.0f - pitchStick / tuning_.damperStickMax;
+        c.elevatorNorm = std::clamp(
+            c.elevatorNorm - fade * k * static_cast<float>(radToDeg(state.qRadps)), -1.0f, 1.0f);
     }
     c.aileronNorm = tune(in.axis[idx(Axis::Roll)], stick_.rollSens, stick_.rollExpo);
     c.rudderNorm = tune(in.axis[idx(Axis::Rudder)], stick_.rudderSens, stick_.rudderExpo);

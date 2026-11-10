@@ -1,5 +1,7 @@
 #include "input/ControlsConfig.h"
 
+#include <algorithm>
+
 #include <SDL.h>
 
 #include <map>
@@ -202,6 +204,7 @@ bool ControlsConfig::load(const Ini& defaults, const Ini* user) {
     getF("axes", "left_expo", leftExpo);
     leftPitchExpo = leftExpo;  // F9: unless [axes] left_pitch_expo says otherwise
     getF("axes", "left_pitch_expo", leftPitchExpo);
+    leftPitchExpo = std::clamp(leftPitchExpo, 0.0f, 1.0f);  // above 1 the curve turns back
     getF("axes", "right_deadzone", rightDeadzone);
     getF("axes", "right_expo", rightExpo);
     getF("axes", "dominance_ratio", dominanceRatio);

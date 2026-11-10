@@ -26,11 +26,14 @@ struct PilotTuning {
     float trimHoldDelayS = 0.3f;
     float trimSpeedScaleMin = 0.25f;
     // F9 aids (StickTuning::pitchDamper / autoTrim).
-    float damperStickMax = 0.3f;          // the damper works while |pitch stick| is under this
+    // The input system has applied the deadzone and expo by now, so these are shaped values: the
+    // damper fades out linearly from the centre to damperStickMax (about raw 0.3 in the C172,
+    // 0.2 at the 0.6 default expo), and "centred" is inside the deadzone.
+    float damperStickMax = 0.05f;
     float damperPerDegPsPiston = 0.010f;  // elevator per deg/s of pitch rate
     float damperPerDegPsJet = 0.008f;
-    float autoTrimCentredS = 1.0f;       // stick centred this long, then the path is held
-    float autoTrimStickMax = 0.05f;      // "centred"
+    float autoTrimCentredS = 1.0f;  // stick centred this long, then the path is held
+    float autoTrimStickMax = 0.002f;
     float autoTrimPerDegS = 0.002f;      // trim per second per degree of flight-path error
     float autoTrimDampPerDegPs = 0.06f;  // trim per second per deg/s of flight-path change
     float autoTrimMaxRateNormPerS = 0.01f;
@@ -68,6 +71,8 @@ public:
     float elevTrimStepNorm(const AircraftProfile& profile, const AircraftState& state) const;
     float elevTrimRateNormPerS(const AircraftProfile& profile, const AircraftState& state) const;
     bool autoTrimHolding() const { return autoTrimHolding_; }
+    // F9: a new flight: the trim press, the stick-centred timer and the auto-trim hold start over.
+    void resetFlight();
 
 private:
     float trimSpeedFactor(const AircraftProfile& profile, const AircraftState& state) const;
