@@ -30,6 +30,7 @@
 #include "core/NavTypes.h"
 #include "nav/ApproachBuilder.h"
 #include "nav/FlyBy.h"
+#include "nav/PlanEdit.h"
 
 namespace fsim {
 
@@ -102,6 +103,18 @@ public:
     bool startApproachOnly(const Approach& approach, const LatLon& present,
                            int transitionIndex = 0);
     const Approach* activeApproach() const { return approach_ ? &*approach_ : nullptr; }
+
+    // ---- plan edits and undo (N11a, NAVIGATION 2.4) ------------------------------------------
+    static constexpr double kUndoWindowS = 10.0;
+    // Applies a PlanEdit result with setPlan (never clearPlan, so an engaged NAV keeps a leg to
+    // fly) and keeps the plan before it for one level of undo. False (nothing changes) if !ok.
+    bool applyEdit(const PlanEditResult& edit, double simTimeS);
+    // Keeps a copy of the present plan for undo (an edit made another way: SID, STAR, approach).
+    void stashUndo(const char* label, double simTimeS);
+    bool undoAvailable(double simTimeS) const;
+    const std::string& undoLabel() const { return undoLabel_; }
+    // Restores the plan before the last edit while undoAvailable(); one level, then it is gone.
+    bool undo(double simTimeS);
 
     // ---- guidance commands -----------------------------------------------------------------
     bool directToLeg(int legIndex);              // direct-to legs[legIndex].to (N3)
@@ -194,6 +207,11 @@ private:
 
     float scaleNm_ = 0, scaleFromNm_ = 0, scaleToNm_ = 0, rampS_ = 0;
     bool scaleInit_ = false;
+
+    // N11a: one level of undo.
+    FlightPlan undoPlan_;
+    std::string undoLabel_;
+    double undoUntilS_ = -1.0;
 
     bool vorTuned_ = false;
     std::string vorIdent_;

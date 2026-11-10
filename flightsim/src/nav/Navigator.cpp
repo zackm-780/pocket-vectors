@@ -259,6 +259,34 @@ bool Navigator::startApproachOnly(const Approach& approach, const LatLon& presen
     return true;
 }
 
+// ---- plan edits and undo (N11a) ------------------------------------------------------------------
+
+bool Navigator::applyEdit(const PlanEditResult& edit, double simTimeS) {
+    if (!edit.ok) return false;
+    stashUndo(edit.undoLabel, simTimeS);
+    setPlan(edit.plan);
+    return true;
+}
+
+void Navigator::stashUndo(const char* label, double simTimeS) {
+    undoPlan_ = plan_;
+    undoLabel_ = label ? label : "";
+    undoUntilS_ = simTimeS + kUndoWindowS;
+}
+
+bool Navigator::undoAvailable(double simTimeS) const {
+    return undoUntilS_ >= 0.0 && simTimeS <= undoUntilS_;
+}
+
+bool Navigator::undo(double simTimeS) {
+    if (!undoAvailable(simTimeS)) return false;
+    FlightPlan restored = std::move(undoPlan_);
+    undoPlan_ = FlightPlan{};
+    undoUntilS_ = -1.0;
+    setPlan(std::move(restored));
+    return true;
+}
+
 // ---- guidance commands --------------------------------------------------------------------------
 
 bool Navigator::directToLeg(int legIndex) {
@@ -566,6 +594,12 @@ bool Navigator::shouldSequence(const AircraftState& ac, const Guide& g, int legI
     const Leg& cur = plan_.legs[static_cast<size_t>(legIndex)];
     const Leg& next = plan_.legs[static_cast<size_t>(legIndex + 1)];
     if (isHoldLeg(cur.type)) return false;
+    // N11a rule 3: a Direct-To the destination airport ahead of a kept STAR or approach is flown
+    // to the airport and not sequenced past; ACTIVATE APPROACH (reenterApproach) or a Direct-To
+    // a STAR or approach fix picks them up.
+    if (cur.type == LegType::DF && cur.to.kind == WaypointKind::Airport &&
+        !plan_.destIdent.empty() && cur.to.ident == plan_.destIdent)
+        return false;
     if (g.altTerminated)
         return cur.alt.kind != AltConstraintKind::None &&
                ac.altMslFt >= static_cast<double>(cur.alt.altFt);

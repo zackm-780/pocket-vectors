@@ -79,6 +79,11 @@ bool writePlanFmsFile(const std::string& path, const FlightPlan& plan, const Nav
 // ARINC 424 approach ident ("I05", "R29-Y", "VDM") -> kind.
 ApproachKind approachKindFromId(std::string_view approachId);
 
+// N11a: the plan endpoint for an airport and an optional runway (DB style, "05"): the runway
+// threshold (threshold = true) or its start, else the airport. False when the airport is unknown.
+bool planEndpointWaypoint(const NavDatabase& db, std::string_view airportIdent,
+                          std::string_view runwayDb, bool threshold, Waypoint& out);
+
 // ---- quick plan ------------------------------------------------------------------------------
 
 struct QuickPlanRequest {

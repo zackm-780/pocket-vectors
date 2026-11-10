@@ -87,7 +87,56 @@ All geometry is **true** internally. Magnetic is used only for display and user 
   the arcs with `NavState::turnRadiusNm`.
 - **Fly-over:** sequence when abeam (along-track ≤ 0).
 - Missed legs are not sequenced into until the MAP is passed airborne (§3.4).
-- Direct-to creates a DF leg from present position.
+- Direct-to creates a DF leg from present position. A DF leg to the destination airport with a
+  STAR or an approach kept after it (§2.4 rule 3) is not sequenced past.
+
+### 2.4 Plan edits (N11a: `src/nav/PlanEdit*`, tests in `tests/nav/planEditRulesTest.cpp`)
+Like a Garmin GTN / G1000 or an airliner FMS: whatever changes, the aircraft keeps flying something
+sensible, and the pilot sees one short message saying what happened (the HUD message line, which
+the map page also shows). Every edit is a pure function of the plan, the edit and the aircraft's
+position and track; `Navigator::applyEdit` applies it with `setPlan` (never `clearPlan` first), so
+an engaged NAV (AP or FD) follows the new active leg without dropping to ROL, and the map, mini
+nav and route overlay show the new plan on the next frame. VNAV and the fly-by arcs (§2.3) are
+recomputed from the new plan.
+
+1. **Direct-To a waypoint in the plan** (same ident within 1 NM, the first at or after the active
+   leg): `[PPOS][DF X][the legs after X]`. Earlier legs count as flown and go; the constraints of
+   the later legs stay. A SID or STAR name goes when none of its legs is left. `DIRECT TO X`.
+2. **Direct-To a fix or navaid not in the plan** (X): rejoin at Y, the first waypoint from the
+   active leg on whose turn at X (from the course present position → X to the course X → Y) is at
+   most 90°: `[PPOS][DF X][TF Y][the rest]`. The legs before Y go (they were behind). No such Y:
+   rejoin at the plan's tail (the destination leg or the approach). `DIRECT TO X, THEN Y`.
+3. **Direct-To the destination** (its airport ident) when the plan has a STAR or an approach:
+   `[PPOS][DF <airport>]` followed by the STAR and the approach, kept so they can still be flown.
+   The DF leg is not sequenced past (§2.3); ACTIVATE APPROACH (`reenterApproach`) or a Direct-To a
+   STAR or approach fix picks them up. Without a STAR or an approach, rule 1 on the destination
+   leg. `DIRECT TO <DEST>`.
+4. **Direct-To another airport:** `[PPOS][DF <airport>]`; it becomes the destination and the old
+   legs, STAR, approach and missed approach go. Destructive (undo `ROUTE REPLACED`).
+   `DIRECT TO <APT>, ROUTE REPLACED`. The screens offer the new airport's approaches next.
+5. **New destination** (plan screen): the old destination's STAR, approach and missed approach
+   always go. KEEP ROUTE: the origin, SID and enroute legs stay and end at the new destination
+   (its runway threshold when a runway is chosen, else the airport); the active leg stays when it
+   survives, else Direct-To the new destination. CLEAR ROUTE (the default): `[PPOS][DF <dest>]` (on
+   the ground: from the departure runway). Destructive (`ROUTE REPLACED` / `PLAN CLEARED`).
+   `NEW DEST <APT>, ROUTE KEPT` / `NEW DEST <APT>, ROUTE CLEARED`.
+6. **New departure runway, SID, STAR or approach:** only that part changes (the `Leg::source` tags
+   of §2.2, `insertSid` / `insertStar` / `loadApproach`). A new departure runway re-assembles the
+   SID for it when the SID serves it, else removes it (`DEPARTURE RWY 10R, SID X REMOVED`).
+7. **Delete (or skip) the active waypoint:** the next one becomes active, direct from present
+   position (`X DELETED, DIRECT TO Y`). Another enroute waypoint is simply deleted (`X DELETED`).
+   Approach legs are changed with CHANGE APPROACH, the destination with NEW DESTINATION.
+8. **Back onto the route after vectors or a heading excursion:** DIRECT TO NEXT (one press) goes
+   direct to the active waypoint while it is still ahead (more than 0.5 NM to go along its leg),
+   else to the first waypoint ahead. ACTIVATE LEG makes a leg active without a direct-to, so the
+   navigator intercepts its course (`ACTIVATE LEG X`).
+9. **Missed approach:** the MAP sequences into the missed legs only when passed airborne (§3.4).
+   Direct-To during the missed approach follows rules 1–4.
+
+**Undo:** every edit applied through `applyEdit` keeps the plan before it, one level, for 10 s
+(`Navigator::undo`); a newer edit replaces it. The screens offer it for the destructive ones
+(`ROUTE REPLACED`, `PLAN CLEARED`, `SID REMOVED`); the restored plan is applied the same way, so
+NAV stays engaged.
 
 ## 3. Approaches
 
