@@ -30,7 +30,7 @@ INSTALL.md.
 | Input | Action |
 |---|---|
 | Left stick | Pitch (Y) and roll (X). Deadzone 0.08 radial; roll expo 0.35 (`[axes] left_expo`), pitch expo 0.6 (`left_pitch_expo`, F9), or the aircraft's own `[controls] pitch_expo` (C172 0.83, PA28 0.6, 737 0.68), so small pitch inputs are gentle while full deflection is still full elevator. |
-| Right stick X | Rudder / nosewheel steering. Deadzone 0.12. |
+| Right stick X | Rudder / nosewheel steering. Deadzone 0.12. On the ground below 35 kt (F11) it is a tiller: the nose wheel turns up to the aircraft's tiller limit (light aircraft 30°, airliners 60–78°) and never more than gives 0.3 g at the ground speed, on a curve that keeps small moves small and at a hydraulic rate (light 40°/s, airliners 20°/s). At walking pace an A320 turns on about 20 m, a C172 on 7 m. Above 35 kt the pedal steering fades as before. |
 | Right stick Y | **Throttle rate:** push up = increase, pull down = decrease, rate ∝ deflection (full deflection: 0→100% in 2.5 s). Released = hold. An axis-dominance filter suppresses rudder while the stick is mostly vertical. |
 | D-pad ↑ / ↓ | Elevator trim nose-down / nose-up (↓ = nose up, like pulling a trim wheel back). F9: a press moves the trim one step (a tap ≈ 30–150 fpm of VS); held past 0.3 s it runs at a steady rate (one second ≈ 150–600 fpm). Step and rate shrink with (Vref / IAS)² above Vref (at least a quarter), so a tap does about the same at any speed; per aircraft `[controls] trim_step_norm` / `trim_rate_norm_per_s`. |
 | D-pad ← / → | Flaps up / down one detent |
