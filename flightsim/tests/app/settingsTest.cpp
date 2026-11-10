@@ -77,6 +77,7 @@ TEST_CASE("settings: round trip of every key") {
     s.volumePct = 35;
     s.assistAutoRudder = true;
     s.assistAutoTrim = true;
+    s.assistPitchDamper = true;  // F9
     s.throttleMode = ThrottleMode::Absolute;
     s.pitchSens = 0.5f;
     s.rollSens = 1.5f;

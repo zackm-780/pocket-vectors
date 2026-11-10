@@ -29,10 +29,10 @@ INSTALL.md.
 ### Base layer
 | Input | Action |
 |---|---|
-| Left stick | Pitch (Y) and roll (X). Deadzone 0.08 radial, expo 0.35. |
+| Left stick | Pitch (Y) and roll (X). Deadzone 0.08 radial; roll expo 0.35 (`[axes] left_expo`), pitch expo 0.6 (`left_pitch_expo`, F9), or the aircraft's own `[controls] pitch_expo` (C172 0.83, PA28 0.6, 737 0.68), so small pitch inputs are gentle while full deflection is still full elevator. |
 | Right stick X | Rudder / nosewheel steering. Deadzone 0.12. |
 | Right stick Y | **Throttle rate:** push up = increase, pull down = decrease, rate ∝ deflection (full deflection: 0→100% in 2.5 s). Released = hold. An axis-dominance filter suppresses rudder while the stick is mostly vertical. |
-| D-pad ↑ / ↓ | Elevator trim nose-down / nose-up (hold to keep trimming; ↓ = nose up, like pulling a trim wheel back) |
+| D-pad ↑ / ↓ | Elevator trim nose-down / nose-up (↓ = nose up, like pulling a trim wheel back). F9: a press moves the trim one step (a tap ≈ 30–150 fpm of VS); held past 0.3 s it runs at a steady rate (one second ≈ 150–600 fpm). Step and rate shrink with (Vref / IAS)² above Vref (at least a quarter), so a tap does about the same at any speed; per aircraft `[controls] trim_step_norm` / `trim_rate_norm_per_s`. |
 | D-pad ← / → | Flaps up / down one detent |
 | A | Gear toggle (ignored with weight on wheels; shows `GEAR LOCKED ON GROUND`) |
 | B | **Wheel brakes** (hold). Double-tap B = parking brake toggle. |
@@ -135,6 +135,7 @@ Gamepads work on desktop with the same mapping as the device.
 
 ## 5. Assists (settings, off by default unless noted)
 - **Auto-rudder:** coordinates turns in flight, steers on the ground with the roll axis.
-- **Auto-trim:** slowly trims out sustained elevator input. Handy on small sticks.
+- **Auto-trim** (`assist_auto_trim`, AUTO TRIM, F9, not realistic): with the stick centred for 1 s the trim holds the flight-path angle you left, with flight-path-rate damping, so it also calms the phugoid. Off on the ground and while the AP is engaged; a trim press or a stick input takes over.
+- **Pitch damper** (`assist_pitch_damper`, PITCH DAMPER, F9, not realistic): adds pitch-rate damping to the elevator while the stick is within ±0.3 of the centre (not on the ground).
 - **Stick sensitivity / expo** per axis.
 - **Throttle mode:** rate (default) or absolute (right stick Y position = throttle, for players who prefer it).

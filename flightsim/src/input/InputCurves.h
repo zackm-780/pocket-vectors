@@ -40,6 +40,20 @@ inline void applyRadialStick(float& x, float& y, float deadzone, float expo) {
     y *= k;
 }
 
+// F9: the same with its own expo for the stick's Y (pitch): the radius gets the deadzone, then x
+// follows `expo` and y follows `pitchExpo` along the radius, so pitchExpo == expo is exactly the
+// function above, roll keeps its feel, and full deflection stays full on both axes.
+inline void applyRadialStick(float& x, float& y, float deadzone, float expo, float pitchExpo) {
+    const float mag = std::sqrt(x * x + y * y);
+    if (mag <= deadzone) {
+        x = y = 0.0f;
+        return;
+    }
+    const float r = (std::min(mag, 1.0f) - deadzone) / (1.0f - deadzone);
+    x *= applyExpo(r, expo) / mag;
+    y *= applyExpo(r, pitchExpo) / mag;
+}
+
 // Right-stick axis-dominance filter: when one axis is `ratio` times larger than the other the
 // weaker one is zeroed (mostly vertical -> no rudder, mostly horizontal -> no throttle change).
 inline void applyDominance(float& x, float& y, float ratio) {

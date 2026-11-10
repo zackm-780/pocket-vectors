@@ -62,6 +62,12 @@ public:
     bool keyboardEnabled() const { return keyboardEnabled_; }
     int controllerCount() const { return controllerCount_; }
     const ControlsConfig& config() const { return cfg_; }
+    // F9: the aircraft's own pitch expo (AircraftProfile::pitchExpo) in place of [axes]
+    // left_pitch_expo; < 0 = none.
+    void setPitchExpoOverride(float expo) { pitchExpoOverride_ = expo; }
+    float pitchExpo() const {
+        return pitchExpoOverride_ >= 0.0f ? pitchExpoOverride_ : cfg_.leftPitchExpo;
+    }
     const PadProbe& padProbe() const { return probe_; }
 
 private:
@@ -99,6 +105,7 @@ private:
     void removeController(int instanceId);
 
     ControlsConfig cfg_;
+    float pitchExpoOverride_ = -1.0f;  // F9
     ActionState state_;
 
     // held-source reference counts and per-frame edges

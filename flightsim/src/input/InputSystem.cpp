@@ -357,7 +357,7 @@ const ActionState& InputSystem::update(double dtS) {
     // ---- axes ----
     const PadLayer layer = padLayer();
     float lx = stickRaw_[0], ly = stickRaw_[1];
-    input::applyRadialStick(lx, ly, cfg_.leftDeadzone, cfg_.leftExpo);
+    input::applyRadialStick(lx, ly, cfg_.leftDeadzone, cfg_.leftExpo, pitchExpo());  // F9
     float rx =
         input::applyExpo(input::applyDeadzone(stickRaw_[2], cfg_.rightDeadzone), cfg_.rightExpo);
     float ry =
