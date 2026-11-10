@@ -709,8 +709,9 @@ void FlightModel::Impl::refresh(AircraftState& s) {
     }
 
     // Warnings. The stall warning has hysteresis so it does not chatter at the threshold.
-    if (profile.stallWarnAlphaDeg > 0 && !s.wowAny) {
-        const float on = profile.stallWarnAlphaDeg;
+    const float stallWarnOnDeg = stallWarnAlphaForFlapDeg(profile, s.flapPosNorm);  // F5
+    if (stallWarnOnDeg > 0 && !s.wowAny) {
+        const float on = stallWarnOnDeg;
         stallWarnLatched =
             s.alphaDeg > on || (stallWarnLatched && s.alphaDeg > on - kStallWarnHysteresisDeg);
     } else {

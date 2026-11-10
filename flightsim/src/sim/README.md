@@ -127,6 +127,7 @@ approach_detent = 2
 
 [speeds_kt]                ; IAS, all optional (0 = unknown)
 vs0, vs1, vr, vref, vapp, vfe, vno, vne, vmo, mmo   ; mmo is a Mach number
+vs_by_flap = 152, 151, ...  ; F5: measured 1 g stall per flap detent, one per detent (optional)
 
 [cruise]
 ias_kt = 105
@@ -134,6 +135,7 @@ altitude_ft = 5500
 
 [warnings]
 stall_warn_alpha_deg = 11  ; stall warning when alpha exceeds this; clears 1 degree lower
+stall_warn_alpha_by_flap_deg = 11.6, 11.5, ...  ; F5: per detent, interpolated by flap position
 
 [view]
 eye_offset_m = 0.13, 0.0, -0.26   ; x fwd, y right, z down from the CG; only if the model has no EYEPOINT
@@ -238,8 +240,9 @@ must put it on the terrain (`Simulation::init` does; tests use `placeStartOnTerr
   slews over `reverser_travel_s` (1.5 s). Reverse power then follows the throttle.
 - **Steering fade**: the nose-wheel command is scaled by 1 below `steer_full_below_kt`, falling
   linearly to `steer_min_frac` at `steer_min_above_kt`.
-- **Warnings**: stall warning is off with weight on wheels, on above `stall_warn_alpha_deg`, off
-  again 1 degree lower. Overspeed is IAS above Vmo (else Vne) or Mach above Mmo.
+- **Warnings**: stall warning is off with weight on wheels, on above `stall_warn_alpha_deg` (F5: or
+  `stall_warn_alpha_by_flap_deg` interpolated by the actual flap position, `stallWarnAlphaForFlapDeg`),
+  off again 1 degree lower. Overspeed is IAS above Vmo (else Vne) or Mach above Mmo.
 
 ## Restarts
 

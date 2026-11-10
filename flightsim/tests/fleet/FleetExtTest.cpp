@@ -83,3 +83,23 @@ FLEET_EXT_CASES("approach", approachTest)
 FLEET_EXT_CASES("hands-off final", handsOffTest)
 FLEET_EXT_CASES("landing", landingTest)
 FLEET_EXT_CASES("stall", stallTestExt)
+
+// F5: per-detent stall warning on the airliners.
+TEST_CASE("sim: fleet A320 stall by flap") {
+    stallByFlapTest(kFleetExt[0]);
+}
+TEST_CASE("sim: fleet 787-8 stall by flap") {
+    stallByFlapTest(kFleetExt[1]);
+}
+TEST_CASE("sim: fleet MD11 stall by flap") {
+    stallByFlapTest(kFleetExt[2]);
+}
+TEST_CASE("sim: fleet A320 stall warning in manoeuvres") {
+    stallWarnManoeuvreTest(kFleetExt[0]);
+}
+TEST_CASE("sim: fleet 787-8 stall warning in manoeuvres") {
+    stallWarnManoeuvreTest(kFleetExt[1]);
+}
+TEST_CASE("sim: fleet MD11 stall warning in manoeuvres") {
+    stallWarnManoeuvreTest(kFleetExt[2]);
+}
