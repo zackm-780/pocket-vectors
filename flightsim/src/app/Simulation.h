@@ -19,7 +19,8 @@
 #include "core/TerrainQuery.h"
 #include "nav/Navigator.h"  // N5
 #include "sim/FlightModel.h"
-#include "world/Weather.h"  // X1
+#include "sim/SpeedbrakeArm.h"  // F10
+#include "world/Weather.h"      // X1
 
 namespace fsim {
 
@@ -75,6 +76,10 @@ public:
     FlightModel& flightModel() { return model_; }
     Navigator& navigator() { return navigator_; }  // N5: plan / approach / source control
     Autopilot& autopilot() { return autopilot_; }  // N6: the app feeds ActionState to it
+    // F10: what the armed speed brakes last did ("SPEEDBRAKE DEPLOYED" / "STOWED", or nullptr)
+    // and how many such events so far, so the app can post each one to its message queue once.
+    const char* lastSpeedbrakeEvent() const { return speedbrakeEvent_; }
+    unsigned speedbrakeEventCount() const { return speedbrakeEventCount_; }
 
 private:
     bool initNavigation(std::string& error);  // N5
@@ -83,8 +88,11 @@ private:
     const NavDatabase& nav_;
     TerrainQuery& terrain_;
     FlightModel model_;
-    Navigator navigator_;  // N5
-    Autopilot autopilot_;  // N6
+    Navigator navigator_;          // N5
+    Autopilot autopilot_;          // N6
+    SpeedbrakeArm speedbrakeArm_;  // F10
+    const char* speedbrakeEvent_ = nullptr;
+    unsigned speedbrakeEventCount_ = 0;
     AircraftProfile profile_;
     Scenario scenario_;
     StartCondition start_;

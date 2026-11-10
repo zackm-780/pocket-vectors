@@ -36,7 +36,7 @@ INSTALL.md.
 | D-pad ← / → | Flaps up / down one detent |
 | A | Gear toggle (ignored with weight on wheels; shows `GEAR LOCKED ON GROUND`) |
 | B | **Wheel brakes** (hold). Double-tap B = parking brake toggle. |
-| X | Speedbrake/spoilers cycle: retracted → 50% → 100% → retracted (aircraft without them show `NO SPEEDBRAKE`) |
+| X | Speedbrake/spoilers cycle: retracted → **armed** → 50% → 100% → retracted (F10; aircraft without them show `NO SPEEDBRAKE`). Armed, they deploy fully when the main gear touches down with the thrust at idle (`SPEEDBRAKE DEPLOYED`; with thrust above idle, as soon as it comes back to idle), and stow and disarm when any thrust lever goes past half (`SPEEDBRAKE STOWED`: a go-around). They arm in the air or on the ground; on the ground they wait for a takeoff and the next touchdown. A manual position clears the arm, and X while they are out retracts and disarms. |
 | Y | HUD declutter cycle FULL → STD → MIN |
 | R2 | Brakes (hold), the same as B. Lets you keep a thumb on the right stick for steering. |
 | Select | Map page toggle |

@@ -393,6 +393,19 @@ TEST_CASE("hud: row 2 fields and formatting") {
     c.throttleNorm[0] = 0.8f;
     buildStatusRow2(in, f);
     CHECK(f[kSpdBrk].segs[0].role == Role::Amber);  // extended with more than 50% throttle
+    // F10: armed and retracted reads SPDBRK ARM (green, the normal role); deployed, the percent.
+    c.throttleNorm[0] = 0.0f;
+    c.speedbrakeArmed = true;
+    s.speedbrakePosNorm = 0.0f;
+    buildStatusRow2(in, f);
+    CHECK(joined(f[kSpdBrk]) == "SPDBRK ARM");
+    CHECK(f[kSpdBrk].segs[0].role == Role::Normal);
+    CHECK(std::string(f[kSpdBrk].segs[0].text).size() <= static_cast<size_t>(f[kSpdBrk].slotCells));
+    s.speedbrakePosNorm = 1.0f;
+    buildStatusRow2(in, f);
+    CHECK(joined(f[kSpdBrk]) == "SPDBRK 100%");
+    c.speedbrakeArmed = false;
+    s.speedbrakePosNorm = 0.5f;
 
     // Reversers: amber in flight, green on the ground.
     s.engines[0].reverserDeployed = true;

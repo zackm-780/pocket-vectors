@@ -172,17 +172,26 @@ void PilotControls::update(const ActionState& in, const AircraftProfile& profile
         }
     }
 
-    // ---- speedbrake: retracted -> 50 % -> 100 % -> retracted ----
+    // ---- speedbrake: retracted -> armed -> 50 % -> 100 % -> retracted (F10) ----
+    // A manual position clears the arm; X while they are out (also auto-deployed) retracts and
+    // disarms.
     if (pressed(Action::SpeedbrakeCycle)) {
         if (!profile.hasSpeedbrake) {
             say("NO SPEEDBRAKE");
+        } else if (c.speedbrakeNorm < 0.25f && !c.speedbrakeArmed) {
+            c.speedbrakeNorm = 0.0f;
+            c.speedbrakeArmed = true;
+            say("SPEEDBRAKE ARMED");
         } else if (c.speedbrakeNorm < 0.25f) {
+            c.speedbrakeArmed = false;
             c.speedbrakeNorm = 0.5f;
             say("SPEEDBRAKE 50%");
         } else if (c.speedbrakeNorm < 0.75f) {
+            c.speedbrakeArmed = false;
             c.speedbrakeNorm = 1.0f;
             say("SPEEDBRAKE FULL");
         } else {
+            c.speedbrakeArmed = false;
             c.speedbrakeNorm = 0.0f;
             say("SPEEDBRAKE RETRACTED");
         }

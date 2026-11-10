@@ -111,6 +111,8 @@ bool Simulation::init(const Scenario& scenario, const std::string& aircraftOverr
     }
 
     pilot_ = model_.startControls();
+    speedbrakeArm_.reset();  // F10: the latch starts again with the flight
+    speedbrakeEvent_ = nullptr;
     final_ = pilot_;
     script_.setEvents(scenario_.inputs);
     accumulatorS_ = 0;
@@ -202,6 +204,12 @@ bool Simulation::initNavigation(std::string& error) {
 void Simulation::stepOnce() {
     const double simTimeS = model_.state().simTimeS;
     script_.apply(simTimeS, profile_.engineCount, pilot_);
+    // F10: armed speed brakes, on the pilot's controls before the AP (the A/T's levers count:
+    // syncPilot copies them back each step).
+    if (const char* ev = speedbrakeArm_.update(model_.state(), profile_, pilot_)) {
+        speedbrakeEvent_ = ev;
+        ++speedbrakeEventCount_;
+    }
     final_ = autopilot_.update(pilot_, model_.state(), navState_, kSimDtS);
     autopilot_.syncPilot(pilot_);  // N6: levers follow the A/T, trim follows the AP
     {                              // X1: wind (profile + gusts + turbulence) for this step
