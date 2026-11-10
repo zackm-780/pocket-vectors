@@ -296,7 +296,7 @@ TEST_CASE("sim: fleet F9 [controls] keys load from the profiles") {
     REQUIRE(f.loadProfile("pa28"));
     CHECK(f.profile.trimStepNorm == doctest::Approx(0.009f));
     CHECK(f.profile.trimRateNormPerS == doctest::Approx(0.08f));
-    REQUIRE(f.loadProfile("c182"));
+    REQUIRE(f.loadProfile("c310"));
     CHECK(f.profile.pitchExpo < 0.0f);  // no [controls]: the [axes] default
 }
 // Print-only for the rest of the fleet (the [axes] default pitch expo and trim).
