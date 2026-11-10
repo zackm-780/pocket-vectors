@@ -12,6 +12,7 @@
 #include "app/Scenario.h"
 #include "core/Paths.h"
 #include "input/PilotControls.h"
+#include "world/WorldOverlayLogic.h"  // H10
 
 namespace fsim {
 
@@ -42,9 +43,10 @@ struct Settings {
     bool weatherMetar = true;        // use <data>/weather/<ICAO>.txt when the airport has one
     bool weatherGusts = true;        // gusts from the scenario or METAR
     float weatherTurbulence = 0.0f;  // 0..1 light turbulence (scenario value wins)
-    // W6: world overlays, each off until the player turns it on. Radius clamps to 5..80 NM.
-    bool overlayRoute = false;
-    bool overlayVpath = false;
+    // W6: world overlays. Radius clamps to 5..80 NM. H10: route and path are auto | on | off
+    // (auto: shown only at FULL HUD declutter); airports and runways stay off until turned on.
+    world::OverlayMode overlayRoute = world::OverlayMode::Auto;
+    world::OverlayMode overlayVpath = world::OverlayMode::Auto;
     bool overlayAirports = false;
     bool overlayRunways = false;
     float overlayAirportRadiusNm = 25.0f;
@@ -78,6 +80,9 @@ struct Settings {
     void clampAll();
     // The input hooks (stick sensitivity/expo, throttle mode).
     StickTuning stickTuning() const;
+    // H10: the four overlay settings as toggles (route / vpath not yet resolved), and back.
+    world::OverlayToggles overlayToggles() const;
+    void setOverlayToggles(const world::OverlayToggles& t);
     // Text form of the whole settings block, "key = value" lines in file order.
     std::string toKeyValueText() const;
 };

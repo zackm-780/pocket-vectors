@@ -499,16 +499,9 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                 sim.autopilot().handleActions(cmdActions, sim.aircraft(), sim.navState(), dtS);
             if (interactive &&
                 cmdActions.pressed[static_cast<int>(Action::OverlayPreset)]) {  // W6: L3 presets
-                world::OverlayToggles layers;
-                layers.route = settings.overlayRoute;
-                layers.vpath = settings.overlayVpath;
-                layers.airports = settings.overlayAirports;
-                layers.runways = settings.overlayRunways;
+                world::OverlayToggles layers = settings.overlayToggles();
                 const int preset = world::overlayCycle(layers);
-                settings.overlayRoute = layers.route;
-                settings.overlayVpath = layers.vpath;
-                settings.overlayAirports = layers.airports;
-                settings.overlayRunways = layers.runways;
+                settings.setOverlayToggles(layers);
                 if (!menuEnv.settingsPath.empty() && !settings.save(menuEnv.settingsPath))
                     LOG_WARN("settings: cannot write %s", menuEnv.settingsPath.c_str());
                 messages.postf("OVERLAYS %s", world::overlayPresetName(preset));
@@ -662,16 +655,13 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         if (chase) externalView.render(camera, view, atmosphere.light());  // V1: one draw
         passEnd(PerfPass::Model);
         {  // W6: route, vertical path, airports, runway outlines (at most 4 draws)
-            const bool layersOn = settings.overlayRoute || settings.overlayVpath ||
-                                  settings.overlayAirports || settings.overlayRunways;
+            // H10: route and path in AUTO show only at FULL declutter (a Y press applies next frame).
+            const world::OverlayToggles layers = world::resolveOverlay(
+                settings.overlayToggles(), hudOptions.declutter == Declutter::Full);
+            const bool layersOn = layers.route || layers.vpath || layers.airports || layers.runways;
             const bool showOverlays =
                 layersOn && state != AppState::Menu && !mapShown && !opt.glyphSheet;
             if (showOverlays) {
-                world::OverlayToggles layers;
-                layers.route = settings.overlayRoute;
-                layers.vpath = settings.overlayVpath;
-                layers.airports = settings.overlayAirports;
-                layers.runways = settings.overlayRunways;
                 worldOverlay.render(
                     camera, sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr,
                     &sim.navDb(), &sim.terrain(), layers, settings.overlayAirportRadiusNm,

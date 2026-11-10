@@ -311,15 +311,15 @@ TEST_CASE("ui: pause menu resumes, restarts and leaves") {
     saved.load("", mf.env.settingsPath);
     CHECK(saved.hudMiniNav);
 
-    // Overlays is the next row. Accept cycles off -> route and saves immediately.
-    CHECK_FALSE(mf.settings.overlayRoute);
+    // Overlays is the next row. Accept cycles AUTO -> ROUTE+PATH (H10) and saves immediately.
+    CHECK(mf.settings.overlayRoute == world::OverlayMode::Auto);
     tap(m, &MenuInput::down, 1);
     CHECK(tap(m, &MenuInput::accept).action == MenuAction::None);
     CHECK(m.top() == ScreenId::Pause);
-    CHECK(mf.settings.overlayRoute);
-    CHECK_FALSE(mf.settings.overlayVpath);
+    CHECK(mf.settings.overlayRoute == world::OverlayMode::On);
+    CHECK(mf.settings.overlayVpath == world::OverlayMode::On);
     saved.load("", mf.env.settingsPath);
-    CHECK(saved.overlayRoute);
+    CHECK(saved.overlayRoute == world::OverlayMode::On);
 }
 
 TEST_CASE("ui: in-flight plan screen: direct-to a leg, re-enter the approach, direct-to an ident") {
