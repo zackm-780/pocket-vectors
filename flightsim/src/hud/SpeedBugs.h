@@ -65,7 +65,6 @@ public:
 
 private:
     SpeedBugPhase phase_ = SpeedBugPhase::Other;
-    bool airborneSinceTakeoff_ = false;
     SpeedBugSet set_;
 };
 

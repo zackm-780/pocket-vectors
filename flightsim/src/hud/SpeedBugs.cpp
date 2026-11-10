@@ -129,10 +129,8 @@ const SpeedBugSet& SpeedBugTracker::update(const AircraftState& s, const Control
         // rejected takeoff) shows only a flap bug.
         phase_ =
             maxThrottle >= kTakeoffThrottleNorm ? SpeedBugPhase::Takeoff : SpeedBugPhase::Other;
-        airborneSinceTakeoff_ = false;
     } else {
         if (phase_ == SpeedBugPhase::Takeoff) {
-            airborneSinceTakeoff_ = true;
             const bool flapsUp = s.flapDetent == 0 && s.flapPosNorm < 0.02f;
             if (flapsUp || s.altAglFt > kTakeoffEndAglFt) phase_ = SpeedBugPhase::Other;
         }
@@ -159,7 +157,6 @@ const SpeedBugSet& SpeedBugTracker::update(const AircraftState& s, const Control
 
 void SpeedBugTracker::reset() {
     phase_ = SpeedBugPhase::Other;
-    airborneSinceTakeoff_ = false;
     set_ = SpeedBugSet{};
 }
 

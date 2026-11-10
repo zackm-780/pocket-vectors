@@ -342,12 +342,15 @@ void drawSpeedBugs(const Ctx& k, const SpeedBugSet& bugs, float x1, float ias) {
         labelY[i] = i == 0 ? lineY[i] : std::max(lineY[i], labelY[i - 1] + gapPx);
     // A stack that ran down past the tape moves back up as a block.
     const float overflow = n > 0 ? labelY[n - 1] - (g.bottomY - 4) : 0.0f;
-    if (overflow > 0)
-        for (int i = 0; i < n; ++i) labelY[i] -= overflow;
+    if (overflow > 0) {  // but never above the tape; labels that still do not fit are left off
+        const float shift = std::max(0.0f, std::min(overflow, labelY[0] - (g.topY + 4)));
+        for (int i = 0; i < n; ++i) labelY[i] -= shift;
+    }
     r.setLineWidth(1.5f);
     for (int i = 0; i < n; ++i) {
         r.line(x1, lineY[i], x1 + 10, lineY[i], k.base);
-        r.text(x1 + 17, labelY[i], label[i], TextSize::S, k.base, HAlign::Left, VAlign::Middle);
+        if (labelY[i] <= g.bottomY - 4)
+            r.text(x1 + 17, labelY[i], label[i], TextSize::S, k.base, HAlign::Left, VAlign::Middle);
     }
     r.setLineWidth(2.0f);
 }
