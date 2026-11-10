@@ -34,6 +34,11 @@ constexpr EnumName<GraphicsQuality> kQuality[] = {
     {"low", GraphicsQuality::Low}, {"med", GraphicsQuality::Med}, {"high", GraphicsQuality::High}};
 constexpr EnumName<ThrottleMode> kThrottle[] = {{"rate", ThrottleMode::Rate},
                                                 {"absolute", ThrottleMode::Absolute}};
+// H10: route and path overlays. Before 1.4 they were booleans: true reads as on and false as auto
+// (false was everyone's default). Written back as the words.
+constexpr EnumName<world::OverlayMode> kOverlayModes[] = {{"auto", world::OverlayMode::Auto},
+                                                          {"on", world::OverlayMode::On},
+                                                          {"off", world::OverlayMode::Off}};
 constexpr EnumName<world::CloudMode> kClouds[] = {  // W7
     {"auto", world::CloudMode::Auto},  {"off", world::CloudMode::Off},
     {"few", world::CloudMode::Few},    {"sct", world::CloudMode::Scattered},
@@ -185,8 +190,18 @@ int Settings::applyText(const std::string& text) {
     flag("weather_metar", weatherMetar);  // X1
     flag("weather_gusts", weatherGusts);
     num("weather_turbulence", weatherTurbulence);
-    flag("overlay_route", overlayRoute);  // W6
-    flag("overlay_vpath", overlayVpath);
+    auto overlayMode = [&](const char* key, world::OverlayMode& dst) {  // H10
+        if (!ini.has(kSection, key)) return;
+        const std::string v = ini.getString(kSection, key);
+        bool b = false;
+        if (parseEnum(kOverlayModes, v, dst)) return;
+        if (parseBoolStrict(v, b))
+            dst = b ? world::OverlayMode::On : world::OverlayMode::Auto;
+        else
+            reject(key, v);
+    };
+    overlayMode("overlay_route", overlayRoute);  // W6, H10
+    overlayMode("overlay_vpath", overlayVpath);
     flag("overlay_airports", overlayAirports);
     flag("overlay_runways", overlayRunways);
     num("overlay_airport_radius_nm", overlayAirportRadiusNm);
@@ -243,6 +258,22 @@ StickTuning Settings::stickTuning() const {
     return t;
 }
 
+world::OverlayToggles Settings::overlayToggles() const {  // H10
+    world::OverlayToggles t;
+    t.routeMode = overlayRoute;
+    t.vpathMode = overlayVpath;
+    t.airports = overlayAirports;
+    t.runways = overlayRunways;
+    return t;
+}
+
+void Settings::setOverlayToggles(const world::OverlayToggles& t) {
+    overlayRoute = t.routeMode;
+    overlayVpath = t.vpathMode;
+    overlayAirports = t.airports;
+    overlayRunways = t.runways;
+}
+
 namespace {
 
 std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s) {
@@ -271,8 +302,8 @@ std::vector<std::pair<std::string, std::string>> settingsPairs(const Settings& s
         {"weather_metar", b(s.weatherMetar)},  // X1
         {"weather_gusts", b(s.weatherGusts)},
         {"weather_turbulence", fmtFloat(s.weatherTurbulence)},
-        {"overlay_route", b(s.overlayRoute)},  // W6
-        {"overlay_vpath", b(s.overlayVpath)},
+        {"overlay_route", enumText(kOverlayModes, s.overlayRoute)},  // W6, H10
+        {"overlay_vpath", enumText(kOverlayModes, s.overlayVpath)},
         {"overlay_airports", b(s.overlayAirports)},
         {"overlay_runways", b(s.overlayRunways)},
         {"overlay_airport_radius_nm", fmtFloat(s.overlayAirportRadiusNm)},

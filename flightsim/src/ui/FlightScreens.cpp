@@ -130,12 +130,12 @@ const SettingDef kSettingDefs[] = {
     {"GPWS VOICE", false,  // S2
      [](const Settings& s) -> std::string { return s.gpwsVoice ? "ON" : "OFF"; },
      [](Settings& s, int) { s.gpwsVoice = !s.gpwsVoice; }},
-    {"OVERLAY ROUTE", false,
-     [](const Settings& s) -> std::string { return s.overlayRoute ? "ON" : "OFF"; },
-     [](Settings& s, int) { s.overlayRoute = !s.overlayRoute; }},
+    {"OVERLAY ROUTE", false,  // H10: AUTO (FULL HUD only) -> ON -> OFF
+     [](const Settings& s) -> std::string { return world::overlayModeName(s.overlayRoute); },
+     [](Settings& s, int d) { s.overlayRoute = cycleEnum(s.overlayRoute, d, 3); }},
     {"OVERLAY PATH", false,
-     [](const Settings& s) -> std::string { return s.overlayVpath ? "ON" : "OFF"; },
-     [](Settings& s, int) { s.overlayVpath = !s.overlayVpath; }},
+     [](const Settings& s) -> std::string { return world::overlayModeName(s.overlayVpath); },
+     [](Settings& s, int d) { s.overlayVpath = cycleEnum(s.overlayVpath, d, 3); }},
     {"OVERLAY AIRPORTS", false,
      [](const Settings& s) -> std::string { return s.overlayAirports ? "ON" : "OFF"; },
      [](Settings& s, int) { s.overlayAirports = !s.overlayAirports; }},
@@ -259,16 +259,9 @@ public:
         }
         case 9: {
             Settings& s = m.settings();
-            world::OverlayToggles t;
-            t.route = s.overlayRoute;
-            t.vpath = s.overlayVpath;
-            t.airports = s.overlayAirports;
-            t.runways = s.overlayRunways;
+            world::OverlayToggles t = s.overlayToggles();
             world::overlayCycle(t);
-            s.overlayRoute = t.route;
-            s.overlayVpath = t.vpath;
-            s.overlayAirports = t.airports;
-            s.overlayRunways = t.runways;
+            s.setOverlayToggles(t);
             if (!m.env().settingsPath.empty() && !s.save(m.env().settingsPath))
                 LOG_WARN("settings: cannot write %s", m.env().settingsPath.c_str());
             break;
@@ -290,13 +283,9 @@ public:
         rows[7].label = "HELP";
         rows[8].label = "MINI NAV";
         rows[8].value = m.settings().hudMiniNav ? "ON" : "OFF";
-        world::OverlayToggles layers;
-        layers.route = m.settings().overlayRoute;
-        layers.vpath = m.settings().overlayVpath;
-        layers.airports = m.settings().overlayAirports;
-        layers.runways = m.settings().overlayRunways;
         rows[9].label = "OVERLAYS";
-        rows[9].value = world::overlayPresetName(world::overlayMatchingPreset(layers));
+        rows[9].value =
+            world::overlayPresetName(world::overlayMatchingPreset(m.settings().overlayToggles()));
         drawList(r, t, px + 16, py + 44, 308, 34, nav_, rows);
         r.text(r.centerX(), py + 44 + 10 * 34 + 12, "A SELECT   START RESUME", TextSize::S, t.dim,
                HAlign::Center);

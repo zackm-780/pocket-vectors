@@ -7,3 +7,6 @@ In the air, pause and choose Flight plan. Direct to a leg, or type an ident.
 Change approach, or re-enter the approach if you flew through it.
 The active leg is marked on the plan list and on the map.
 The plan page shows the fuel, the time it lasts and the fuel left at the destination.
+The route and path overlays show the plan in the world only at the FULL HUD (Y), so they stay
+out of the way at STD. Set OVERLAY ROUTE or OVERLAY PATH to ON in Settings to keep them at every
+HUD level. L3 cycles AUTO, ROUTE+PATH, AIRPORTS, ALL and OFF.
