@@ -284,12 +284,14 @@ void applyProcedure(MenuSystem& m, bool sid, ApproachMode mode, const std::strin
     FlightPlan p = nav->plan();
     MenuResult res;
     res.action = MenuAction::ResumeFlight;
+    bool removed = false;
     if (id.empty()) {
         if (sid)
             removeSid(p);
         else
             removeStar(p);
         res.message = std::string(what) + "REMOVED";
+        removed = true;
     } else {
         const ProcTarget t = procTarget(sid, mode, m);
         const auto set = loadProcedureSet(m.env().navDir, t.airport);
@@ -308,6 +310,11 @@ void applyProcedure(MenuSystem& m, bool sid, ApproachMode mode, const std::strin
             return;
         }
         res.message = what + FlightSetup::procedureText(id, transition);
+    }
+    if (removed && (sid ? !nav->plan().sidId.empty() : !nav->plan().starId.empty())) {
+        // N11b: removing a procedure throws its legs away, so it can be undone for a while.
+        nav->stashUndo(sid ? "DEPARTURE REMOVED" : "ARRIVAL REMOVED", flightSimTimeS(m));
+        res.message2 = kUndoHint;
     }
     nav->setPlan(std::move(p));
     m.post(std::move(res));
@@ -392,7 +399,8 @@ std::unique_ptr<Screen> makeApproachTransitionPick(const Approach& approach,
 
 class ApproachScreen : public Screen {
 public:
-    ApproachScreen(ApproachMode mode, const MenuSystem& m) : mode_(mode), nav_(1, 11) {
+    ApproachScreen(ApproachMode mode, const MenuSystem& m, MenuResult pending = {})
+        : mode_(mode), pending_(std::move(pending)), nav_(1, 11) {
         std::string rwy;
         std::string current;
         if (mode_ == ApproachMode::Setup) {
@@ -421,6 +429,7 @@ public:
         rebuild(m);
         for (size_t i = 0; i < choices_.size(); ++i)
             if (!current.empty() && choices_[i].id == current) nav_.select(static_cast<int>(i) + 1);
+        if (mode_ == ApproachMode::Offer) nav_.select(0);  // N11b: NOT NOW until the pilot picks
     }
     ScreenId id() const override { return ScreenId::Approach; }
 
@@ -432,20 +441,29 @@ public:
             rebuild(m);
         }
         if (in.back) {
-            m.pop();
+            if (mode_ == ApproachMode::Offer)
+                notNow(m);  // the edit is made: B flies on without an approach
+            else
+                m.pop();
             return;
         }
         if (!in.accept) return;
         const int sel = nav_.selected();
-        if (mode_ == ApproachMode::Setup)
+        if (mode_ == ApproachMode::Offer && sel == 0)
+            notNow(m);
+        else if (mode_ == ApproachMode::Setup)
             acceptSetup(m, sel);
         else
             acceptFlight(m, sel);
     }
 
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem& m) const override {
-        drawScreenFrame(r, t, "APPROACH", "SELECT THE PROCEDURE TO FLY",
-                        "A SELECT   B BACK   LEFT RIGHT RUNWAY");
+        if (mode_ == ApproachMode::Offer)  // N11b: the edit just made, then its approaches
+            drawScreenFrame(r, t, "APPROACH", fitText(pending_.message, 48),
+                            "A SELECT   B NOT NOW   LEFT RIGHT RUNWAY");
+        else
+            drawScreenFrame(r, t, "APPROACH", "SELECT THE PROCEDURE TO FLY",
+                            "A SELECT   B BACK   LEFT RIGHT RUNWAY");
         const float x = r.centered(kContentX);
         const Airport* a = m.nav().findAirport(airport_);
         std::string name = a ? upperStr(a->name) : std::string();
@@ -460,7 +478,10 @@ public:
         r.text(x + kContentW, 86, rw.c_str(), TextSize::M, t.accent, HAlign::Right);
 
         std::vector<ListRow> rows;
-        rows.push_back({mode_ == ApproachMode::Setup ? "NO APPROACH" : "REMOVE APPROACH", ""});
+        rows.push_back({mode_ == ApproachMode::Setup   ? "NO APPROACH"
+                        : mode_ == ApproachMode::Offer ? "NOT NOW"
+                                                       : "REMOVE APPROACH",
+                        ""});
         for (const ApproachChoice& c : choices_) {
             ListRow row;
             row.label = c.id;
@@ -520,17 +541,31 @@ private:
         m.pop();
     }
 
+    // N11b: NOT NOW (or B) after a Direct-To another airport or a new destination: fly on, with
+    // the edit's messages.
+    void notNow(MenuSystem& m) {
+        MenuResult res = pending_;
+        res.action = MenuAction::ResumeFlight;
+        m.post(std::move(res));
+    }
+
     void acceptFlight(MenuSystem& m, int sel) {
         const FlightContext& f = m.flight();
         if (!f.navigator || !f.aircraft) return;
         MenuResult res;
         res.action = MenuAction::ResumeFlight;
         if (sel == 0) {
+            if (f.navigator->plan().approachStartLeg >= 0) {  // N11b: the legs go; undo for a while
+                f.navigator->stashUndo("APPROACH REMOVED", flightSimTimeS(m));
+                res.message2 = kUndoHint;
+            }
             f.navigator->removeApproach();
             res.message = "APPROACH REMOVED";
             m.post(std::move(res));
             return;
         }
+        // N11b: after an offer, the undo hint of the edit before it stays under the approach.
+        const std::string hint = pending_.message2;
         const ApproachChoice& c = choices_[static_cast<size_t>(sel) - 1];
         const std::string& rwy = runways_[static_cast<size_t>(rwyIdx_)];
         auto approach = findApproach(m.nav(), airport_, rwy, c.id, m.approachProvider());
@@ -538,12 +573,13 @@ private:
             // N8: choose the transition (AUTO = nearest to the route, as before).
             m.push(makeApproachTransitionPick(
                 *approach, f.navigator->plan().approachTransition,
-                [a = *approach](MenuSystem& mm, int i) {
+                [a = *approach, hint](MenuSystem& mm, int i) {
                     Navigator* nav = mm.flight().navigator;
                     if (!nav) return;
                     const int idx = i == 0 ? -1 : i - 1;  // VECTORS = transitions[0]
                     MenuResult r;
                     r.action = MenuAction::ResumeFlight;
+                    r.message2 = hint;
                     if (!nav->loadApproach(a, idx)) {
                         mm.push(makeConfirmScreen("CANNOT LOAD APPROACH " + a.id, nullptr));
                         return;
@@ -567,10 +603,12 @@ private:
             return;
         }
         res.message = "APPROACH " + c.id;
+        res.message2 = hint;
         m.post(std::move(res));
     }
 
     ApproachMode mode_;
+    MenuResult pending_;  // N11b: Offer mode, the edit's messages
     std::string airport_;
     std::vector<std::string> runways_;
     int rwyIdx_ = 0;
@@ -578,7 +616,135 @@ private:
     ListNav nav_;
 };
 
+// ---- N11b: KEEP ROUTE / CLEAR ROUTE ------------------------------------------------------------------------------
+
+class RouteChoiceScreen : public Screen {
+public:
+    RouteChoiceScreen(std::string ident, std::function<void(MenuSystem&, bool)> onPick)
+        : ident_(std::move(ident)), onPick_(std::move(onPick)), nav_(2, 2) {
+        nav_.select(1);  // CLEAR ROUTE (owner, 2026-11-09)
+    }
+    ScreenId id() const override { return ScreenId::Confirm; }
+
+    void update(const MenuInput& in, MenuSystem& m) override {
+        if (in.left || in.right) nav_.move(1);
+        nav_.handle(in);
+        if (in.back || in.start) {
+            m.pop();  // cancel: nothing changes
+        } else if (in.accept && onPick_) {
+            onPick_(m, nav_.selected() == 0);
+        }
+    }
+    // A full screen (a dialog over the plan list let the list's strokes show through).
+    void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
+        drawScreenFrame(r, t, "NEW DESTINATION " + ident_, "KEEP THE ROUTE OR CLEAR IT?",
+                        "UP DOWN MOVE   A SELECT   B CANCEL");
+        std::vector<ListRow> rows{{"KEEP ROUTE", "ROUTE TO " + ident_},
+                                  {"CLEAR ROUTE", "DIRECT TO " + ident_}};
+        const float x = r.centered(kContentX);
+        drawList(r, t, x, kListTop, kContentW, kRowH, nav_, rows);
+    }
+
+private:
+    std::string ident_;
+    std::function<void(MenuSystem&, bool)> onPick_;
+    ListNav nav_;
+};
+
+// ---- N11b: DEPARTURE RUNWAY (in flight, on the ground) -----------------------------------------------------------
+
+void applyDepartureRunway(MenuSystem& m, const std::string& runwayDb) {
+    Navigator* nav = m.flight().navigator;
+    if (!nav || !nav->hasPlan()) return;
+    const FlightPlan& plan = nav->plan();
+    const PlanEditResult edit =
+        changeDepartureRunway(plan, m.nav(), runwayDb,
+                              sidLegsForRunway(m.env().navDir, plan.originIdent, plan.sidId,
+                                               plan.sidTransition, runwayDb));
+    MenuResult res;
+    res.action = MenuAction::ResumeFlight;
+    if (!applyFlightEdit(m, edit, res)) {
+        m.push(makeConfirmScreen(edit.message, nullptr));
+        return;
+    }
+    m.post(std::move(res));
+}
+
 }  // namespace
+
+// ---- N11b: plan edits in flight ---------------------------------------------------------------------------------
+
+PlanEditContext flightEditContext(const MenuSystem& m) {
+    return m.flight().aircraft ? planEditContext(*m.flight().aircraft) : PlanEditContext{};
+}
+
+double flightSimTimeS(const MenuSystem& m) {
+    return m.flight().aircraft ? m.flight().aircraft->simTimeS : 0.0;
+}
+
+bool applyFlightEdit(const MenuSystem& m, const PlanEditResult& edit, MenuResult& res) {
+    res.message = edit.message;
+    res.message2.clear();
+    Navigator* nav = m.flight().navigator;
+    if (!nav || !nav->applyEdit(edit, flightSimTimeS(m))) return false;
+    if (edit.destructive) res.message2 = kUndoHint;
+    return true;
+}
+
+void newDestinationInFlight(MenuSystem& m, const std::string& airportIdent) {
+    Navigator* nav = m.flight().navigator;
+    if (!nav) return;
+    auto apply = [airportIdent](MenuSystem& mm, bool keepRoute) {
+        Navigator* n = mm.flight().navigator;
+        if (!n) return;
+        const PlanEditResult edit = changeDestination(n->plan(), mm.nav(), airportIdent, "",
+                                                      keepRoute, flightEditContext(mm));
+        MenuResult res;
+        if (!applyFlightEdit(mm, edit, res)) {
+            mm.replaceTop(makeConfirmScreen(edit.message, nullptr));
+            return;
+        }
+        mm.replaceTop(makeApproachOfferScreen(mm, std::move(res)));  // after the edit: its airport
+    };
+    if (nav->hasPlan() && nav->plan().legs.size() > 1)
+        m.replaceTop(makeRouteChoiceScreen(airportIdent, apply));
+    else
+        apply(m, false);  // no route to keep
+}
+
+std::string undoPlanEdit(Navigator& nav, double simTimeS) {
+    if (!nav.undoAvailable(simTimeS)) return "NOTHING TO UNDO";
+    return undoneMessage(nav.undo(simTimeS));
+}
+
+std::unique_ptr<Screen> makeApproachOfferScreen(const MenuSystem& menu, MenuResult pending) {
+    return std::make_unique<ApproachScreen>(ApproachMode::Offer, menu, std::move(pending));
+}
+
+std::unique_ptr<Screen> makeRouteChoiceScreen(const std::string& airportIdent,
+                                              std::function<void(MenuSystem&, bool)> onPick) {
+    return std::make_unique<RouteChoiceScreen>(airportIdent, std::move(onPick));
+}
+
+std::unique_ptr<Screen> makeDepartureRunwayScreen(const MenuSystem& menu) {
+    std::vector<std::string> items;
+    int selected = 0;
+    std::string origin, sub = "THE PLAN'S FIRST LEG";
+    if (const Navigator* nav = menu.flight().navigator; nav && nav->hasPlan()) {
+        const FlightPlan& p = nav->plan();
+        origin = p.originIdent;
+        if (!p.sidId.empty()) sub = "SID " + p.sidId + " STAYS WHEN IT SERVES THE RUNWAY";
+        if (const Airport* a = menu.nav().findAirport(origin)) {
+            for (const Runway* r : sortedRunways(*a)) {
+                if (r->ident == p.depRunway) selected = static_cast<int>(items.size());
+                items.push_back(r->ident);
+            }
+        }
+    }
+    return std::make_unique<PickScreen>(
+        "DEPARTURE RUNWAY " + origin, sub, items, selected,
+        [items](MenuSystem& m, int i) { applyDepartureRunway(m, items[static_cast<size_t>(i)]); });
+}
 
 std::unique_ptr<Screen> makePlanScreen() {
     return std::make_unique<PlanScreen>();

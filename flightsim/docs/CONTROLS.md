@@ -66,7 +66,7 @@ While the map is open, trim, flaps and gear inputs are ignored.
 | L1 + D-pad ↑ / ↓ | Altitude bug +/− 100 ft (hold: accelerates to 1,000 ft/step) |
 | L1 + right stick Y | VS bug (in VS mode) or speed bug (A/T on), rate-based |
 | L1 + R2 | ALT hold at the current altitude; pressed again in ALT with the altitude bug more than 100 ft away: VS toward the bug at the default rate (ALT armed) |
-| L1 + Select | Direct-to the active waypoint from present position (no plan, or none left: opens the direct-to list) |
+| L1 + Select | DIRECT TO NEXT (N11b, NAVIGATION 2.4 rule 8): direct to the active waypoint while it is still ahead, else to the first waypoint ahead (no plan, or none left: opens the direct-to list) |
 | L1 + L3 | TO/GA (airborne): go-around pitch on speed, A/T to TOGA, HDG on the present heading with NAV armed on the plan; the AP stays engaged below minimums |
 | L1 + Start | FLC: climb or descend to the altitude bug at the speed bug (A/T: climb thrust or idle); again → PIT |
 
@@ -83,6 +83,7 @@ first, the way TO/GA does, so the mode is selected on the FD; L1 + A then hands 
 | R1 + Y | Nav source cycle GPS → LOC (ILS or LOC approach loaded) → VOR (when tuned) → GPS. Leaving LOC stays on GPS until the next press; `NO LOC OR VOR TUNED` when there is nothing to switch to. |
 | R1 + D-pad ↑ / ↓ | Altimeter setting +/− 0.01 inHg or 1 hPa (per the pressure-units setting; hold repeats) |
 | R1 + Select | Altimeter to standard (STD, 1013.25 hPa) |
+| R1 + Start | Undo the last route change (`ROUTE REPLACED`, `PLAN CLEARED`, `SID REMOVED`, a removed STAR or approach) for 10 s of flight (N11b): `ROUTE REPLACED UNDONE`, or `NOTHING TO UNDO` |
 
 ### L2 held: look layer
 | Input | Action |
@@ -102,6 +103,9 @@ Buttons pressed in a menu stay in the menu: the A that picks RESUME (or starts a
 also toggle the gear.
 
 ## 3. Menus
+FLIGHT PLAN in flight (N11b): on a leg row A goes direct to it, X activates it and Y deletes it
+(the footer says so). The KEEP ROUTE / CLEAR ROUTE prompt opens on CLEAR ROUTE; up / down (or left /
+right) and A choose, B cancels without a change.
 FLIGHT LOG (main menu, U2) uses the standard list keys: D-pad up and down to move, A for a
 flight's details, B back. No new buttons.
 Help, on the main menu and the pause menu, lists the live bindings, tests a button, and holds the
@@ -125,7 +129,7 @@ delete, Start = done, X = space, Y = cycle letters/digits).
 | F6 | TO/GA | F7 | FLC |
 | C | cockpit / chase view | | |
 | 9 / 0 | altitude bug −/+ | V + arrows | look |
-| Ctrl+Q | quit | | |
+| Ctrl+Q | quit | Ctrl+Z | undo the last route change (R1 + Start) |
 
 Gamepads work on desktop with the same mapping as the device.
 

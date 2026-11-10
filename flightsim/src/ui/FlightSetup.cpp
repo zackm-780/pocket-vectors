@@ -15,6 +15,7 @@
 #include "core/SyntheticNavDb.h"
 #include "core/Units.h"
 #include "nav/FlightPlan.h"
+#include "nav/PlanEdit.h"
 #include "sim/ProfileLoader.h"
 
 namespace fsim {
@@ -267,6 +268,21 @@ std::vector<ApproachChoice> approachChoices(const NavDatabase& db, const std::st
     return out;
 }
 
+std::optional<std::vector<Leg>> sidLegsForRunway(const std::string& navDir,
+                                                 const std::string& airportIdent,
+                                                 const std::string& sidId,
+                                                 const std::string& transition,
+                                                 const std::string& runwayDb) {
+    if (sidId.empty() || navDir.empty()) return std::nullopt;
+    const auto set = loadProcedureSet(navDir, airportIdent);
+    if (!set) return std::nullopt;
+    const TerminalProcedure* sid = findSid(*set, sidId);
+    if (!sid) return std::nullopt;
+    for (const TerminalProcedure* p : sidsForRunway(*set, runwayDb))
+        if (p == sid) return assembleSidLegs(*sid, runwayDb, transition);
+    return std::nullopt;
+}
+
 // ---- FlightSetup -----------------------------------------------------------------------------------
 
 bool FlightSetup::setAirport(const NavDatabase& db, const std::string& ident) {
@@ -285,6 +301,55 @@ void FlightSetup::setRunway(const std::string& runwayIdentDb) {
     runwayIdent = runwayIdentDb;
     if (planKind == PlanKind::Quick) clearPlan();  // the origin runway is part of the plan
     if (!hasPlan()) approachId.clear();
+}
+
+void FlightSetup::setRunway(const NavDatabase& db, const std::string& navDir,
+                            const std::string& runwayIdentDb) {
+    if (runwayIdent == runwayIdentDb) return;
+    if (!hasPlan() || plan.legs.empty()) {
+        setRunway(runwayIdentDb);
+        return;
+    }
+    runwayIdent = runwayIdentDb;
+    // N11b: rule 6. The SID is a name here (the simulation inserts its legs at the start), so it
+    // stays when it serves the new runway.
+    const std::string sid = plan.sidId, sidTrans = plan.sidTransition;
+    const PlanEditResult r = changeDepartureRunway(plan, db, runwayIdentDb, std::nullopt);
+    if (!r.ok) return;  // not a runway of the origin: the plan stays as it was
+    plan = r.plan;
+    const bool keepSid =
+        !sid.empty() && sidLegsForRunway(navDir, airportIdent, sid, sidTrans, runwayIdentDb);
+    planFile.sid = plan.sidId = keepSid ? sid : std::string();
+    planFile.sidTrans = plan.sidTransition = keepSid ? sidTrans : std::string();
+    planFile.deprwy = dbRunwayToFms(runwayIdentDb);
+}
+
+bool FlightSetup::keepRouteToNewDestination(const NavDatabase& db, const std::string& destIdent,
+                                            const std::string& destRunway, std::string& error) {
+    if (!hasPlan()) {
+        error = "no flight plan";
+        return false;
+    }
+    PlanEditContext ground;
+    ground.airborne = false;
+    if (!plan.legs.empty())
+        ground.present = LatLon{plan.legs.front().to.latDeg, plan.legs.front().to.lonDeg};
+    const PlanEditResult r = changeDestination(plan, db, destIdent, destRunway, true, ground);
+    if (!r.ok) {
+        error = r.message;
+        return false;
+    }
+    plan = r.plan;
+    FmsFile header = planFile;  // keeps SID and CYCLE; the old STAR and approach go
+    header.star.clear();
+    header.starTrans.clear();
+    header.appTrans.clear();
+    header.app.clear();
+    planFile = planToFms(plan, db, &header);
+    if (planKind == PlanKind::Quick) planName = "QUICK " + airportIdent + "-" + plan.destIdent;
+    approachId.clear();
+    approachTransition.clear();
+    return true;
 }
 
 bool FlightSetup::loadPlanFile(const NavDatabase& db, const std::string& path,

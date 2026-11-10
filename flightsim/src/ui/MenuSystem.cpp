@@ -8,9 +8,33 @@
 #include "core/Log.h"
 #include "core/Paths.h"
 #include "core/SyntheticNavDb.h"
+#include "nav/FlightPlan.h"
 #include "ui/MenuScreens.h"
 
 namespace fsim {
+
+namespace {
+
+// N11b: a canned spec that makes a plan edit runs it on the first menu frame (the flight exists
+// then), the way the screens do.
+class RunOnceScreen : public Screen {
+public:
+    explicit RunOnceScreen(std::function<void(MenuSystem&)> run) : run_(std::move(run)) {}
+    ScreenId id() const override { return ScreenId::None; }
+    bool isOverlay() const override { return true; }
+    void update(const MenuInput&, MenuSystem& m) override {
+        if (!run_) return;
+        auto run = std::move(run_);
+        run_ = nullptr;
+        run(m);
+    }
+    void draw(Renderer2D&, const UiTheme&, const MenuSystem&) const override {}
+
+private:
+    std::function<void(MenuSystem&)> run_;
+};
+
+}  // namespace
 
 const char* screenName(ScreenId id) {
     switch (id) {
@@ -335,13 +359,51 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
     } else if (name == "flightlog") {  // U2: flightlog:N opens flight N's details (1 = newest)
         stack_.push_back(makeMainScreen(*this));
         stack_.push_back(makeFlightLogScreen(*this, arg.empty() ? -1 : std::atoi(arg.c_str()) - 1));
-    } else if (name == "pause" || name == "flightplan") {
+    } else if (name == "pause" || name == "flightplan" || name == "directto" || name == "newdest") {
         if (!hasFlight_) {
             error = "'" + name + "' needs a running flight";
             return false;
         }
+        std::string sub, ident = arg;  // N11b: flightplan:newdest:ICAO, newdest:ICAO
+        const size_t c2 = arg.find(':');
+        if (c2 != std::string::npos) {
+            sub = arg.substr(0, c2);
+            ident = arg.substr(c2 + 1);
+        }
+        for (char& c : ident) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        if ((name != "pause" && name != "flightplan" && ident.empty()) ||
+            (name == "flightplan" && !arg.empty() && (sub != "newdest" || ident.empty()))) {
+            error = "'" + spec + "': use directto:IDENT, newdest:ICAO or flightplan:newdest:ICAO";
+            return false;
+        }
         openPause();
-        if (name == "flightplan") stack_.push_back(makeFlightPlanScreen(*this));
+        if (name == "flightplan" && ident.empty()) {
+            stack_.push_back(makeFlightPlanScreen(*this));
+        } else if (name == "flightplan") {  // after NEW DESTINATION ICAO, CLEAR ROUTE: UNDO row
+            stack_.push_back(std::make_unique<RunOnceScreen>([ident](MenuSystem& m) {
+                Navigator* nav = m.flight().navigator;
+                const PlanEditResult edit =
+                    changeDestination(nav->plan(), m.nav(), ident, "", false, flightEditContext(m));
+                MenuResult res;
+                if (!applyFlightEdit(m, edit, res)) LOG_WARN("--menu: %s", edit.message.c_str());
+                m.replaceTop(makeFlightPlanScreen(m));
+            }));
+        } else if (name == "newdest") {  // the KEEP / CLEAR prompt over the FLIGHT PLAN screen
+            stack_.push_back(makeFlightPlanScreen(*this));
+            stack_.push_back(std::make_unique<RunOnceScreen>(
+                [ident](MenuSystem& m) { newDestinationInFlight(m, ident); }));
+        } else if (name == "directto") {  // the search screen's Direct-To, then the flight resumes
+            stack_.push_back(std::make_unique<RunOnceScreen>([ident](MenuSystem& m) {
+                double lat = 0, lon = 0;
+                m.referencePosition(lat, lon);
+                const std::vector<IdentMatch> hits = resolveIdent(m.nav(), ident, lat, lon);
+                if (hits.empty()) {
+                    m.replaceTop(makeConfirmScreen("NO " + ident + " IN THE DATABASE", nullptr));
+                    return;
+                }
+                directToInFlight(m, hits.front().wp);
+            }));
+        }
     } else if (name == "confirm") {
         stack_.push_back(makeMainScreen(*this));
         stack_.push_back(makeConfirmScreen("QUIT THE GAME?", [](MenuSystem& m) {
@@ -355,8 +417,8 @@ bool MenuSystem::openCanned(const std::string& spec, std::string& error) {
     } else {
         error = "unknown menu screen '" + name +
                 "' (main, setup, aircraft, airport[:TEXT], runway[:ICAO], start, plan[:FILE], "
-                "approach[:FILE], settings, flightlog[:N], pause, flightplan, confirm, "
-                "help[:PAGE]; plan:none = no plan)";
+                "approach[:FILE], settings, flightlog[:N], pause, flightplan[:newdest:ICAO], "
+                "directto:IDENT, newdest:ICAO, confirm, help[:PAGE]; plan:none = no plan)";
         return false;
     }
     return true;

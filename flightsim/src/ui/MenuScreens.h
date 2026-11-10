@@ -6,13 +6,17 @@
 #include <memory>
 #include <string>
 
+#include "nav/PlanEdit.h"
 #include "ui/MenuSystem.h"
 
 namespace fsim {
 
-enum class SearchMode { StartAirport, PlanDestination, DirectTo };
+// N11b: NewDestination is the in-flight NEW DESTINATION search (rule 5).
+enum class SearchMode { StartAirport, PlanDestination, DirectTo, NewDestination };
 enum class RunwayMode { Start, QuickPlanDest, PlanDest };
-enum class ApproachMode { Setup, Flight };
+// N11b: Offer is the in-flight list offered after a Direct-To another airport or a new
+// destination (makeApproachOfferScreen).
+enum class ApproachMode { Setup, Flight, Offer };
 
 std::unique_ptr<Screen> makeMainScreen(MenuSystem& menu);
 std::unique_ptr<Screen> makeSetupScreen();
@@ -25,6 +29,16 @@ std::unique_ptr<Screen> makeStartTypeScreen(const MenuSystem& menu);
 std::unique_ptr<Screen> makePlanScreen();
 std::unique_ptr<Screen> makePlanFilesScreen(const MenuSystem& menu);
 std::unique_ptr<Screen> makeApproachScreen(ApproachMode mode, const MenuSystem& menu);
+// N11b: the approaches of the flight's (new) destination, offered after a Direct-To another airport
+// or a NEW DESTINATION. The first row is NOT NOW; `pending` (the edit's messages) is posted when
+// the pilot leaves with NOT NOW or B, and its message is the screen's subtitle.
+std::unique_ptr<Screen> makeApproachOfferScreen(const MenuSystem& menu, MenuResult pending);
+// N11b: the in-flight DEPARTURE RUNWAY list (on the ground): rule 6 through PlanEdit.
+std::unique_ptr<Screen> makeDepartureRunwayScreen(const MenuSystem& menu);
+// N11b: the KEEP ROUTE / CLEAR ROUTE prompt for a new destination, a two-row screen (CLEAR
+// selected, B pops it and nothing changes). `onPick(menu, keepRoute)` decides where to go (replaceTop, popTo).
+std::unique_ptr<Screen> makeRouteChoiceScreen(const std::string& airportIdent,
+                                              std::function<void(MenuSystem&, bool)> onPick);
 // N8: SIDs (sid = true) or STARs for the plan's departure / arrival runway, then the transition.
 std::unique_ptr<Screen> makeProcedureScreen(bool sid, ApproachMode mode, const MenuSystem& menu);
 std::unique_ptr<Screen> makeSettingsScreen();
@@ -40,5 +54,27 @@ std::unique_ptr<Screen> makeHelpScreen(const MenuSystem& menu, const std::string
 
 // "5.2 NM" / "143 NM".
 std::string formatDistNm(double nm);
+
+// ---- N11b: plan edits in flight (NAVIGATION 2.4) -------------------------------------------------
+
+// The second HUD line after a destructive edit.
+inline constexpr const char* kUndoHint = "R1+START UNDO";
+// Where the flight's aircraft is (PlanEditContext of the aircraft; an empty one without a flight).
+PlanEditContext flightEditContext(const MenuSystem& menu);
+double flightSimTimeS(const MenuSystem& menu);
+// Applies `edit` to the flight's navigator (Navigator::applyEdit at the sim time, which keeps the
+// plan before a destructive edit for the undo) and fills `res` with the HUD lines: the edit's
+// message, and kUndoHint under it when it is destructive. False (res.message = the reason) when
+// the edit failed or there is no flight.
+bool applyFlightEdit(const MenuSystem& menu, const PlanEditResult& edit, MenuResult& res);
+// Direct-To `target` (rules 1-4) from the top screen: the flight resumes with the rule's message,
+// or after Direct-To another airport (rule 4) its approaches are offered (replaceTop).
+void directToInFlight(MenuSystem& menu, const Waypoint& target);
+// The new destination with the KEEP / CLEAR choice (rule 5), then the approach offer. Without a
+// route to keep, CLEAR applies at once.
+void newDestinationInFlight(MenuSystem& menu, const std::string& airportIdent);
+// The undo row / button: restores the plan kept by the last destructive edit while the window is
+// open ("ROUTE REPLACED UNDONE"), else "NOTHING TO UNDO".
+std::string undoPlanEdit(Navigator& nav, double simTimeS);
 
 }  // namespace fsim

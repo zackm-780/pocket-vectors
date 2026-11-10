@@ -65,6 +65,9 @@ struct MenuResult {
     Scenario scenario;
     std::string message;           // short HUD message to show (e.g. "DIRECT TO KOTH")
     bool settingsChanged = false;  // settings were edited and saved: re-apply them
+    // Additive (N11b): a second HUD line shown under `message` ("R1+START UNDO" after a
+    // destructive plan edit); empty = none.
+    std::string message2;
 };
 
 // Everything the menus need from the app. Directories and files are explicit so tests can point

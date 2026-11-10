@@ -322,10 +322,154 @@ std::string altText(const AltConstraint& a) {
     return b;
 }
 
+// N11b: every change goes through the PlanEdit rules (NAVIGATION 2.4). Action rows first, then the
+// legs: A = Direct-To (rule 1), X = ACTIVATE LEG, Y = DELETE (rule 7).
 class FlightPlanScreen : public Screen {
 public:
-    explicit FlightPlanScreen(const MenuSystem& m) : nav_(kActionRows, kListRows) {
+    explicit FlightPlanScreen(const MenuSystem& m) : nav_(kFixedRows, kListRows) {
+        load(m);
+        if (plan_.activeLeg >= 1 && plan_.activeLeg < static_cast<int>(legs_.size()))
+            nav_.select(actionRows_ + plan_.activeLeg);
+    }
+    ScreenId id() const override { return ScreenId::FlightPlan; }
+
+    void update(const MenuInput& in, MenuSystem& m) override {
+        nav_.handle(in);
+        if (in.back) {
+            m.pop();
+            return;
+        }
+        if (in.start) {
+            MenuResult res;
+            res.action = MenuAction::ResumeFlight;
+            m.post(std::move(res));
+            return;
+        }
+        const int sel = nav_.selected();
+        if (sel >= actionRows_) {
+            legButtons(in, m, sel - actionRows_);
+            return;
+        }
+        if (!in.accept) return;
         const FlightContext& f = m.flight();
+        switch (sel) {
+        case kRowDirectTo: m.push(makeSearchScreen(SearchMode::DirectTo, m)); break;
+        case kRowNewDest: m.push(makeSearchScreen(SearchMode::NewDestination, m)); break;
+        case kRowApproach: m.push(makeApproachScreen(ApproachMode::Flight, m)); break;
+        case kRowStar: m.push(makeProcedureScreen(false, ApproachMode::Flight, m)); break;  // N8
+        case kRowSid: m.push(makeProcedureScreen(true, ApproachMode::Flight, m)); break;    // N8
+        case kRowDepRunway: m.push(makeDepartureRunwayScreen(m)); break;
+        case kRowActivateApproach: {
+            MenuResult res;
+            if (f.navigator && f.navigator->reenterApproach()) {
+                res.action = MenuAction::ResumeFlight;
+                res.message = "ACTIVATE APPROACH";
+                m.post(std::move(res));
+            } else {
+                m.push(makeConfirmScreen("NO APPROACH TO ACTIVATE", nullptr));
+            }
+            break;
+        }
+        case kRowUndo:
+            if (f.navigator) {
+                MenuResult res;
+                res.action = MenuAction::ResumeFlight;
+                res.message = undoPlanEdit(*f.navigator, flightSimTimeS(m));
+                m.post(std::move(res));
+            }
+            break;
+        default: break;
+        }
+    }
+
+    void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
+        std::string sub = "NO FLIGHT PLAN";
+        if (!legs_.empty()) {
+            char b[96];
+            std::snprintf(b, sizeof b, "%s > %s   %.0f NM%s%s", plan_.originIdent.c_str(),
+                          plan_.destIdent.c_str(), distNm_,
+                          plan_.approachId.empty() ? "" : "   APP ", plan_.approachId.c_str());
+            sub = b;
+        }
+        const bool onLeg = nav_.selected() >= actionRows_;
+        drawScreenFrame(r, t, "FLIGHT PLAN", sub,
+                        onLeg ? "A DIRECT TO   X ACTIVATE   Y DELETE   B BACK"
+                              : "A SELECT   B BACK   START RESUME");
+        // 1.3: the F6 fuel line shares the subtitle's line, right aligned (at y 66 it was
+        // drawn over the subtitle); it drops above the footer when both do not fit.
+        if (fuelLine_[0]) {
+            const float x0 = r.centered(kContentX);
+            const float need = StrokeFont::measure(sub.c_str(), TextSize::S) +
+                               StrokeFont::measure(fuelLine_, TextSize::S) +
+                               3 * StrokeFont::advancePx(TextSize::S);
+            if (need <= kContentW)
+                r.text(x0 + kContentW, kSubtitleY, fuelLine_, TextSize::S, t.dim, HAlign::Right);
+            else
+                r.text(x0, kFooterRuleY - 10, fuelLine_, TextSize::S, t.dim);
+        }
+        std::vector<ListRow> rows(static_cast<size_t>(nav_.count()));
+        const bool havePlan = !legs_.empty();
+        rows[kRowDirectTo].label = "DIRECT TO IDENT...";
+        rows[kRowNewDest].label = "NEW DESTINATION...";
+        rows[kRowApproach].label = "CHANGE APPROACH...";
+        rows[kRowStar] = {"ARRIVAL (STAR)...",
+                          FlightSetup::procedureText(plan_.starId, plan_.starTransition)};
+        rows[kRowSid] = {"DEPARTURE (SID)...",
+                         FlightSetup::procedureText(plan_.sidId, plan_.sidTransition)};
+        rows[kRowDepRunway] = {"DEPARTURE RUNWAY...", plan_.depRunway.empty() && havePlan
+                                                          ? std::string("NONE")
+                                                          : plan_.depRunway};
+        rows[kRowActivateApproach].label = "ACTIVATE APPROACH";
+        for (int i = kRowStar; i <= kRowDepRunway; ++i) {
+            rows[static_cast<size_t>(i)].enabled = !nav_.isDisabled(i);
+            rows[static_cast<size_t>(i)].dimValue = nav_.isDisabled(i);
+        }
+        rows[kRowActivateApproach].enabled = hasApproach_;
+        if (actionRows_ > kFixedRows) rows[kRowUndo].label = "UNDO " + undoLabel_;
+        for (size_t i = 0; i < legs_.size(); ++i) {
+            const LegSummary& l = legs_[i];
+            char b[96];
+            char dtk[8] = "";
+            if (l.dtkMagDeg) std::snprintf(dtk, sizeof dtk, "%03.0fM", *l.dtkMagDeg);
+            char dist[16] = "";
+            if (i > 0) std::snprintf(dist, sizeof dist, "%.1fNM", l.distNm);
+            std::snprintf(b, sizeof b, "%c%2d %-7s %-2s %4s %7s",
+                          static_cast<int>(i) == plan_.activeLeg ? '>' : ' ', l.index,
+                          l.ident.c_str(), legTypeName(l.type), dtk, dist);
+            ListRow& row = rows[static_cast<size_t>(actionRows_) + i];
+            row.label = b;
+            row.value = altText(l.alt);
+            row.enabled = i > 0;
+            row.dimValue = l.missedApproach;
+        }
+        const float x = r.centered(kContentX);
+        drawList(r, t, x, kListTop, kContentW, kRowH, nav_, rows);
+        // 1.3: the hint goes below the action rows (it sat on DEPARTURE once N8 made them 5).
+        if (legs_.empty())
+            r.text(x + 10, kListTop + static_cast<float>(actionRows_) * kRowH + 20,
+                   "DIRECT TO CREATES A ONE-LEG PLAN", TextSize::S, t.dim);
+    }
+
+private:
+    // N11b: the action rows. UNDO is there only while an undo is available (10 s).
+    enum : int {
+        kRowDirectTo,
+        kRowNewDest,
+        kRowApproach,
+        kRowStar,
+        kRowSid,
+        kRowDepRunway,
+        kRowActivateApproach,
+        kRowUndo
+    };
+    static constexpr int kFixedRows = kRowUndo;
+
+    void load(const MenuSystem& m) {
+        const FlightContext& f = m.flight();
+        plan_ = FlightPlan{};
+        legs_.clear();
+        fuelLine_[0] = 0;
+        hasApproach_ = false;
         if (f.navigator && f.navigator->hasPlan()) {
             plan_ = f.navigator->plan();
             hasApproach_ = f.navigator->activeApproach() != nullptr;
@@ -346,126 +490,62 @@ public:
                               plan_.destIdent.c_str(), dest);
             }
         }
-        nav_.setCount(kActionRows + static_cast<int>(legs_.size()));
+        const bool undo = f.navigator && f.navigator->undoAvailable(flightSimTimeS(m));
+        undoLabel_ = undo ? f.navigator->undoLabel() : std::string();
+        actionRows_ = kFixedRows + (undo ? 1 : 0);
+        const bool onGround = f.aircraft && f.aircraft->wowAny;
+        nav_.setCount(actionRows_ + static_cast<int>(legs_.size()));
         std::vector<char> disabled(static_cast<size_t>(nav_.count()), 0);
-        disabled[2] = disabled[3] = legs_.empty() ? 1 : 0;  // N8: ARRIVAL, DEPARTURE
-        disabled[4] = hasApproach_ ? 0 : 1;
-        if (!legs_.empty()) disabled[kActionRows] = 1;  // leg 0 is the origin
+        disabled[kRowStar] = disabled[kRowSid] = legs_.empty() ? 1 : 0;  // N8: ARRIVAL, DEPARTURE
+        disabled[kRowDepRunway] = legs_.empty() || !onGround ? 1 : 0;    // N11b: on the ground only
+        disabled[kRowActivateApproach] = hasApproach_ ? 0 : 1;
+        if (!legs_.empty()) disabled[static_cast<size_t>(actionRows_)] = 1;  // leg 0 = the origin
         nav_.setDisabled(disabled);
-        if (plan_.activeLeg >= 1 && plan_.activeLeg < static_cast<int>(legs_.size()))
-            nav_.select(kActionRows + plan_.activeLeg);
     }
-    ScreenId id() const override { return ScreenId::FlightPlan; }
 
-    void update(const MenuInput& in, MenuSystem& m) override {
-        nav_.handle(in);
-        if (in.back) {
-            m.pop();
-            return;
-        }
-        if (in.start) {
-            MenuResult res;
-            res.action = MenuAction::ResumeFlight;
-            m.post(std::move(res));
-            return;
-        }
-        if (!in.accept) return;
+    // A = Direct-To the leg's waypoint (rule 1), X = ACTIVATE LEG (rule 8), Y = DELETE (rule 7).
+    void legButtons(const MenuInput& in, MenuSystem& m, int leg) {
         const FlightContext& f = m.flight();
-        const int sel = nav_.selected();
-        if (sel == 0) {
-            m.push(makeSearchScreen(SearchMode::DirectTo, m));
-        } else if (sel == 1) {
-            m.push(makeApproachScreen(ApproachMode::Flight, m));
-        } else if (sel == 2) {
-            m.push(makeProcedureScreen(false, ApproachMode::Flight, m));  // N8: STAR
-        } else if (sel == 3) {
-            m.push(makeProcedureScreen(true, ApproachMode::Flight, m));  // N8: SID
-        } else if (sel == 4) {
-            MenuResult res;
-            if (f.navigator && f.navigator->reenterApproach()) {
-                res.action = MenuAction::ResumeFlight;
-                res.message = "DIRECT TO APPROACH";
-                m.post(std::move(res));
-            } else {
-                m.push(makeConfirmScreen("NO APPROACH TO RE-ENTER", nullptr));
+        if (!f.navigator || leg < 1 || leg >= static_cast<int>(plan_.legs.size())) return;
+        const Leg& l = plan_.legs[static_cast<size_t>(leg)];
+        PlanEditResult edit;
+        if (in.accept) {
+            if (l.type == LegType::CA || l.type == LegType::VA) {  // an altitude, not a fix
+                m.push(makeConfirmScreen("NO FIX: X ACTIVATES THE LEG", nullptr));
+                return;
             }
-        } else if (f.navigator) {
-            const int leg = sel - kActionRows;
-            if (f.navigator->directToLeg(leg)) {
-                MenuResult res;
-                res.action = MenuAction::ResumeFlight;
-                res.message = "DIRECT TO " + legs_[static_cast<size_t>(leg)].ident;
-                m.post(std::move(res));
-            }
+            edit = directTo(plan_, l.to, flightEditContext(m));
+        } else if (in.x) {
+            edit = activateLeg(plan_, leg, flightEditContext(m));
+        } else if (in.y) {
+            edit = deleteWaypoint(plan_, leg, flightEditContext(m));
+        } else {
+            return;
         }
+        MenuResult res;
+        if (!applyFlightEdit(m, edit, res)) {
+            m.push(makeConfirmScreen(edit.message, nullptr));
+            return;
+        }
+        if (in.y) {  // stay on the list to delete more; the message goes to the HUD now
+            m.post(std::move(res));
+            const int keep = nav_.selected();
+            load(m);
+            nav_.select(std::min(keep, nav_.count() - 1));
+            if (nav_.isDisabled(nav_.selected())) nav_.move(1);
+            return;
+        }
+        res.action = MenuAction::ResumeFlight;
+        m.post(std::move(res));
     }
 
-    void draw(Renderer2D& r, const UiTheme& t, const MenuSystem&) const override {
-        std::string sub = "NO FLIGHT PLAN";
-        if (!legs_.empty()) {
-            char b[96];
-            std::snprintf(b, sizeof b, "%s > %s   %.0f NM%s%s", plan_.originIdent.c_str(),
-                          plan_.destIdent.c_str(), distNm_,
-                          plan_.approachId.empty() ? "" : "   APP ", plan_.approachId.c_str());
-            sub = b;
-        }
-        drawScreenFrame(r, t, "FLIGHT PLAN", sub, "A SELECT   B BACK   START RESUME");
-        // 1.3: the F6 fuel line shares the subtitle's line, right aligned (at y 66 it was
-        // drawn over the subtitle); it drops above the footer when both do not fit.
-        if (fuelLine_[0]) {
-            const float x0 = r.centered(kContentX);
-            const float need = StrokeFont::measure(sub.c_str(), TextSize::S) +
-                               StrokeFont::measure(fuelLine_, TextSize::S) +
-                               3 * StrokeFont::advancePx(TextSize::S);
-            if (need <= kContentW)
-                r.text(x0 + kContentW, kSubtitleY, fuelLine_, TextSize::S, t.dim, HAlign::Right);
-            else
-                r.text(x0, kFooterRuleY - 10, fuelLine_, TextSize::S, t.dim);
-        }
-        std::vector<ListRow> rows(static_cast<size_t>(nav_.count()));
-        rows[0].label = "DIRECT TO IDENT...";
-        rows[1].label = "CHANGE APPROACH...";
-        rows[2] = {"ARRIVAL (STAR)...",
-                   FlightSetup::procedureText(plan_.starId, plan_.starTransition)};
-        rows[2].enabled = !legs_.empty();
-        rows[2].dimValue = legs_.empty();
-        rows[3] = {"DEPARTURE (SID)...",
-                   FlightSetup::procedureText(plan_.sidId, plan_.sidTransition)};
-        rows[3].enabled = !legs_.empty();
-        rows[3].dimValue = legs_.empty();
-        rows[4].label = "RE-ENTER APPROACH";
-        rows[4].enabled = hasApproach_;
-        for (size_t i = 0; i < legs_.size(); ++i) {
-            const LegSummary& l = legs_[i];
-            char b[96];
-            char dtk[8] = "";
-            if (l.dtkMagDeg) std::snprintf(dtk, sizeof dtk, "%03.0fM", *l.dtkMagDeg);
-            char dist[16] = "";
-            if (i > 0) std::snprintf(dist, sizeof dist, "%.1fNM", l.distNm);
-            std::snprintf(b, sizeof b, "%c%2d %-7s %-2s %4s %7s",
-                          static_cast<int>(i) == plan_.activeLeg ? '>' : ' ', l.index,
-                          l.ident.c_str(), legTypeName(l.type), dtk, dist);
-            ListRow& row = rows[kActionRows + i];
-            row.label = b;
-            row.value = altText(l.alt);
-            row.enabled = i > 0;
-            row.dimValue = l.missedApproach;
-        }
-        const float x = r.centered(kContentX);
-        drawList(r, t, x, kListTop, kContentW, kRowH, nav_, rows);
-        // 1.3: the hint goes below the action rows (it sat on DEPARTURE once N8 made them 5).
-        if (legs_.empty())
-            r.text(x + 10, kListTop + static_cast<float>(kActionRows) * kRowH + 20,
-                   "DIRECT TO CREATES A ONE-LEG PLAN", TextSize::S, t.dim);
-    }
-
-private:
-    static constexpr int kActionRows = 5;  // N8: + DEPARTURE / ARRIVAL
     FlightPlan plan_;
     std::vector<LegSummary> legs_;
     char fuelLine_[96] = {0};  // F6
     double distNm_ = 0;
     bool hasApproach_ = false;
+    int actionRows_ = kFixedRows;
+    std::string undoLabel_;
     ListNav nav_;
 };
 

@@ -4,6 +4,7 @@
 // profiles and plan files, ordering airport search results, listing runways and approaches, and
 // turning the selections into a Scenario for Simulation::init(). No GL, no UI state.
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -93,6 +94,15 @@ std::vector<ApproachChoice> approachChoices(const NavDatabase& db, const std::st
                                             const std::string& navDir,
                                             const RealApproachProvider& provider);
 
+// N11b: the legs of SID `sidId` (enroute transition `transition`) from `runwayDb` at `airportIdent`
+// when that SID serves the runway ({navDir}/procedures; NAVIGATION 2.4 rule 6); nullopt when it
+// does not, when there is no SID or when the airport has no procedures.
+std::optional<std::vector<Leg>> sidLegsForRunway(const std::string& navDir,
+                                                 const std::string& airportIdent,
+                                                 const std::string& sidId,
+                                                 const std::string& transition,
+                                                 const std::string& runwayDb);
+
 // ---- the selections ------------------------------------------------------------------------------
 
 enum class PlanKind { None, File, Quick };
@@ -126,6 +136,16 @@ struct FlightSetup {
     bool setAirport(const NavDatabase& db, const std::string& ident);
     // Start runway (DB style). Clears the practice approach when there is no plan.
     void setRunway(const std::string& runwayIdentDb);
+    // N11b: the same with a plan loaded: the origin runway is part of the plan, so the plan keeps
+    // its route and only its departure changes (NAVIGATION 2.4 rule 6). The SID stays when it
+    // serves the new runway ({navDir}/procedures), else it goes.
+    void setRunway(const NavDatabase& db, const std::string& navDir,
+                   const std::string& runwayIdentDb);
+    // N11b: KEEP ROUTE for a new destination with a plan loaded (rule 5 on the ground): the origin,
+    // SID and enroute legs stay and end at `destIdent` (its runway when given); the old STAR and
+    // approach go. CLEAR ROUTE is makeQuickPlan.
+    bool keepRouteToNewDestination(const NavDatabase& db, const std::string& destIdent,
+                                   const std::string& destRunway, std::string& error);
     // .fms file: the start airport and runway become the plan's origin, the approach its APP.
     bool loadPlanFile(const NavDatabase& db, const std::string& path, const std::string& name,
                       std::string& error);

@@ -43,5 +43,8 @@ Opens a screen at startup (works with `--frames` / `--screenshot`, and with `--s
 screens that sit over a flight): `main`, `setup`, `aircraft`, `airport[:TEXT]` (types TEXT),
 `runway[:ICAO]`, `start`, `plan[:FILE]` (loads the plan file, default `KPDX-KOTH`),
 `approach[:FILE]`, `settings`, `pause`, `flightplan`, `confirm`,
+N11b's plan edits over a flight: `directto:IDENT` (the search screen's Direct-To, then the flight
+resumes with its HUD message), `newdest:ICAO` (the KEEP ROUTE / CLEAR ROUTE prompt) and
+`flightplan:newdest:ICAO` (the FLIGHT PLAN screen after a CLEAR ROUTE, with its UNDO row),
 `help[:controls[:PAGE]|buttons|howto[:ID]|about]`. Example:
 `flightsim --data-dir data --scenario assets/scenarios/c172_cruise_kpdx_koth_plan.ini --menu pause --frames 5 --screenshot /tmp/pause.png`.
