@@ -203,6 +203,7 @@ struct AircraftState {
   EngineState engines[kMaxEngines];
   float  fuelTotalLbs = 0;
   float  fuelFlowLbsPerHr = 0, fuelCapacityLbs = 0;   // additive (F6): all engines, all tanks
+  float  grossWeightLbs = 0;   // additive (H9): JSBSim inertia/weight-lbs, for the speed bugs
   // warnings
   bool   stallWarning = false, overspeed = false;
   bool   crashed = false;
@@ -250,6 +251,7 @@ struct AircraftProfile {
   float cruiseFuelFlowLbsHr = 0;  // additive (F6): [cruise] fuel_flow_lbs_hr, all engines, measured
   std::vector<float> stallWarnAlphaByFlapDeg;  // additive (F5): [warnings] stall_warn_alpha_by_flap_deg, one per detent
   std::vector<float> vsByFlapKt;               // additive (F5): [speeds_kt] vs_by_flap, measured 1 g stall per detent
+  float refWeightLbs = 0;  // additive (H9): [speeds_kt] ref_weight_lbs, the profile speeds' weight (0 = no scaling)
 };
 // additive (F5): the warning alpha for the actual flap position (interpolated between detents;
 // stallWarnAlphaDeg without per-detent values). FlightModel and the HUD both call it.

@@ -11,6 +11,7 @@
 
 #include "core/Geo.h"
 #include "core/Units.h"
+#include "hud/SpeedBugs.h"
 #include "hud/StrokeFont.h"
 
 namespace fsim {
@@ -679,7 +680,8 @@ float messageAlpha(double ageS) {
 // ---------------------------------------------------------------------------------------------
 
 ChaseReadout buildChaseReadout(const AircraftState& s, const HudOptions& opt,
-                               const HudVisibility& vis, float virtualWidth) {
+                               const HudVisibility& vis, float virtualWidth,
+                               const SpeedBugSet* bugs, float trend10sKt) {
     ChaseReadout c;
     c.speedBox = speedValueBox(virtualWidth);
     c.altBox = altValueBox(virtualWidth);
@@ -707,6 +709,14 @@ ChaseReadout buildChaseReadout(const AircraftState& s, const HudOptions& opt,
     c.baro.baselineY = 420;
     formatVs(c.vs.text, sizeof c.vs.text, s.vsFpm);
     formatAltimeterSetting(c.baro.text, sizeof c.baro.text, s.altimeterSettingHpa, opt.baroInHg);
+    // H9: the next bug under the speed box.
+    c.nextBug.x = leftX;
+    c.nextBug.baselineY = 272;
+    if (bugs) {
+        if (const SpeedBug* b = nextSpeedBug(*bugs, s.iasKt, trend10sKt))
+            std::snprintf(c.nextBug.text, sizeof c.nextBug.text, "%s %d", b->label,
+                          roundToStep(b->kt, 1));
+    }
     return c;
 }
 

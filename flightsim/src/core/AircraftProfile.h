@@ -62,6 +62,11 @@ struct AircraftProfile {
     // [speeds_kt] vs_by_flap: the 1 g stall speed (kt IAS) measured at each flap detent at the
     // model's shipped weight (empty: unknown). H9 places the flap bugs and V2 from it.
     std::vector<float> vsByFlapKt;
+
+    // --- additive (H9) ---
+    // [speeds_kt] ref_weight_lbs: the weight the profile's speeds were measured at (the stock model's
+    // shipped weight); the speed bugs scale with sqrt(weight / this). 0 = no scaling.
+    float refWeightLbs = 0;
 };
 
 // F5: the stall warning angle of attack for the actual flap position (AircraftState::flapPosNorm),

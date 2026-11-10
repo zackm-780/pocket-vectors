@@ -675,6 +675,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         {  // H2: HUD every frame (H1's --glyph-sheet debug view replaces it when requested)
             hudOptions.paused = false;        // H5: the pause menu says PAUSED itself
             hudOptions.externalView = chase;  // V1: status strip and messages only
+            hudOptions.approachLoaded = sim.navState().approachName[0] != 0;  // H9: REF / APP
             hudOptions.magVarDeg =
                 sim.navDb().magVarDeg(sim.aircraft().latDeg, sim.aircraft().lonDeg);
             {  // H3: nav / autopilot state for the overlay (or a canned one with --hud-fake)

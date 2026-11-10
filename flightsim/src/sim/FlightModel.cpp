@@ -129,7 +129,7 @@ struct FlightModel::Impl {
     Prop pLat, pLon, pAlt, pAgl, pTerrain, pPhi, pTheta, pPsi, pP, pQ, pR;
     Prop pVc, pVt, pMach, pAlpha, pBeta, pHdot, pNz, pVg, pVn, pVe, pVd;
     Prop pWindN, pWindE, pGustN, pGustE, pFlap, pGear, pSpeedbrake, pPitchTrim, pRollTrim;
-    Prop pYawTrim, pFuel;
+    Prop pYawTrim, pFuel, pWeight;
     float fuelCapacityLbs = 0;  // F6
     Prop pLBrake, pRBrake, pCBrake;
     Prop cElevator, cAileron, cRudder, cFlap, cGear, cSpeedbrake, cSpoiler, cSteer;
@@ -206,6 +206,7 @@ void FlightModel::Impl::bindProps() {
     pRollTrim = pathProp("roll_trim", "fcs/roll-trim-cmd-norm");
     pYawTrim = pathProp("yaw_trim", "fcs/yaw-trim-cmd-norm");
     pFuel = pathProp("fuel_total", "propulsion/total-fuel-lbs");
+    pWeight = prop("inertia/weight-lbs");  // H9
     pLBrake = pathProp("brake_left", "fcs/left-brake-cmd-norm");
     pRBrake = pathProp("brake_right", "fcs/right-brake-cmd-norm");
     pCBrake = pathProp("brake_center", "fcs/center-brake-cmd-norm");
@@ -701,7 +702,8 @@ void FlightModel::Impl::refresh(AircraftState& s) {
         e.reverserDeployed = profile.hasReversers && reverserPos > 0.5f;
     }
     s.fuelTotalLbs = static_cast<float>(pFuel.get());
-    {  // F6
+    s.grossWeightLbs = static_cast<float>(pWeight.get());  // H9
+    {                                                      // F6
         double pps = 0;
         for (int i = 0; i < engineCount; ++i) pps += eng[i].fuelFlow.get();
         s.fuelFlowLbsPerHr = static_cast<float>(pps * 3600.0);

@@ -79,6 +79,7 @@ bool parseAircraftProfile(const std::string& iniText, AircraftProfile& out, std:
     p.vneKt = ini.getFloat("speeds_kt", "vne");
     p.vmoKt = ini.getFloat("speeds_kt", "vmo");
     p.mmo = ini.getFloat("speeds_kt", "mmo");
+    p.refWeightLbs = ini.getFloat("speeds_kt", "ref_weight_lbs");  // H9
     p.cruiseKt = ini.getFloat("cruise", "ias_kt");
     p.cruiseAltFt = ini.getFloat("cruise", "altitude_ft");
     p.cruiseFuelFlowLbsHr = ini.getFloat("cruise", "fuel_flow_lbs_hr");  // F6
