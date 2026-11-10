@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- OVERLAY (flightsim WP F2): copy of the stock JSBSim v1.3.3 aircraft/pa28/pa28.xml. Changes (WP F8, balked landing): (1) aero/coefficient/CmDf, the pitching moment due to flap, is 0.3 x the stock values (0 / -0.0196 / -0.0294 / -0.0342 at 0 / 15 / 25 / 35 deg): the stock table has no downwash relief at the tail, so full flaps pitched the nose down beyond the elevator (idle flaps 40: a 1 g limit of 68 kt at 3.7 deg alpha, full power at 65-75 kt: -200 fpm), while a real PA-28 meets the FAR 23.77 balked-landing climb (3.3 %, about 200 fpm). Now +128 fpm at flaps 40 and 75 kt, the clean airplane unchanged (tests/fleet/FleetBalkedTest.cpp). (2) aero/coefficient/CLDf at 25 deg is 0.160 (stock 0.016, out of order between 0.065 at 15 and 0.254 at 40 deg). -->
+<!-- OVERLAY (flightsim WP F2): copy of the stock JSBSim v1.3.3 aircraft/pa28/pa28.xml. Changes (WP F8, balked landing): (1) aero/coefficient/CmDf, the pitching moment due to flap, is 0.3 x the stock values (0 / -0.0196 / -0.0294 / -0.0342 at 0 / 15 / 25 / 35 deg): the stock table has no downwash relief at the tail, so full flaps pitched the nose down beyond the elevator (idle flaps 40: a 1 g limit of 68 kt at 3.7 deg alpha, full power at 65-75 kt: -200 fpm), while a real PA-28 meets the FAR 23.77 balked-landing climb (3.3 %, about 200 fpm). Now +128 fpm at flaps 40 and 75 kt, the clean airplane unchanged (tests/fleet/FleetBalkedTest.cpp). (2) aero/coefficient/CLDf at 25 deg is 0.160 (stock 0.016, out of order between 0.065 at 15 and 0.254 at 40 deg). (3, WP F11) The LEFT_MAIN and RIGHT_MAIN max_steer is 0 (stock 360 makes them castering wheels, so the airplane pivots freely on the ground and taxi turns end in tail strikes). -->
 <?xml-stylesheet type="text/xsl" href="http://jsbsim.sourceforge.net/JSBSim.xsl"?>
 <fdm_config name="PA28-180" version="2.0" release="BETA"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -96,7 +96,7 @@
             <rolling_friction> 0.02 </rolling_friction>
             <spring_coeff unit="LBS/FT"> 5000 </spring_coeff>
             <damping_coeff unit="LBS/FT/SEC"> 150 </damping_coeff>
-            <max_steer unit="DEG"> 360.0 </max_steer>
+            <max_steer unit="DEG"> 0.0 </max_steer>
             <brake_group> LEFT </brake_group>
             <retractable>0</retractable>
         </contact>
@@ -111,7 +111,7 @@
             <rolling_friction> 0.02 </rolling_friction>
             <spring_coeff unit="LBS/FT"> 5000 </spring_coeff>
             <damping_coeff unit="LBS/FT/SEC"> 150 </damping_coeff>
-            <max_steer unit="DEG"> 360.0 </max_steer>
+            <max_steer unit="DEG"> 0.0 </max_steer>
             <brake_group> RIGHT </brake_group>
             <retractable>0</retractable>
         </contact>
