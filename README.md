@@ -90,11 +90,11 @@ game (`KPDX-KOTH.fms`, `KOTH-KPDX.fms`, `XTST-pattern.fms`). See
 
 ## More regions
 
-From 1.2.0 a tagged release attaches the Pacific Northwest pack (`pdx_oth`), and from 1.3.0 also
-the **Seattle to San Francisco** pack (`sea_sfo`: KSEA, KPDX, KEUG, KOTH, KSFO and the fields
-between, about 1.3 GB), as `pocket-vectors-vX.Y.Z-data-sea_sfo.zip` and as a one-zip install with the
-game (`pocket-vectors-vX.Y.Z-Roms-PORTS-sea_sfo.zip`). It covers all of `pdx_oth`, so use one or the
-other. For any other region, build a pack and keep its `ATTRIBUTION.txt` (Copernicus DEM is free for worldwide use with that
+1.2 and 1.3 attach the Pacific Northwest pack (`pdx_oth`) to their releases, and 1.3 also the
+**Seattle to San Francisco** pack (`sea_sfo`: KSEA, KPDX, KEUG, KOTH, KSFO and the fields between,
+about 1.3 GB). From 1.4 the release attaches `sea_sfo` only, as `pocket-vectors-vX.Y.Z-data-sea_sfo.zip`
+and as a one-zip install with the game (`pocket-vectors-vX.Y.Z-Roms-PORTS.zip`). It covers all of
+`pdx_oth`, so use one or the other. For any other region, build a pack and keep its `ATTRIBUTION.txt` (Copernicus DEM is free for worldwide use with that
 notice; ESA WorldCover is CC BY 4.0).
 
 - Actions tab, workflow **datapack**. Presets: `pdx_oth`, `sea_sfo` (Seattle to San Francisco, with

@@ -22,7 +22,9 @@ pack that carries them on the release; the owner device-checks `main` and tags i
 released and device-checked (2026-11-09). **1.4** (2026-11-09) is the owner's handling, HUD and
 flight-plan list: F5, H9, F8, F9, H10, F10, N11a and N11b, plus F11 (nose-wheel steering, added the
 same day) and N10b (arcs at every fly-by turn, from the owner's 2026-11-10 device feedback) (phase
-1.4 below); N8 and H8 stay in
+1.4 below). **2026-11-10:** every 1.4 card is merged (#31–#42), and the 1.4.0 release prep makes the
+Seattle to San Francisco pack the release's only pack; the owner device-checks `main` and tags
+`v1.4.0` (there is no `v1.3.0` tag yet either); N8 and H8 stay in
 phase 3 until the owner adds them. The phases below are the original plan; take the open cards in that order.
 
 - **Builders** read [BUILDER.md](BUILDER.md) and their card. Nothing else up front.
