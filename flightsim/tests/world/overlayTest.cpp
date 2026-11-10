@@ -123,33 +123,64 @@ double maxAltNearM(const std::vector<float>& verts, const OverlayEye& eye, doubl
 
 }  // namespace
 
-TEST_CASE("overlay: presets cycle and a custom mix returns to off") {
-    OverlayToggles t;
+TEST_CASE(
+    "overlay: presets cycle AUTO, ROUTE+PATH, AIRPORTS, ALL, OFF; a custom mix goes to AUTO") {
+    OverlayToggles t;  // the defaults: route and path auto, airports and runways off
     CHECK(overlayMatchingPreset(t) == 0);
-    CHECK(std::string(overlayPresetName(overlayCycle(t))) == "ROUTE");
-    CHECK(t.route);
-    CHECK_FALSE(t.vpath);
+    CHECK(std::string(overlayPresetName(0)) == "AUTO");
     CHECK(std::string(overlayPresetName(overlayCycle(t))) == "ROUTE+PATH");
-    CHECK(t.route);
-    CHECK(t.vpath);
+    CHECK(t.routeMode == OverlayMode::On);
+    CHECK(t.vpathMode == OverlayMode::On);
+    CHECK_FALSE(t.airports);
     CHECK(std::string(overlayPresetName(overlayCycle(t))) == "AIRPORTS");
+    CHECK(t.routeMode == OverlayMode::Auto);
+    CHECK(t.vpathMode == OverlayMode::Auto);
     CHECK(t.airports);
     CHECK(t.runways);
-    CHECK_FALSE(t.route);
     CHECK(std::string(overlayPresetName(overlayCycle(t))) == "ALL");
-    CHECK(t.route);
-    CHECK(t.vpath);
+    CHECK(t.routeMode == OverlayMode::On);
+    CHECK(t.vpathMode == OverlayMode::On);
     CHECK(t.airports);
     CHECK(t.runways);
+    CHECK(std::string(overlayPresetName(overlayCycle(t))) == "OFF");
+    CHECK(t.routeMode == OverlayMode::Off);
+    CHECK(t.vpathMode == OverlayMode::Off);
+    CHECK_FALSE(t.airports);
     CHECK(overlayCycle(t) == 0);
-    CHECK_FALSE(t.route);
+    CHECK(t.routeMode == OverlayMode::Auto);
 
     t = {};
-    t.vpath = true;
+    t.vpathMode = OverlayMode::On;  // route auto, path on: no preset
     CHECK(overlayMatchingPreset(t) == -1);
     CHECK(std::string(overlayPresetName(-1)) == "CUSTOM");
     CHECK(overlayCycle(t) == 0);
-    CHECK_FALSE(t.vpath);
+    CHECK(t.vpathMode == OverlayMode::Auto);
+}
+
+TEST_CASE("overlay: route and path follow the declutter level in AUTO, ON and OFF force them") {
+    for (const OverlayMode route : {OverlayMode::Auto, OverlayMode::On, OverlayMode::Off}) {
+        for (const bool full : {true, false}) {  // FULL, or STD / MIN
+            OverlayToggles t;
+            t.routeMode = route;
+            t.vpathMode = OverlayMode::Off;
+            t.airports = true;
+            const OverlayToggles r = resolveOverlay(t, full);
+            INFO("mode " << overlayModeName(route) << (full ? " at FULL" : " at STD/MIN"));
+            const bool expected = route == OverlayMode::On || (route == OverlayMode::Auto && full);
+            CHECK(r.route == expected);
+            CHECK_FALSE(r.vpath);
+            CHECK(r.airports);  // airports and runways do not depend on the declutter level
+            CHECK(r.routeMode == route);
+        }
+    }
+    OverlayToggles t;  // both auto
+    CHECK(resolveOverlay(t, true).route);
+    CHECK(resolveOverlay(t, true).vpath);
+    CHECK_FALSE(resolveOverlay(t, false).route);
+    CHECK_FALSE(resolveOverlay(t, false).vpath);
+    CHECK(std::string(overlayModeName(OverlayMode::Auto)) == "AUTO");
+    CHECK(std::string(overlayModeName(OverlayMode::On)) == "ON");
+    CHECK(std::string(overlayModeName(OverlayMode::Off)) == "OFF");
 }
 
 TEST_CASE("overlay: marker altitude prefers a constraint, then cruise, then a pole") {

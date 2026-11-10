@@ -279,35 +279,60 @@ void addRunwayOutline(std::vector<float>& batch, const OverlayEye& eye, const Ru
 
 }  // namespace
 
+const char* overlayModeName(OverlayMode m) {
+    switch (m) {
+    case OverlayMode::On: return "ON";
+    case OverlayMode::Off: return "OFF";
+    default: return "AUTO";
+    }
+}
+
+OverlayToggles resolveOverlay(const OverlayToggles& t, bool fullDeclutter) {
+    auto shown = [fullDeclutter](OverlayMode m) {
+        return m == OverlayMode::On || (m == OverlayMode::Auto && fullDeclutter);
+    };
+    OverlayToggles r = t;
+    r.route = shown(t.routeMode);
+    r.vpath = shown(t.vpathMode);
+    return r;
+}
+
+namespace {
+struct OverlayPreset {
+    const char* name;
+    OverlayMode route, vpath;
+    bool airports, runways;
+};
+constexpr OverlayPreset kPresets[kOverlayPresetCount] = {
+    {"AUTO", OverlayMode::Auto, OverlayMode::Auto, false, false},
+    {"ROUTE+PATH", OverlayMode::On, OverlayMode::On, false, false},
+    {"AIRPORTS", OverlayMode::Auto, OverlayMode::Auto, true, true},
+    {"ALL", OverlayMode::On, OverlayMode::On, true, true},
+    {"OFF", OverlayMode::Off, OverlayMode::Off, false, false},
+};
+}  // namespace
+
 int overlayMatchingPreset(const OverlayToggles& t) {
-    if (!t.route && !t.vpath && !t.airports && !t.runways) return 0;
-    if (t.route && !t.vpath && !t.airports && !t.runways) return 1;
-    if (t.route && t.vpath && !t.airports && !t.runways) return 2;
-    if (!t.route && !t.vpath && t.airports && t.runways) return 3;
-    if (t.route && t.vpath && t.airports && t.runways) return 4;
+    for (int i = 0; i < kOverlayPresetCount; ++i) {
+        const OverlayPreset& p = kPresets[i];
+        if (t.routeMode == p.route && t.vpathMode == p.vpath && t.airports == p.airports &&
+            t.runways == p.runways)
+            return i;
+    }
     return -1;
 }
 
 const char* overlayPresetName(int preset) {
-    switch (preset) {
-    case 0: return "OFF";
-    case 1: return "ROUTE";
-    case 2: return "ROUTE+PATH";
-    case 3: return "AIRPORTS";
-    case 4: return "ALL";
-    default: return "CUSTOM";
-    }
+    return preset >= 0 && preset < kOverlayPresetCount ? kPresets[preset].name : "CUSTOM";
 }
 
 void overlayApplyPreset(OverlayToggles& t, int preset) {
+    const OverlayPreset& p = kPresets[preset >= 0 && preset < kOverlayPresetCount ? preset : 0];
     t = {};
-    switch (preset) {
-    case 1: t.route = true; break;
-    case 2: t.route = t.vpath = true; break;
-    case 3: t.airports = t.runways = true; break;
-    case 4: t.route = t.vpath = t.airports = t.runways = true; break;
-    default: break;
-    }
+    t.routeMode = p.route;
+    t.vpathMode = p.vpath;
+    t.airports = p.airports;
+    t.runways = p.runways;
 }
 
 int overlayCycle(OverlayToggles& t) {

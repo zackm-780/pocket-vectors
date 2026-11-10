@@ -11,20 +11,34 @@
 
 namespace fsim::world {
 
+// H10: the route and vertical-path layers follow the HUD declutter level in Auto (shown only at
+// FULL, hidden at STD and MIN, so the overlay is what separates FULL from STD); On and Off force them.
+enum class OverlayMode { Auto, On, Off };
+const char* overlayModeName(OverlayMode m);  // AUTO / ON / OFF
+
 struct OverlayToggles {
+    // What buildWorldOverlay draws this frame (route / vpath come from resolveOverlay).
     bool route = false;
     bool vpath = false;
     bool airports = false;
     bool runways = false;
+    // H10: the settings behind route and vpath.
+    OverlayMode routeMode = OverlayMode::Auto;
+    OverlayMode vpathMode = OverlayMode::Auto;
 };
 
-// 0 off, 1 route, 2 route + vertical path, 3 airports + runways, 4 all. Anything else is custom.
+// H10: route / vpath from their modes: On shows, Off hides, Auto shows only at FULL declutter.
+OverlayToggles resolveOverlay(const OverlayToggles& t, bool fullDeclutter);
+
+// H10 presets (L3 and the pause-menu OVERLAYS row), on the modes and the airport / runway flags:
+// 0 AUTO (route and path auto), 1 ROUTE+PATH (both on), 2 AIRPORTS (route and path auto, airports
+// and runways on), 3 ALL (all on), 4 OFF (all off). Anything else is custom.
 constexpr int kOverlayPresetCount = 5;
 
-int overlayMatchingPreset(const OverlayToggles& t);  // -1 when the four flags match no preset
-const char* overlayPresetName(int preset);  // OFF / ROUTE / ROUTE+PATH / AIRPORTS / ALL / CUSTOM
+int overlayMatchingPreset(const OverlayToggles& t);  // -1 when the settings match no preset
+const char* overlayPresetName(int preset);  // AUTO / ROUTE+PATH / AIRPORTS / ALL / OFF / CUSTOM
 void overlayApplyPreset(OverlayToggles& t, int preset);
-// Steps to the next preset. A custom mix goes to off, then the presets wrap.
+// Steps to the next preset. A custom mix goes to AUTO, then the presets wrap.
 int overlayCycle(OverlayToggles& t);
 
 // Constraint altitude when one is set, else cruise when it is clearly above the ground, else a
