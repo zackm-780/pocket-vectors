@@ -22,6 +22,9 @@ constexpr double kFlyByRollInLeadS = 2.5;  // half the roll-in: the roll starts 
 // N10b: a CF leg is flown by (an arc into or out of it) when its course is within this of the
 // bearing from its previous fix to its fix, i.e. it is the straight line a TF would be.
 constexpr double kCfStraightMaxDeg = 5.0;
+// ... and its line passes this close to that previous fix (a long CF a few degrees off is not
+// the line from the fix: the AP would jump onto it after the arc).
+constexpr double kCfStraightMaxOffsetNm = 0.1;
 
 // Turn radius (NM) at a ground speed (kt, at least kFlyByMinGsKt) and bank (deg).
 double flyByRadiusNm(double gsKt, double bankDeg);

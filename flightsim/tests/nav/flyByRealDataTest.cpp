@@ -85,7 +85,11 @@ void diagnose(const CsvNavDatabase& db, const std::string& navDir, const char* a
             if (l.type == LegType::IF) return true;  // mid-plan: flown as a TF
             if (l.type != LegType::CF) return false;
             const LatLon to{l.to.latDeg, l.to.lonDeg};
-            return std::fabs(wrap180(l.courseTrueDeg - bearingDeg(from, to))) <= kCfStraightMaxDeg;
+            const double off = wrap180(l.courseTrueDeg - bearingDeg(from, to));
+            const double lenNm =
+                mToNm(greatCircleDistM(from.latDeg, from.lonDeg, to.latDeg, to.lonDeg));
+            return std::fabs(off) <= kCfStraightMaxDeg &&
+                   lenNm * std::fabs(std::sin(degToRad(off))) <= kCfStraightMaxOffsetNm;
         };
         const bool shouldArc = std::fabs(turnDeg) >= 1.0 && std::fabs(turnDeg) <= kMaxFlyByDeg &&
                                !cur.flyOver && cur.missedApproach == next.missedApproach &&

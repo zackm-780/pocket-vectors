@@ -38,17 +38,32 @@ double bearingTrueDeg(const LatLon& a, const Waypoint& b) {
 }
 
 // N10b: a leg flown as the straight line from `from` (its previous fix) to its fix: TF, an IF in
-// mid-plan (flown as a TF), DF, or a CF whose course is that line within kCfStraightMaxDeg.
+// mid-plan (flown as a TF), DF, or a CF whose course is that line within kCfStraightMaxDeg and
+// whose line passes within kCfStraightMaxOffsetNm of `from`.
 bool straightLeg(const Leg& l, const LatLon& from) {
     switch (l.type) {
     case LegType::TF:
     case LegType::IF:
     case LegType::DF: return true;
-    case LegType::CF:
-        return std::fabs(wrap180(l.courseTrueDeg - bearingTrueDeg(from, l.to))) <=
-               kCfStraightMaxDeg;
+    case LegType::CF: {
+        const double offDeg = wrap180(l.courseTrueDeg - bearingTrueDeg(from, l.to));
+        const double lenNm =
+            mToNm(greatCircleDistM(from.latDeg, from.lonDeg, l.to.latDeg, l.to.lonDeg));
+        return std::fabs(offDeg) <= kCfStraightMaxDeg &&
+               lenNm * std::fabs(std::sin(degToRad(offDeg))) <= kCfStraightMaxOffsetNm;
+    }
     default: return false;
     }
+}
+
+// The fix before legs[i], skipping CA / VA legs (no fix), as the navigator's prevFix does; -1 if
+// none.
+int prevFixLeg(const FlightPlan& plan, int i) {
+    for (int j = i - 1; j >= 0; --j) {
+        const LegType t = plan.legs[static_cast<size_t>(j)].type;
+        if (t != LegType::CA && t != LegType::VA) return j;
+    }
+    return -1;
 }
 
 }  // namespace
@@ -171,10 +186,17 @@ bool flyByEligible(const FlightPlan& plan, int fixLeg) {
     if (fixLeg < 1 || fixLeg + 1 >= n) return false;
     if (sameFixLeg(plan, fixLeg)) return false;  // the turn is at the fix before, looking through
     const int o = flyByOutboundLeg(plan, fixLeg);
-    const Leg& prev = plan.legs[static_cast<size_t>(fixLeg - 1)];
+    const int pf = prevFixLeg(plan, fixLeg);
+    if (pf < 0) return false;
+    const Leg& prev = plan.legs[static_cast<size_t>(pf)];
     const Leg& cur = plan.legs[static_cast<size_t>(fixLeg)];
     const Leg& next = plan.legs[static_cast<size_t>(o)];
     if (cur.flyOver || cur.missedApproach != next.missedApproach) return false;
+    // N11a rule 3: a Direct-To the destination airport with its approach kept is flown to the
+    // airport and not sequenced past, so there is no turn to draw there.
+    if (cur.type == LegType::DF && cur.to.kind == WaypointKind::Airport &&
+        !plan.destIdent.empty() && cur.to.ident == plan.destIdent)
+        return false;
     if (o != fixLeg + 1) {  // the same-fix leg looked through
         const Leg& dup = plan.legs[static_cast<size_t>(fixLeg + 1)];
         if (dup.flyOver || dup.missedApproach != cur.missedApproach) return false;
@@ -185,7 +207,7 @@ bool flyByEligible(const FlightPlan& plan, int fixLeg) {
 
 FlyByTurn planTurnAt(const FlightPlan& plan, int fixLeg, double radiusNm) {
     if (!(radiusNm > 0) || !flyByEligible(plan, fixLeg)) return {};
-    const Leg& prev = plan.legs[static_cast<size_t>(fixLeg - 1)];
+    const Leg& prev = plan.legs[static_cast<size_t>(prevFixLeg(plan, fixLeg))];
     const Leg& cur = plan.legs[static_cast<size_t>(fixLeg)];
     const Leg& next = plan.legs[static_cast<size_t>(flyByOutboundLeg(plan, fixLeg))];
     return flyByTurn({prev.to.latDeg, prev.to.lonDeg}, {cur.to.latDeg, cur.to.lonDeg},

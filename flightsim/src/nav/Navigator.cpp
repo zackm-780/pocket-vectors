@@ -588,7 +588,8 @@ Navigator::Guide Navigator::computeGuide(const AircraftState& ac, int legIndex) 
 
 double Navigator::courseOutRad(int legIndex) const {
     const Leg& cur = plan_.legs[static_cast<size_t>(legIndex)];
-    const Leg& next = plan_.legs[static_cast<size_t>(legIndex + 1)];
+    // N10b: through a same-fix leg (e.g. an approach IF on this fix, then a hold there).
+    const Leg& next = plan_.legs[static_cast<size_t>(flyByOutboundLeg(plan_, legIndex))];
     if (isCourseLeg(next.type) || isHoldLeg(next.type)) return degToRad(next.courseTrueDeg);
     return initialBearingTrueRad(cur.to.latDeg, cur.to.lonDeg, next.to.latDeg, next.to.lonDeg);
 }

@@ -87,7 +87,10 @@ All geometry is **true** internally. Magnetic is used only for display and user 
   the arcs with `NavState::turnRadiusNm`.
 - **Arcs at every fly-by turn (N10b):** both legs must run straight from their previous fix: TF,
   an IF in mid-plan (an approach's first leg, flown as a TF), DF, or a CF whose course is within
-  5° (`kCfStraightMaxDeg`) of the bearing from its previous fix; such a CF is flown by, not over.
+  5° (`kCfStraightMaxDeg`) of the bearing from its previous fix and whose line passes within
+  0.1 NM of that fix; such a CF is flown by, not over. The previous fix skips CA / VA legs, as the
+  navigator does, and a Direct-To the destination with its approach kept (§2.4 rule 3) has no
+  turn.
   A same-fix leg (an IF or TF on the fix before it, within 0.05 NM: an approach that starts on
   the last enroute fix) has no turn of its own: the turn at that fix turns onto the leg after it,
   and the navigator passes the same-fix leg at once while it flies that arc. When the arc into a

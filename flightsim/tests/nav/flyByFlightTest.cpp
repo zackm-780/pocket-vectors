@@ -104,7 +104,7 @@ TEST_CASE("sim: N10b the AP in NAV flies arcs onto a mid-plan IF and a straight 
             const FlightResult r = fly(ac, sameFix);
             CHECK(r.reachedLast);
             CHECK(r.arcTurns >= 2);  // at A onto B, and at B onto the CF to C
-            CHECK(r.maxArcXtkNm < (std::string(ac) == "737" ? 0.2 : 0.1));
+            CHECK(r.maxArcXtkNm < 0.1);
         }
     }
 }
