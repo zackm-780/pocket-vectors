@@ -2,6 +2,7 @@
 // guiding along the arc between two TF legs. No simulation.
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -165,6 +166,164 @@ TEST_CASE("nav: plan legs: fly-by arcs at interior TF fixes only, spans end at t
     plan.legs[2].type = LegType::CF;  // a course leg next: flown over
     CHECK_FALSE(flyByEligible(plan, 1));
     CHECK_FALSE(legSpan(plan, 2, 0.0).turnIn.valid);  // radius 0: sharp corners
+}
+
+TEST_CASE("nav: N10b arcs at an IF in mid-plan, DF, a straight CF and through a same-fix leg") {
+    const Corner c = corner(90.0, 90.0);  // east, then south
+    auto plan3 = [&](LegType nextType) {
+        FlightPlan p;
+        p.legs = {tf("A", c.from, LegType::IF), tf("B", c.fix), tf("C", c.to, nextType)};
+        p.activeLeg = 1;
+        return p;
+    };
+    // An IF in mid-plan (the approach's first leg after the enroute legs) and a DF next.
+    CHECK(flyByEligible(plan3(LegType::IF), 1));
+    CHECK(flyByEligible(plan3(LegType::DF), 1));
+    CHECK(legSpan(plan3(LegType::IF), 2, 1.0).turnIn.valid);
+    // Leg 0's IF never: it is the origin.
+    CHECK_FALSE(flyByEligible(plan3(LegType::IF), 0));
+    // A CF next: straight when its course is within 5 degrees of the bearing B -> C (180) and its
+    // line passes within 0.1 NM of B (the legs here are 10 NM).
+    FlightPlan cf = plan3(LegType::CF);
+    cf.legs[2].courseTrueDeg = 180.4;  // 0.07 NM off at B
+    CHECK(flyByEligible(cf, 1));
+    cf.legs[2].courseTrueDeg = 183.0;  // within 5 degrees, but 0.52 NM off at B
+    CHECK_FALSE(flyByEligible(cf, 1));
+    cf.legs[2].courseTrueDeg = 190.0;  // 10 degrees off: flown over, then intercepted
+    CHECK_FALSE(flyByEligible(cf, 1));
+    const Corner shortLegs = corner(90.0, 90.0, 1.5);  // 3 degrees off on 1.5 NM: 0.08 NM
+    FlightPlan cfShort;
+    cfShort.legs = {tf("A", shortLegs.from, LegType::IF), tf("B", shortLegs.fix),
+                    tf("C", shortLegs.to, LegType::CF)};
+    cfShort.legs[2].courseTrueDeg = 183.0;
+    CHECK(flyByEligible(cfShort, 1));
+    // A straight CF into the fix, too.
+    FlightPlan cfIn = plan3(LegType::TF);
+    cfIn.legs[1].type = LegType::CF;
+    cfIn.legs[1].courseTrueDeg = 89.6;
+    CHECK(flyByEligible(cfIn, 1));
+    cfIn.legs[1].courseTrueDeg = 70.0;
+    CHECK_FALSE(flyByEligible(cfIn, 1));
+    // The fix before skips a CA / VA leg, as the navigator does: A, climb to an altitude, B, C.
+    FlightPlan va;
+    va.legs = {tf("A", c.from, LegType::IF), tf("", c.from, LegType::VA), tf("B", c.fix),
+               tf("C", c.to)};
+    va.legs[1].to.latDeg += 0.01;  // the VA's computed end, off the line
+    const FlyByTurn vt = planTurnAt(va, 2, 1.0);
+    REQUIRE(vt.valid);
+    CHECK(vt.inCourseTrueDeg == doctest::Approx(90).epsilon(0.002));  // from A, not the VA end
+    // A Direct-To the destination airport with its approach kept (N11a rule 3): no turn there.
+    FlightPlan dest = plan3(LegType::IF);
+    dest.destIdent = "B";
+    dest.legs[1].type = LegType::DF;
+    dest.legs[1].to.kind = WaypointKind::Airport;
+    CHECK_FALSE(flyByEligible(dest, 1));
+    dest.destIdent = "OTHER";
+    CHECK(flyByEligible(dest, 1));
+    // Course legs, holds and fly-over fixes keep their sharp corner.
+    CHECK_FALSE(flyByEligible(plan3(LegType::CA), 1));
+    CHECK_FALSE(flyByEligible(plan3(LegType::HM), 1));
+    FlightPlan over = plan3(LegType::TF);
+    over.legs[1].flyOver = true;
+    CHECK_FALSE(flyByEligible(over, 1));
+    // More than 135 degrees: flown over, as before.
+    const Corner sharp = corner(90.0, 150.0);
+    FlightPlan big;
+    big.legs = {tf("A", sharp.from, LegType::IF), tf("B", sharp.fix), tf("C", sharp.to)};
+    CHECK_FALSE(planTurnAt(big, 1, 1.0).valid);
+
+    // A same-fix leg: B, then an approach IF at B again, then C. The turn at B looks through it.
+    FlightPlan dup;
+    dup.legs = {tf("A", c.from, LegType::IF), tf("B", c.fix), tf("B", c.fix, LegType::IF),
+                tf("C", c.to)};
+    dup.activeLeg = 1;
+    CHECK(sameFixLeg(dup, 2));
+    CHECK_FALSE(sameFixLeg(dup, 1));
+    CHECK(flyByOutboundLeg(dup, 1) == 3);
+    CHECK(flyByEligible(dup, 1));
+    CHECK_FALSE(flyByEligible(dup, 2));  // no turn of its own
+    const FlyByTurn t = planTurnAt(dup, 1, 1.0);
+    REQUIRE(t.valid);
+    CHECK(t.turnDeg == doctest::Approx(90).epsilon(0.01));
+    CHECK(legSpan(dup, 3, 1.0).turnIn.valid);  // drawn into C
+    CHECK(distNm(legSpan(dup, 3, 1.0).start, c.fix) == doctest::Approx(1.0).epsilon(0.002));
+    CHECK_FALSE(legSpan(dup, 2, 1.0).turnIn.valid);
+}
+
+TEST_CASE("nav: N10b the navigator flies the arc through a same-fix leg and onto a straight CF") {
+    SyntheticNavDb db;
+    const Corner c = corner(90.0, 90.0);  // east, then south
+    const double gs = 100.0;
+    const FlyByTurn t = flyByTurn(c.from, c.fix, c.to, flyByRadiusNm(gs, 15));
+    LatLon pts[16];
+    const int n = arcPoints(t, pts, 16);
+    for (const bool sameFix : {true, false}) {
+        CAPTURE(sameFix);
+        FlightPlan plan;
+        plan.legs = {tf("A", c.from, LegType::IF), tf("B", c.fix)};
+        if (sameFix) plan.legs.push_back(tf("B", c.fix, LegType::IF));  // approach IF at B
+        Leg cfLeg = tf("C", c.to, LegType::CF);  // straight CF (course 180 into C)
+        cfLeg.courseTrueDeg = 180.0;
+        plan.legs.push_back(cfLeg);
+        plan.activeLeg = 1;
+        Navigator nav(db);
+        nav.setPlan(plan);
+        LatLon p = pointAtNm(kLat, kLon, 270.0, 3.0);
+        nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 90, gs), 0.1);
+        CHECK_FALSE(nav.state().turnActive);
+        // Just before T1: it sequences (passing the same-fix leg at once) and the arc begins.
+        p = pointAtNm(t.start.latDeg, t.start.lonDeg, 270.0, 0.03);
+        nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 90, gs), 0.1);
+        const int cLeg = static_cast<int>(plan.legs.size()) - 1;
+        CHECK(nav.plan().activeLeg == cLeg);
+        CHECK(nav.state().turnActive);
+        double maxXtk = 0;
+        for (int k = 1; k < n - 1; ++k) {
+            const double hdg = arcGuide(t, pts[k]).dtkTrueDeg;
+            nav.update(makeAircraft(pts[k].latDeg, pts[k].lonDeg, 5000, hdg, gs), 0.1);
+            CHECK(nav.state().turnActive);
+            maxXtk = std::max(maxXtk, std::fabs(static_cast<double>(nav.state().crossTrackNm)));
+        }
+        CHECK(maxXtk < 0.01);
+        // Past T2: on the CF, XTK about 0, no fly-over excursion past B.
+        p = pointAtNm(t.end.latDeg, t.end.lonDeg, 180.0, 0.1);
+        nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 180, gs), 0.1);
+        CHECK_FALSE(nav.state().turnActive);
+        CHECK(nav.plan().activeLeg == cLeg);
+        CHECK(std::fabs(nav.state().crossTrackNm) < 0.01);
+    }
+}
+
+TEST_CASE("nav: N10b a DF leg after its arc runs from the end of the arc") {
+    SyntheticNavDb db;
+    const Corner c = corner(90.0, 90.0);  // east, then south
+    const double gs = 100.0;
+    const FlyByTurn t = flyByTurn(c.from, c.fix, c.to, flyByRadiusNm(gs, 15));
+    FlightPlan plan;
+    plan.legs = {tf("A", c.from, LegType::IF), tf("B", c.fix), tf("C", c.to, LegType::DF)};
+    plan.activeLeg = 1;
+    Navigator nav(db);
+    nav.setPlan(plan);
+    // Sequence at T1 a little left of the inbound line, so the DF from there would not be the
+    // line B -> C.
+    LatLon p = pointAtNm(t.start.latDeg, t.start.lonDeg, 270.0, 0.03);
+    p = pointAtNm(p.latDeg, p.lonDeg, 0.0, 0.05);
+    nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 90, gs), 0.1);
+    REQUIRE(nav.plan().activeLeg == 2);
+    REQUIRE(nav.state().turnActive);
+    LatLon pts[16];
+    const int n = arcPoints(t, pts, 16);
+    for (int k = 1; k < n; ++k)
+        nav.update(
+            makeAircraft(pts[k].latDeg, pts[k].lonDeg, 5000, arcGuide(t, pts[k]).dtkTrueDeg, gs),
+            0.1);
+    // Past T2 the turn ends; the DF now runs from there, so it is the line T2 -> C.
+    p = pointAtNm(t.end.latDeg, t.end.lonDeg, 180.0, 0.05);
+    nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 180, gs), 0.1);
+    nav.update(makeAircraft(p.latDeg, p.lonDeg, 5000, 180, gs), 0.1);
+    CHECK_FALSE(nav.state().turnActive);
+    CHECK(std::fabs(nav.state().crossTrackNm) < 0.005);
+    CHECK(nav.state().desiredTrackTrueDeg == doctest::Approx(180).epsilon(0.003));
 }
 
 TEST_CASE("nav: the navigator guides along the arc from T1 to T2, then along the next leg") {
