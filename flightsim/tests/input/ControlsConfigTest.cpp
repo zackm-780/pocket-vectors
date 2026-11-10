@@ -43,6 +43,7 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
     CHECK(c.warningCount == 0);
     CHECK(c.leftDeadzone == doctest::Approx(0.08f));
     CHECK(c.leftExpo == doctest::Approx(0.35f));
+    CHECK(c.leftPitchExpo == doctest::Approx(0.6f));  // F9: the pitch-only expo
     CHECK(c.rightDeadzone == doctest::Approx(0.12f));
 
     // Base layer
@@ -287,4 +288,11 @@ TEST_CASE("input: default ini file has no inline comments") {
         CHECK(line.find(';') == std::string::npos);
         CHECK(line.find('#') == std::string::npos);
     }
+}
+
+TEST_CASE("input: F9 left_pitch_expo defaults to left_expo") {
+    CHECK(configFromText("[axes]\nleft_expo = 0.5\n").leftPitchExpo == doctest::Approx(0.5f));
+    const ControlsConfig c = configFromText("[axes]\nleft_expo = 0.5\nleft_pitch_expo = 0.8\n");
+    CHECK(c.leftExpo == doctest::Approx(0.5f));
+    CHECK(c.leftPitchExpo == doctest::Approx(0.8f));
 }

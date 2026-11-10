@@ -200,6 +200,8 @@ bool ControlsConfig::load(const Ini& defaults, const Ini* user) {
     };
     getF("axes", "left_deadzone", leftDeadzone);
     getF("axes", "left_expo", leftExpo);
+    leftPitchExpo = leftExpo;  // F9: unless [axes] left_pitch_expo says otherwise
+    getF("axes", "left_pitch_expo", leftPitchExpo);
     getF("axes", "right_deadzone", rightDeadzone);
     getF("axes", "right_expo", rightExpo);
     getF("axes", "dominance_ratio", dominanceRatio);

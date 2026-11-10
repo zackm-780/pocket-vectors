@@ -36,6 +36,7 @@ struct Settings {
     int volumePct = 80;  // 0..100
     bool assistAutoRudder = false;
     bool assistAutoTrim = false;
+    bool assistPitchDamper = false;  // F9: pitch-rate damping near the stick centre
     ThrottleMode throttleMode = ThrottleMode::Rate;
     float pitchSens = 1.0f, rollSens = 1.0f, rudderSens = 1.0f;  // 0.25..2
     float pitchExpo = 0.0f, rollExpo = 0.0f, rudderExpo = 0.0f;  // 0..1

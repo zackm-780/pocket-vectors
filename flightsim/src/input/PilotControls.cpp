@@ -1,7 +1,9 @@
 #include "input/PilotControls.h"
 
 #include <algorithm>
+#include <cmath>
 
+#include "core/Units.h"
 #include "input/InputCurves.h"
 
 namespace fsim {
@@ -14,7 +16,29 @@ constexpr int idx(Axis a) {
     return static_cast<int>(a);
 }
 
+// F9: the flight-path angle (deg) from the vertical speed and the true airspeed.
+float flightPathDeg(const AircraftState& s) {
+    const double tasFps = std::max(static_cast<double>(s.tasKt), 1.0) * 1.68781;
+    return static_cast<float>(radToDeg(std::atan2(s.vsFpm / 60.0, tasFps)));
+}
+
 }  // namespace
+
+float PilotControls::trimSpeedFactor(const AircraftProfile& p, const AircraftState& s) const {
+    if (p.vrefKt <= 0 || s.wowAny || s.iasKt <= p.vrefKt) return 1.0f;
+    const float r = p.vrefKt / s.iasKt;
+    return std::max(tuning_.trimSpeedScaleMin, r * r);
+}
+
+float PilotControls::elevTrimStepNorm(const AircraftProfile& p, const AircraftState& s) const {
+    const float step = p.trimStepNorm > 0 ? p.trimStepNorm : tuning_.elevTrimStepNorm;
+    return step * trimSpeedFactor(p, s);
+}
+
+float PilotControls::elevTrimRateNormPerS(const AircraftProfile& p, const AircraftState& s) const {
+    const float rate = p.trimRateNormPerS > 0 ? p.trimRateNormPerS : tuning_.elevTrimRateNormPerS;
+    return rate * trimSpeedFactor(p, s);
+}
 
 void PilotControls::update(const ActionState& in, const AircraftProfile& profile,
                            const AircraftState& state, double dtS, ControlInputs& c,
@@ -33,6 +57,14 @@ void PilotControls::update(const ActionState& in, const AircraftProfile& profile
         return std::clamp(input::applyExpo(x, expo) * sens, -1.0f, 1.0f);
     };
     c.elevatorNorm = tune(in.axis[idx(Axis::Pitch)], stick_.pitchSens, stick_.pitchExpo);
+    // F9 aid: pitch-rate damping near the centre of the stick (not on the ground).
+    if (stick_.pitchDamper && !state.wowAny &&
+        std::fabs(in.axis[idx(Axis::Pitch)]) < tuning_.damperStickMax) {
+        const float k = profile.category == AircraftCategory::Piston ? tuning_.damperPerDegPsPiston
+                                                                     : tuning_.damperPerDegPsJet;
+        c.elevatorNorm = std::clamp(c.elevatorNorm - k * static_cast<float>(radToDeg(state.qRadps)),
+                                    -1.0f, 1.0f);
+    }
     c.aileronNorm = tune(in.axis[idx(Axis::Roll)], stick_.rollSens, stick_.rollExpo);
     c.rudderNorm = tune(in.axis[idx(Axis::Rudder)], stick_.rudderSens, stick_.rudderExpo);
     c.steeringNorm = c.rudderNorm;  // nosewheel steering follows the rudder
@@ -50,10 +82,46 @@ void PilotControls::update(const ActionState& in, const AircraftProfile& profile
             c.throttleNorm[i] = std::clamp(c.throttleNorm[i] + throttleDelta, 0.0f, 1.0f);
     }
 
-    // ---- trims (held) ----
-    if (down(Action::TrimNoseUp) != down(Action::TrimNoseDown)) {
-        const float d = (down(Action::TrimNoseUp) ? 1.0f : -1.0f) * tuning_.trimRatePerS * dt;
-        c.elevTrimNorm = std::clamp(c.elevTrimNorm + d, -1.0f, 1.0f);
+    // ---- trims ----
+    // F9: elevator trim: a press is one step at once, then the rate once held past the delay.
+    const int dir = (down(Action::TrimNoseUp) ? 1 : 0) - (down(Action::TrimNoseDown) ? 1 : 0);
+    if (dir != trimDir_) {
+        trimDir_ = dir;
+        trimHeldS_ = 0.0f;
+        if (dir != 0)
+            c.elevTrimNorm =
+                std::clamp(c.elevTrimNorm + dir * elevTrimStepNorm(profile, state), -1.0f, 1.0f);
+    } else if (dir != 0) {
+        trimHeldS_ += dt;
+        if (trimHeldS_ > tuning_.trimHoldDelayS)
+            c.elevTrimNorm = std::clamp(
+                c.elevTrimNorm + dir * elevTrimRateNormPerS(profile, state) * dt, -1.0f, 1.0f);
+    }
+    // F9 aid: auto trim holds the flight path the stick was left at (with flight-path-rate
+    // damping, so it does not feed the phugoid).
+    const float pathDeg = flightPathDeg(state);
+    const float pathRateDegPs = havePath_ && dt > 0 ? (pathDeg - lastPathDeg_) / dt : 0.0f;
+    lastPathDeg_ = pathDeg;
+    havePath_ = true;
+    const bool centred = std::fabs(in.axis[idx(Axis::Pitch)]) < tuning_.autoTrimStickMax;
+    if (!stick_.autoTrim || apEngaged_ || state.wowAny || dir != 0 || !centred) {
+        stickCentredS_ = 0.0f;
+        autoTrimHolding_ = false;
+    } else {
+        stickCentredS_ += dt;
+        if (!autoTrimHolding_ && stickCentredS_ >= tuning_.autoTrimCentredS) {
+            autoTrimHolding_ = true;
+            autoTrimPathDeg_ = pathDeg;
+        }
+        if (autoTrimHolding_) {
+            const float maxStep =
+                tuning_.autoTrimMaxRateNormPerS * trimSpeedFactor(profile, state) * dt;
+            const float d = std::clamp((tuning_.autoTrimPerDegS * (autoTrimPathDeg_ - pathDeg) -
+                                        tuning_.autoTrimDampPerDegPs * pathRateDegPs) *
+                                           dt,
+                                       -maxStep, maxStep);
+            c.elevTrimNorm = std::clamp(c.elevTrimNorm + d, -1.0f, 1.0f);
+        }
     }
     if (pressed(Action::TrimNoseUp)) say("TRIM NOSE UP");
     if (pressed(Action::TrimNoseDown)) say("TRIM NOSE DOWN");

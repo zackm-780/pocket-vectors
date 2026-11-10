@@ -15,8 +15,25 @@ namespace fsim {
 
 struct PilotTuning {
     float throttleFullRatePerS = 0.4f;      // full right-stick deflection: 0 -> 100 % in 2.5 s
-    float trimRatePerS = 0.1f;              // trim travel per second while held (-1..1 range)
+    float trimRatePerS = 0.1f;              // rudder trim travel per second while held (-1..1)
     float reverserMaxThrottleNorm = 0.05f;  // "idle" for the reverser rule
+    // F9: elevator trim. A press moves it one step at once; held past trimHoldDelayS it moves
+    // at the rate. Both shrink by (Vref / IAS)^2 above Vref (at least 1/4), so one press does
+    // about the same to the flight path at any speed (airliners slow their trim with the flaps
+    // up the same way). AircraftProfile::trimStepNorm / trimRateNormPerS override the defaults.
+    float elevTrimStepNorm = 0.004f;
+    float elevTrimRateNormPerS = 0.04f;
+    float trimHoldDelayS = 0.3f;
+    float trimSpeedScaleMin = 0.25f;
+    // F9 aids (StickTuning::pitchDamper / autoTrim).
+    float damperStickMax = 0.3f;          // the damper works while |pitch stick| is under this
+    float damperPerDegPsPiston = 0.010f;  // elevator per deg/s of pitch rate
+    float damperPerDegPsJet = 0.008f;
+    float autoTrimCentredS = 1.0f;       // stick centred this long, then the path is held
+    float autoTrimStickMax = 0.05f;      // "centred"
+    float autoTrimPerDegS = 0.002f;      // trim per second per degree of flight-path error
+    float autoTrimDampPerDegPs = 0.06f;  // trim per second per deg/s of flight-path change
+    float autoTrimMaxRateNormPerS = 0.01f;
 };
 
 // P3: user stick tuning from settings.ini, applied on top of the input system's deadzone/expo.
@@ -26,6 +43,11 @@ struct StickTuning {
     float pitchExpo = 0.0f, rollExpo = 0.0f, rudderExpo = 0.0f;
     // true: the throttle-rate axis is read as a position (stick up = full), not a rate.
     bool throttleAbsolute = false;
+    // F9 aids, not realistic, off by default (settings PITCH DAMPER and AUTO TRIM):
+    // pitchDamper adds -k * pitch rate to the elevator while the stick is near the centre;
+    // autoTrim, with the stick centred for 1 s, trims to hold the flight-path angle it was left
+    // at (off on the ground and while the AP is engaged; a trim press takes over).
+    bool pitchDamper = false, autoTrim = false;
 };
 
 class PilotControls {
@@ -34,16 +56,34 @@ public:
     const StickTuning& stickTuning() const { return stick_; }
 
     explicit PilotControls(PilotTuning tuning = {}) : tuning_(tuning) {}
+    PilotTuning& tuning() { return tuning_; }  // F9: tests tune the aids
 
     // `state` supplies weight-on-wheels (gear lockout, reversers). `messages` may be null.
     void update(const ActionState& actions, const AircraftProfile& profile,
                 const AircraftState& state, double dtS, ControlInputs& controls,
                 MessageQueue* messages = nullptr);
+    // F9: the autopilot flies (and trims): auto trim stays out of its way. Set each frame.
+    void setAutopilotEngaged(bool engaged) { apEngaged_ = engaged; }
+    // F9: the elevator trim step and rate for this profile and speed (the speed factor applied).
+    float elevTrimStepNorm(const AircraftProfile& profile, const AircraftState& state) const;
+    float elevTrimRateNormPerS(const AircraftProfile& profile, const AircraftState& state) const;
+    bool autoTrimHolding() const { return autoTrimHolding_; }
 
 private:
+    float trimSpeedFactor(const AircraftProfile& profile, const AircraftState& state) const;
+
     PilotTuning tuning_;
     StickTuning stick_;  // P3
     bool brakesWereDown_ = false;
+    // F9: elevator trim press and hold, and the aids.
+    int trimDir_ = 0;
+    float trimHeldS_ = 0.0f;
+    bool apEngaged_ = false;
+    float stickCentredS_ = 0.0f;
+    bool autoTrimHolding_ = false;
+    float autoTrimPathDeg_ = 0.0f;
+    float lastPathDeg_ = 0.0f;
+    bool havePath_ = false;
 };
 
 }  // namespace fsim
