@@ -136,7 +136,9 @@ recomputed from the new plan.
 **Undo:** a destructive edit (`ROUTE REPLACED`, `PLAN CLEARED`, `SID REMOVED`) applied through
 `applyEdit` keeps the plan before it, one level, for 10 s; a newer destructive edit replaces it,
 other edits leave it alone. `Navigator::undo` restores it with `setPlan` (so NAV stays engaged)
-and returns the label for the message (`ROUTE REPLACED UNDONE`).
+and returns the label for the message (`ROUTE REPLACED UNDONE`). A new flight (`clearPlan`) drops it
+(N11b). A leg row or a map waypoint goes Direct-To by the leg's index (`directToLegIndex`), so a fix
+that appears twice (a missed approach back to the IAF) goes to the copy that was picked.
 
 ## 3. Approaches
 

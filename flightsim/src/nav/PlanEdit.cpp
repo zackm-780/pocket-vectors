@@ -231,6 +231,12 @@ PlanEditResult directTo(const FlightPlan& plan, const Waypoint& target,
     return directToFix(plan, target, ctx);
 }
 
+PlanEditResult directToLegIndex(const FlightPlan& plan, int legIndex, const PlanEditContext& ctx) {
+    if (legIndex < 1 || legIndex >= static_cast<int>(plan.legs.size()))
+        return fail(plan, "DIRECT TO FAILED");
+    return directToPlanLeg(plan, legIndex, ctx);
+}
+
 PlanEditResult directToNext(const FlightPlan& plan, const PlanEditContext& ctx) {
     const int n = static_cast<int>(plan.legs.size());
     const int a = plan.activeLeg;

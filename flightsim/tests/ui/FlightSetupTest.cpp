@@ -347,3 +347,55 @@ TEST_CASE("sim: a menu-built scenario initialises the simulation") {
     REQUIRE(f.sim.init(withPlan.buildScenario(planPath), "", f.error));
     CHECK(f.sim.navigator().hasPlan());
 }
+
+TEST_CASE("ui: N11b the origin runway change keeps a quick plan's route (rule 6)") {
+    FakeNavDb db;
+    FlightSetup s;
+    REQUIRE(s.setAirport(db, "KAAA"));
+    std::string err;
+    REQUIRE(s.makeQuickPlan(db, "KOTX", "05", 5500.0f, err));
+    s.setSid("FOO1", "");
+    const FlightPlan before = s.plan;
+    s.setRunway(db, "", "28R");
+    CHECK(s.runwayIdent == "28R");
+    REQUIRE(s.hasPlan());
+    CHECK(s.planKind == PlanKind::Quick);
+    CHECK(s.plan.destIdent == "KOTX");
+    CHECK(s.plan.arrRunway == "05");
+    CHECK(s.plan.legs.size() == before.legs.size());
+    CHECK(s.plan.depRunway == "28R");
+    CHECK(s.plan.legs.front().to.kind == WaypointKind::Runway);
+    CHECK(s.planFile.deprwy == "RW28R");
+    CHECK(s.plan.sidId.empty());  // no procedures here: the SID does not serve 28R and goes
+    CHECK(s.planFile.sid.empty());
+
+    // An unknown runway leaves the plan alone; without a plan the old rule (approach cleared).
+    s.setRunway(db, "", "99");
+    CHECK(s.plan.depRunway == "28R");
+    s.clearPlan();
+    s.setApproach("I28R");
+    s.setRunway(db, "", "10L");
+    CHECK(s.approachId.empty());
+}
+
+TEST_CASE("ui: N11b KEEP ROUTE to a new destination on the setup screen (rule 5)") {
+    FakeNavDb db;
+    FlightSetup s;
+    REQUIRE(s.setAirport(db, "KAAA"));
+    std::string err;
+    CHECK_FALSE(s.keepRouteToNewDestination(db, "KBBB", "", err));  // no plan
+    REQUIRE(s.makeQuickPlan(db, "KOTX", "05", 5500.0f, err));
+    s.setStar("BAR2", "");
+    s.setApproach("I05");
+    REQUIRE(s.keepRouteToNewDestination(db, "KBBB", "34", err));
+    CHECK(s.plan.destIdent == "KBBB");
+    CHECK(s.plan.arrRunway == "34");
+    CHECK(s.plan.legs.back().to.kind == WaypointKind::Runway);
+    CHECK(s.planFile.ades == "KBBB");
+    CHECK(s.planFile.desrwy == "RW34");
+    CHECK(s.planFile.star.empty());  // the old destination's STAR and approach go
+    CHECK(s.planFile.app.empty());
+    CHECK(s.approachId.empty());
+    CHECK(s.planName == "QUICK KAAA-KBBB");
+    CHECK_FALSE(s.keepRouteToNewDestination(db, "ZZZZ", "", err));
+}

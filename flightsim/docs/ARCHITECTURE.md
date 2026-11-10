@@ -417,6 +417,7 @@ enum class Action { TrimNoseUp, TrimNoseDown, FlapsUp, FlapsDown, GearToggle, Br
                     OverlayPreset,                     // additive (W6)
                     GoAround, FlcMode,                 // additive (N7): L1 + L3, L1 + Start
                     ViewToggle,                        // additive (V1): L2 + L3, C
+                    PlanUndo,                          // additive (N11b): R1 + Start, Ctrl+Z
                     Count };
 struct ActionState {
   float axis[(int)Axis::Count] = {};          // -1..1 after deadzone/curve

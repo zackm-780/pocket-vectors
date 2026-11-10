@@ -153,6 +153,11 @@ void Navigator::setPlan(FlightPlan plan) {
 
 void Navigator::clearPlan() {
     plan_ = FlightPlan{};
+    // N11b: only a new flight clears the plan (Simulation::init), and an undo never carries over
+    // into it (its sim clock starts again at 0).
+    undoPlan_ = FlightPlan{};
+    undoLabel_.clear();
+    undoUntilS_ = -1.0;
     approach_.reset();
     cache_.valid = false;
     resetLatches();

@@ -1,10 +1,20 @@
 FLIGHT PLAN
 New flight, then Flight plan, can load a .fms file or build a quick plan to a destination runway.
+With a plan loaded, a new destination asks KEEP ROUTE or CLEAR ROUTE, and a new start runway
+keeps the route (the SID stays when it serves that runway).
 DEPARTURE and ARRIVAL pick a SID and a STAR, then their transitions.
 Pick an approach (and its transition) when you want one.
 FUEL on the new-flight screen: AUTO carries the plan's trip, 10 % extra and 45 minutes.
-In the air, pause and choose Flight plan. Direct to a leg, or type an ident.
-Change approach, or re-enter the approach if you flew through it.
+In the air, pause and choose Flight plan. DIRECT TO:
+- a waypoint in the plan: straight to it, then on along the plan.
+- a fix off the plan: to it, then back onto the plan at the next waypoint ahead.
+- the destination: keeps its arrival and approach; ACTIVATE APPROACH picks them up.
+- another airport: replaces the route and offers its approaches (NOT NOW flies direct).
+NEW DESTINATION asks KEEP ROUTE or CLEAR ROUTE (CLEAR is selected, B cancels).
+On a leg of the list: A goes direct to it, X activates it (NAV joins its course), Y deletes it.
+L1+SELECT goes direct to the next waypoint ahead, after vectors or flying a heading.
+R1+START (Ctrl+Z) undoes a route change for 10 seconds; the list shows an UNDO row meanwhile.
+The autopilot stays in NAV through every change. Each one shows a short message on the HUD.
 The active leg is marked on the plan list and on the map.
 The plan page shows the fuel, the time it lasts and the fuel left at the destination.
 The route and path overlays show the plan in the world only at the FULL HUD (Y), so they stay

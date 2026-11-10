@@ -86,7 +86,7 @@ public:
     // Takes the plan. A plan that names an approach (approachId) but has no approach legs gets
     // the approach loaded through loadApproachById(). activeLeg < 1 becomes 1 (leg 0 is origin).
     void setPlan(FlightPlan plan);
-    void clearPlan();
+    void clearPlan();  // N11b: also drops the undo (a new flight)
     bool hasPlan() const { return !plan_.legs.empty(); }
     const FlightPlan& plan() const { return plan_; }
     // Mutable access for editors (insert/delete waypoints...). Caches rebuild automatically.

@@ -44,6 +44,7 @@
 #include "input/LookControl.h"         // I2
 #include "input/PilotControls.h"       // P2
 #include "nav/NavDb.h"
+#include "nav/PlanEdit.h"  // N11b
 #include "platform/Window.h"
 #include "sim/FuelPlan.h"                  // F6
 #include "ui/MapPage.h"                    // H4
@@ -61,6 +62,23 @@
 
 namespace fsim {
 namespace {
+
+// N11b: a plan edit's HUD lines. A message longer than a message line holds is split after a
+// comma ("DEPARTURE RWY 10R," / "SID X REMOVED"); `line2` ("R1+START UNDO") goes under it. The
+// newest message is drawn on top, so the lines are posted bottom first.
+void postHudLines(MessageQueue& q, const std::string& message, const std::string& line2) {
+    constexpr size_t kLineChars = sizeof(Message::text) - 1;
+    if (!line2.empty()) q.post(line2.c_str());
+    if (message.empty()) return;
+    const size_t comma =
+        message.size() > kLineChars ? message.rfind(", ", kLineChars - 1) : std::string::npos;
+    if (comma == std::string::npos) {
+        q.post(message.c_str());
+        return;
+    }
+    q.post(message.substr(comma + 2).c_str());
+    q.post(message.substr(0, comma + 1).c_str());
+}
 
 constexpr double kDefaultHeadlessDurationS = 60.0;
 constexpr int kDefaultScreenshotFrames = 60;
@@ -436,8 +454,14 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
         } else if (mapShown) {
             const MapPageResult mr = mapPage.update(
                 actions, sim.navigator().hasPlan() ? &sim.navigator().plan() : nullptr);
-            if (mr.directToLeg >= 1 && sim.navigator().directToLeg(mr.directToLeg))
-                messages.post("DIRECT TO");
+            Navigator& nav = sim.navigator();
+            if (mr.directToLeg >= 1 && nav.hasPlan() &&
+                mr.directToLeg < static_cast<int>(nav.plan().legs.size())) {  // N11b: rule 1
+                const PlanEditResult edit =
+                    directToLegIndex(nav.plan(), mr.directToLeg, planEditContext(sim.aircraft()));
+                const bool ok = nav.applyEdit(edit, sim.aircraft().simTimeS);
+                postHudLines(messages, edit.message, ok && edit.destructive ? kUndoHint : "");
+            }
             if (mr.close) mapShown = false;
             for (Action a : {Action::MenuUp, Action::MenuDown, Action::MenuLeft, Action::MenuRight,
                              Action::MenuAccept, Action::MenuBack, Action::HudDeclutter,
@@ -459,7 +483,7 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
             view.serial = probe.serial;
             menu.setPadProbe(view);
             const MenuResult res = menu.update(menuInputFromActions(actions));
-            if (!res.message.empty()) messages.post(res.message.c_str());
+            postHudLines(messages, res.message, res.message2);  // N11b: and its second line
             if (res.settingsChanged) applySettings();
             switch (res.action) {
             case MenuAction::StartFlight: startOrReport(res.scenario); break;
@@ -542,19 +566,23 @@ int runWindowed(Simulation& sim, const CliOptions& opt, const Paths& paths,
                         text = "NO LOC OR VOR TUNED";
                     messages.post(text);
                 }
-                if (pr(Action::DirectTo)) {
-                    const int leg = nav.hasPlan() ? nav.plan().activeLeg : -1;
-                    if (leg >= 1 && leg < static_cast<int>(nav.plan().legs.size()) &&
-                        nav.directToLeg(leg)) {
-                        // The plan is now [PPOS, DF target, ...] with the target active.
-                        const FlightPlan& plan = nav.plan();
-                        messages.postf(
-                            "DIRECT TO %s",
-                            plan.legs[static_cast<size_t>(plan.activeLeg)].to.ident.c_str());
+                if (pr(Action::DirectTo)) {  // N11b: DIRECT TO NEXT (rule 8)
+                    PlanEditResult edit;
+                    if (nav.hasPlan())
+                        edit = directToNext(nav.plan(), planEditContext(sim.aircraft()));
+                    if (edit.ok && nav.applyEdit(edit, sim.aircraft().simTimeS)) {
+                        postHudLines(messages, edit.message, "");
                     } else {  // no plan (or it is flown out): pick a waypoint from the list
                         mapShown = false;
                         menu.openDirectTo();
                     }
+                }
+                if (pr(Action::PlanUndo)) {  // N11b: R1 + Start, Ctrl+Z
+                    const double t = sim.aircraft().simTimeS;
+                    if (nav.undoAvailable(t))
+                        messages.post(undoneMessage(nav.undo(t)).c_str());
+                    else
+                        messages.post("NOTHING TO UNDO");
                 }
             }
             sim.advance(dtS);

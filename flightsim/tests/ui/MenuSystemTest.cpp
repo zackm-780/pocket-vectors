@@ -338,21 +338,21 @@ TEST_CASE("ui: in-flight plan screen: direct-to a leg, re-enter the approach, di
     tap(m, &MenuInput::down);
     tap(m, &MenuInput::accept);  // FLIGHT PLAN
     REQUIRE(m.top() == ScreenId::FlightPlan);
-    // Rows: 5 actions, then the legs. The list opens on the active leg: go to the next one.
+    // Rows: 7 actions (N11b), then the legs. The list opens on the active leg: go to the next one.
     tap(m, &MenuInput::down);
     MenuResult r = tap(m, &MenuInput::accept);
     CHECK(r.action == MenuAction::ResumeFlight);
     CHECK(r.message.find("DIRECT TO") == 0);
     CHECK(nav.plan().legs[static_cast<size_t>(nav.plan().activeLeg)].to.ident == fix);
 
-    // Re-enter the approach: the last action row.
+    // ACTIVATE APPROACH (was RE-ENTER APPROACH): the last action row.
     m.openPause();
     tap(m, &MenuInput::down);
     tap(m, &MenuInput::accept);
-    tap(m, &MenuInput::up);  // the active leg is now leg 1 (row 6); row 5 (leg 0) is disabled
+    tap(m, &MenuInput::up);  // the active leg is now leg 1 (row 8); row 7 (leg 0) is disabled
     r = tap(m, &MenuInput::accept);
     CHECK(r.action == MenuAction::ResumeFlight);
-    CHECK(r.message == "DIRECT TO APPROACH");
+    CHECK(r.message == "ACTIVATE APPROACH");
 
     // Direct-to an ident through the search screen; "XTST" is the only airport in this database.
     m.push(makeSearchScreen(SearchMode::DirectTo, m, "XTST"));
@@ -363,6 +363,297 @@ TEST_CASE("ui: in-flight plan screen: direct-to a leg, re-enter the approach, di
     CHECK(r.action == MenuAction::ResumeFlight);
     CHECK(r.message == "DIRECT TO XTST");
     CHECK(nav.plan().legs[static_cast<size_t>(nav.plan().activeLeg)].to.ident == "XTST");
+}
+
+// ---- N11b: plan edits on the screens ------------------------------------------------------------
+
+namespace {
+
+// Runs `fn` inside a menu frame, the way a screen does (results are posted from update()).
+class RunScreen : public Screen {
+public:
+    explicit RunScreen(std::function<void(MenuSystem&)> fn) : fn_(std::move(fn)) {}
+    ScreenId id() const override { return ScreenId::None; }
+    void update(const MenuInput&, MenuSystem& m) override {
+        if (!fn_) return;
+        auto fn = std::move(fn_);
+        fn_ = nullptr;
+        fn(m);
+    }
+    void draw(Renderer2D&, const UiTheme&, const MenuSystem&) const override {}
+
+private:
+    std::function<void(MenuSystem&)> fn_;
+};
+
+MenuResult runInMenu(MenuSystem& m, std::function<void(MenuSystem&)> fn) {
+    m.push(std::make_unique<RunScreen>(std::move(fn)));
+    m.update(MenuInput{});  // applies the push
+    return m.update(MenuInput{});
+}
+
+// Pause -> FLIGHT PLAN; the list opens on the active leg.
+void openPlanScreen(MenuSystem& m) {
+    m.openPause();
+    tap(m, &MenuInput::down);
+    tap(m, &MenuInput::accept);
+    REQUIRE(m.top() == ScreenId::FlightPlan);
+}
+
+// The in-flight NEW DESTINATION search with `ident` typed, A on the first hit.
+void newDestinationSearch(MenuSystem& m, const char* ident) {
+    m.push(makeSearchScreen(SearchMode::NewDestination, m, ident));
+    m.update(MenuInput{});
+    REQUIRE(m.top() == ScreenId::AirportSearch);
+    tap(m, &MenuInput::start);  // done: focus on the results
+    tap(m, &MenuInput::accept);
+}
+
+}  // namespace
+
+TEST_CASE("ui: N11b plan screen rows and leg buttons: A direct-to, X activate, Y delete") {
+    MenuFixture mf("n11b_legs");
+    MenuSystem& m = *mf.menu;
+    REQUIRE(
+        mf.f.initText("[scenario]\naircraft = c172p\nairport = XTST\nrunway = 27\n"
+                      "start = cruise\naltitude_ft = 5000\nplan = assets/plans/XTST-lnav.fms\n"));
+    mf.f.run(0.5);
+    m.setFlight(
+        {&mf.f.sim.navigator(), &mf.f.sim.aircraft(), &mf.f.sim.profile(), &mf.f.sim.scenario()});
+    Navigator& nav = mf.f.sim.navigator();
+    REQUIRE(nav.plan().approachStartLeg < 0);
+
+    // A on the next leg: Direct-To it (rule 1); the plan is [PPOS, DF X, ...], X active.
+    openPlanScreen(m);
+    tap(m, &MenuInput::down);
+    MenuResult r = tap(m, &MenuInput::accept);
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message.rfind("DIRECT TO ", 0) == 0);
+    CHECK(r.message2.empty());  // not destructive
+    REQUIRE(nav.plan().activeLeg == 1);
+    m.close();
+    const FlightPlan p0 = nav.plan();
+    const int enrouteEnd =
+        p0.approachStartLeg >= 0 ? p0.approachStartLeg : static_cast<int>(p0.legs.size()) - 1;
+    REQUIRE(enrouteEnd >= 3);  // legs 2 and 3 are enroute waypoints
+
+    // X on leg 2: ACTIVATE LEG, no direct-to (the legs stay).
+    openPlanScreen(m);
+    tap(m, &MenuInput::down);
+    r = tap(m, &MenuInput::x);
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message == "ACTIVATE LEG " + p0.legs[2].to.ident);
+    CHECK(nav.plan().activeLeg == 2);
+    CHECK(nav.plan().legs.size() == p0.legs.size());
+    m.close();
+
+    // Y on the leg after the active one: deleted (rule 7); the list stays open on the next row.
+    openPlanScreen(m);
+    tap(m, &MenuInput::down);
+    const std::string gone = nav.plan().legs[3].to.ident;
+    r = tap(m, &MenuInput::y);
+    CHECK(r.action == MenuAction::None);
+    CHECK(r.message == gone + " DELETED");
+    CHECK(m.top() == ScreenId::FlightPlan);
+    CHECK(nav.plan().legs.size() == p0.legs.size() - 1);
+    CHECK(nav.plan().activeLeg == 2);
+
+    // The action rows, upward from the active leg (row 7 + 2): leg 0 is disabled, and so are
+    // ACTIVATE APPROACH (no approach) and DEPARTURE RUNWAY (in the air). Then SID, STAR, CHANGE
+    // APPROACH, NEW DESTINATION, DIRECT TO.
+    m.close();
+    openPlanScreen(m);
+    tap(m, &MenuInput::up, 2);  // leg 1, then DEPARTURE (SID)
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::Procedure);
+    tap(m, &MenuInput::back);
+    tap(m, &MenuInput::up, 2);  // ARRIVAL, CHANGE APPROACH
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::Approach);
+    tap(m, &MenuInput::back);
+    tap(m, &MenuInput::up);  // NEW DESTINATION
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::AirportSearch);
+    tap(m, &MenuInput::back);  // B on the empty keyboard leaves
+    CHECK(m.top() == ScreenId::FlightPlan);
+    tap(m, &MenuInput::up);  // DIRECT TO
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::AirportSearch);
+}
+
+TEST_CASE("ui: N11b new destination: KEEP / CLEAR prompt (CLEAR, B cancels), offer, undo window") {
+    test::FakeNavDb db;
+    MenuFixture mf("n11b_newdest", &db);
+    MenuSystem& m = *mf.menu;
+    mf.startFlying();
+    Navigator& nav = mf.f.sim.navigator();
+    const double t0 = mf.f.sim.aircraft().simTimeS;
+    REQUIRE(nav.plan().destIdent == "XTST");
+    const FlightPlan before = nav.plan();
+
+    // The prompt opens on CLEAR ROUTE; B cancels without a change.
+    openPlanScreen(m);
+    newDestinationSearch(m, "KBBB");
+    REQUIRE(m.top() == ScreenId::Confirm);
+    tap(m, &MenuInput::back);
+    CHECK(m.top() == ScreenId::FlightPlan);
+    CHECK(nav.plan().destIdent == "XTST");
+    CHECK(nav.plan().legs.size() == before.legs.size());
+    CHECK_FALSE(nav.undoAvailable(t0));
+
+    // A on the default: CLEAR ROUTE (rule 5), then the new airport's approaches with NOT NOW.
+    newDestinationSearch(m, "KBBB");
+    REQUIRE(m.top() == ScreenId::Confirm);
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::Approach);
+    CHECK(nav.plan().destIdent == "KBBB");
+    CHECK(nav.plan().legs.size() == 2);  // [PPOS, DF KBBB]
+    CHECK(nav.undoAvailable(t0));
+    MenuResult r = tap(m, &MenuInput::accept);  // NOT NOW is selected
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message == "NEW DEST KBBB, ROUTE CLEARED");
+    CHECK(r.message2 == kUndoHint);
+    CHECK(nav.plan().approachStartLeg < 0);
+    m.close();
+
+    // Inside the window the UNDO row sits above the legs; it brings the old plan back.
+    openPlanScreen(m);
+    tap(m, &MenuInput::up);  // leg 0 is disabled: UNDO PLAN CLEARED
+    r = tap(m, &MenuInput::accept);
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message == "PLAN CLEARED UNDONE");
+    CHECK(nav.plan().destIdent == "XTST");
+    CHECK(nav.plan().legs.size() == before.legs.size());
+    CHECK(nav.plan().approachId == before.approachId);
+    m.close();
+
+    // KEEP ROUTE: the enroute legs stay and end at the new destination.
+    openPlanScreen(m);
+    newDestinationSearch(m, "KBBB");
+    tap(m, &MenuInput::up);  // KEEP ROUTE
+    tap(m, &MenuInput::accept);
+    REQUIRE(m.top() == ScreenId::Approach);
+    r = tap(m, &MenuInput::back);  // B on the offer = NOT NOW
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message == "NEW DEST KBBB, ROUTE KEPT");
+    CHECK(r.message2 == kUndoHint);
+    CHECK(nav.plan().destIdent == "KBBB");
+    CHECK(nav.plan().legs.size() > 2);
+    m.close();
+
+    // A new flight never offers the last flight's undo (its sim clock starts again).
+    {
+        REQUIRE(nav.applyEdit(
+            changeDestination(nav.plan(), db, "KBBB", "", false, flightEditContext(m)),
+            mf.f.sim.aircraft().simTimeS));
+        REQUIRE(nav.undoAvailable(mf.f.sim.aircraft().simTimeS));
+        mf.startFlying();
+        CHECK_FALSE(nav.undoAvailable(mf.f.sim.aircraft().simTimeS));
+        openPlanScreen(m);
+        tap(m, &MenuInput::up);
+        r = tap(m, &MenuInput::accept);
+        CHECK(r.message.find("UNDONE") == std::string::npos);
+        CHECK(nav.plan().destIdent == "XTST");
+        m.close();
+        newDestinationSearch(m, "KBBB");  // back to the state the next check expects
+        tap(m, &MenuInput::up);
+        tap(m, &MenuInput::accept);
+        tap(m, &MenuInput::back);
+        m.close();
+    }
+
+    // Outside the window there is no UNDO row and nothing to undo.
+    mf.f.run(Navigator::kUndoWindowS + 1.0);
+    CHECK_FALSE(nav.undoAvailable(mf.f.sim.aircraft().simTimeS));
+    openPlanScreen(m);
+    tap(m, &MenuInput::up);
+    r = tap(m, &MenuInput::accept);
+    CHECK(r.message.find("UNDONE") == std::string::npos);
+    CHECK(nav.plan().destIdent == "KBBB");
+    CHECK(undoPlanEdit(nav, mf.f.sim.aircraft().simTimeS) == "NOTHING TO UNDO");
+}
+
+TEST_CASE("ui: N11b Direct-To with NAV engaged: off the plan, another airport, new destination") {
+    test::FakeNavDb db;
+    MenuFixture mf("n11b_nav", &db);
+    MenuSystem& m = *mf.menu;
+    REQUIRE(mf.f.initText("[scenario]\naircraft = c172p\nairport = XTST\nrunway = 27\n"
+                          "start = cruise\naltitude_ft = 5000\n"
+                          "plan = assets/plans/XTST-pattern.fms\n"
+                          "[autopilot]\nengage = ap nav alt\nalt_bug_ft = 5000\n"));
+    mf.f.run(0.5);
+    m.setFlight(
+        {&mf.f.sim.navigator(), &mf.f.sim.aircraft(), &mf.f.sim.profile(), &mf.f.sim.scenario()});
+    Navigator& nav = mf.f.sim.navigator();
+    const AutopilotState& ap = mf.f.sim.autopilot().state();
+    REQUIRE(ap.apEngaged);
+    REQUIRE(ap.latActive == LatMode::Nav);
+
+    // A fix off the plan (rule 2): DIRECT TO X, THEN Y; NAV stays engaged and flies it.
+    const Waypoint x{"OFFPL", WaypointKind::Fix, 40.08, -99.85};
+    MenuResult r = runInMenu(m, [x](MenuSystem& mm) { directToInFlight(mm, x); });
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message.rfind("DIRECT TO OFFPL, THEN ", 0) == 0);
+    CHECK(r.message2.empty());
+    m.close();
+    CHECK(nav.plan().legs[static_cast<size_t>(nav.plan().activeLeg)].to.ident == "OFFPL");
+    mf.f.run(5.0);
+    CHECK(ap.latActive == LatMode::Nav);
+
+    // NEW DESTINATION with CLEAR ROUTE: NAV stays engaged.
+    openPlanScreen(m);
+    newDestinationSearch(m, "KBBB");
+    tap(m, &MenuInput::accept);      // CLEAR ROUTE
+    r = tap(m, &MenuInput::accept);  // NOT NOW
+    CHECK(r.message == "NEW DEST KBBB, ROUTE CLEARED");
+    m.close();
+    mf.f.run(5.0);
+    CHECK(ap.latActive == LatMode::Nav);
+    CHECK(mf.f.sim.navState().activeLegIndex == 1);
+
+    // Direct-To another airport through the search screen (rule 4): its approaches are offered;
+    // NOT NOW flies on direct, NAV still engaged.
+    std::string err;
+    REQUIRE(m.openCanned("directto:KAAA", err));
+    m.update(MenuInput{});  // runs the search screen's Direct-To
+    CHECK(m.top() == ScreenId::Approach);
+    CHECK(nav.plan().destIdent == "KAAA");
+    r = tap(m, &MenuInput::accept);  // NOT NOW
+    CHECK(r.action == MenuAction::ResumeFlight);
+    CHECK(r.message == "DIRECT TO KAAA, ROUTE REPLACED");
+    CHECK(r.message2 == kUndoHint);
+    m.close();
+    mf.f.run(5.0);
+    CHECK(ap.latActive == LatMode::Nav);
+    CHECK(nav.plan().legs.back().to.ident == "KAAA");
+}
+
+TEST_CASE("ui: N11b setup: a new destination with a plan loaded asks KEEP / CLEAR") {
+    test::FakeNavDb db;
+    MenuFixture mf("n11b_setup", &db);
+    MenuSystem& m = *mf.menu;
+    FlightSetup& s = m.setup();
+    REQUIRE(s.setAirport(db, "KAAA"));
+    std::string err;
+    REQUIRE(s.makeQuickPlan(db, "KOTX", "05", 5500.0f, err));
+    REQUIRE(m.openCanned("plan:none", err));  // the setup FLIGHT PLAN screen over this setup
+    REQUIRE(m.top() == ScreenId::Plan);
+    m.push(makeRunwayScreen(RunwayMode::QuickPlanDest, "KBBB", m));
+    m.update(MenuInput{});
+    REQUIRE(m.top() == ScreenId::Runway);
+    tap(m, &MenuInput::accept);  // runway 16
+    REQUIRE(m.top() == ScreenId::Confirm);
+    tap(m, &MenuInput::back);  // cancel: back to the runway list, the plan as it was
+    CHECK(m.top() == ScreenId::Runway);
+    CHECK(s.plan.destIdent == "KOTX");
+    tap(m, &MenuInput::accept);
+    tap(m, &MenuInput::up);  // KEEP ROUTE
+    tap(m, &MenuInput::accept);
+    CHECK(m.top() == ScreenId::Plan);
+    CHECK(s.plan.destIdent == "KBBB");
+    CHECK(s.plan.arrRunway == "16");
+    CHECK(s.planFile.ades == "KBBB");
+    CHECK(s.planKind == PlanKind::Quick);
 }
 
 TEST_CASE("ui: in-flight approach change and removal") {

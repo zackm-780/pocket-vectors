@@ -61,7 +61,8 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::A, Action::ApToggle));
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::L3, Action::GoAround));  // N7
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::Start, Action::FlcMode));
-    CHECK(hasPadBinding(c, PadLayer::L2, PadInput::L3, Action::ViewToggle));  // V1
+    CHECK(hasPadBinding(c, PadLayer::R1, PadInput::Start, Action::PlanUndo));  // N11b
+    CHECK(hasPadBinding(c, PadLayer::L2, PadInput::L3, Action::ViewToggle));   // V1
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::B, Action::AtToggle));
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::X, Action::HdgMode));
     CHECK(hasPadBinding(c, PadLayer::L1, PadInput::Y, Action::NavMode));
@@ -116,6 +117,7 @@ TEST_CASE("input: default ini parses without warnings and matches CONTROLS.md") 
     CHECK(hasKeyBinding(c, 0, SDLK_9, 0, Action::AltBugDec));
     CHECK(hasKeyBinding(c, 0, SDLK_0, 0, Action::AltBugInc));
     CHECK(hasKeyBinding(c, 0, SDLK_q, kModCtrl, Action::Quit));
+    CHECK(hasKeyBinding(c, 0, SDLK_z, kModCtrl, Action::PlanUndo));  // N11b
     CHECK(c.keyLookModifier == SDLK_v);
 
     // Repeat set: the bug buttons

@@ -385,9 +385,10 @@ public:
     }
 
     void draw(Renderer2D& r, const UiTheme& t, const MenuSystem& m) const override {
-        const char* title = mode_ == SearchMode::StartAirport      ? "AIRPORT"
-                            : mode_ == SearchMode::PlanDestination ? "DESTINATION"
-                                                                   : "DIRECT TO";
+        const char* title = mode_ == SearchMode::StartAirport     ? "AIRPORT"
+                            : mode_ == SearchMode::NewDestination ? "NEW DESTINATION"
+                            : mode_ == SearchMode::DirectTo       ? "DIRECT TO"
+                                                                  : "DESTINATION";
         const char* sub = mode_ == SearchMode::DirectTo ? "TYPE A WAYPOINT, NAVAID OR AIRPORT IDENT"
                                                         : "TYPE AN IDENT, IATA CODE OR NAME";
         drawScreenFrame(r, t, title, sub,
@@ -473,31 +474,11 @@ private:
             m.replaceTop(makeRunwayScreen(RunwayMode::QuickPlanDest, h.ident, m));
             break;
         case SearchMode::DirectTo: directTo(h, m); break;
+        case SearchMode::NewDestination: newDestinationInFlight(m, h.ident); break;  // N11b
         }
     }
 
-    static void directTo(const SearchHit& h, MenuSystem& m) {
-        const FlightContext& f = m.flight();
-        if (!f.navigator || !f.aircraft) return;
-        Navigator& nav = *f.navigator;
-        const LatLon present{f.aircraft->latDeg, f.aircraft->lonDeg};
-        bool ok = false;
-        bool inPlan = false;
-        for (size_t i = 1; i < nav.plan().legs.size(); ++i)
-            if (nav.plan().legs[i].to.ident == h.ident) inPlan = true;
-        if (inPlan) {
-            ok = nav.directToIdent(h.ident);  // keeps the rest of the plan
-        } else {
-            FlightPlan plan = nav.plan();
-            directToWaypoint(plan, h.wp, present);
-            nav.setPlan(std::move(plan));
-            ok = true;
-        }
-        MenuResult res;
-        res.action = MenuAction::ResumeFlight;
-        res.message = ok ? "DIRECT TO " + h.ident : "DIRECT TO FAILED";
-        m.post(std::move(res));
-    }
+    static void directTo(const SearchHit& h, MenuSystem& m) { directToInFlight(m, h.wp); }
 
     SearchMode mode_;
     OnScreenKeyboard kb_;
@@ -505,6 +486,34 @@ private:
     std::vector<SearchHit> hits_;
     ListNav nav_;
 };
+
+}  // namespace
+
+// N11b: NAVIGATION 2.4 rules 1-4 (PlanEdit::directTo); Direct-To another airport (rule 4) offers
+// its approaches next.
+void directToInFlight(MenuSystem& m, const Waypoint& target) {
+    const FlightContext& f = m.flight();
+    if (!f.navigator || !f.aircraft) return;
+    Navigator& nav = *f.navigator;
+    const std::string oldDest = nav.hasPlan() ? nav.plan().destIdent : std::string();
+    const PlanEditResult edit = fsim::directTo(nav.plan(), target, flightEditContext(m));
+    MenuResult res;
+    if (!applyFlightEdit(m, edit, res)) {
+        m.push(makeConfirmScreen(edit.message, nullptr));
+        return;
+    }
+    const bool otherAirport = target.kind == WaypointKind::Airport &&
+                              std::string_view(edit.undoLabel) == "ROUTE REPLACED" &&
+                              upperStr(target.ident) != upperStr(oldDest);
+    if (otherAirport) {
+        m.replaceTop(makeApproachOfferScreen(m, std::move(res)));
+        return;
+    }
+    res.action = MenuAction::ResumeFlight;
+    m.post(std::move(res));
+}
+
+namespace {
 
 // ---- runway -----------------------------------------------------------------------------------------------
 
@@ -527,7 +536,7 @@ public:
         FlightSetup& s = m.setup();
         switch (mode_) {
         case RunwayMode::Start:
-            s.setRunway(rwy);
+            s.setRunway(m.nav(), m.env().navDir, rwy);  // N11b: a plan keeps its route
             m.pop();
             break;
         case RunwayMode::PlanDest:
@@ -536,11 +545,23 @@ public:
             break;
         case RunwayMode::QuickPlanDest: {
             const AircraftEntry* ac = m.aircraftEntry(s.aircraftId);
-            std::string err;
-            if (s.makeQuickPlan(m.nav(), airportIdent_, rwy, ac ? ac->cruiseAltFt : 0.0f, err))
-                m.popTo(ScreenId::Plan);
+            const float cruiseFt = ac ? ac->cruiseAltFt : 0.0f;
+            const std::string dest = airportIdent_;
+            // N11b: with a plan loaded, rule 5: KEEP ROUTE or CLEAR ROUTE (a new quick plan).
+            auto make = [dest, rwy, cruiseFt](MenuSystem& mm, bool keepRoute) {
+                FlightSetup& fs = mm.setup();
+                std::string err;
+                const bool ok = keepRoute ? fs.keepRouteToNewDestination(mm.nav(), dest, rwy, err)
+                                          : fs.makeQuickPlan(mm.nav(), dest, rwy, cruiseFt, err);
+                if (ok)
+                    mm.popTo(ScreenId::Plan);
+                else
+                    mm.push(makeConfirmScreen(upperStr(err), nullptr));
+            };
+            if (s.hasPlan() && s.plan.legs.size() > 1)
+                m.push(makeRouteChoiceScreen(dest, make));
             else
-                m.push(makeConfirmScreen(upperStr(err), nullptr));
+                make(m, false);
             break;
         }
         }
